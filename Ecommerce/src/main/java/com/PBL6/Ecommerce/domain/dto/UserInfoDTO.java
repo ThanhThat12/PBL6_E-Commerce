@@ -3,14 +3,14 @@ package com.PBL6.Ecommerce.domain.dto;
 public class UserInfoDTO {
     private Long id;
     private String email;
-    private String Username;
+    private String username;
     private String role;
 
     
     public UserInfoDTO(Long id, String email, String username, String role) {
         this.id = id;
         this.email = email;
-        Username = username;
+        this.username = username;
         this.role = role;
     }
     public Long getId() {
@@ -26,10 +26,10 @@ public class UserInfoDTO {
         this.email = email;
     }
     public String getUserName() {
-        return Username;
+        return username;
     }
     public void setUserName(String userName) {
-        this.Username = userName;
+        this.username = userName;
     }
     public String getRole() {
         return role;

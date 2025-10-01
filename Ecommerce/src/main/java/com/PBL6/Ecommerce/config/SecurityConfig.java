@@ -12,12 +12,14 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
 
-@Bean
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/register/*", "/api/forgot-password/**", "/api/authenticate", "/api/authenticate/**").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/api/register/*", "/api/forgot-password/**", "/api/authenticate", "/api/authenticate/**", "/api/products/**").permitAll()
+                .requestMatchers("/api/categories/addCategory").hasRole("ADMIN") 
+                .requestMatchers("/api/categories/**").permitAll() 
+                .anyRequest().authenticated() 
             )
             .oauth2ResourceServer(oauth2 -> oauth2.jwt());
         return http.build();
