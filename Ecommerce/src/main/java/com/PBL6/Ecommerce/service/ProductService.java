@@ -8,6 +8,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
@@ -20,7 +22,6 @@ public class ProductService {
     public Page<ProductDTO> getAllProducts(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Product> products = productRepository.findAll(pageable);
-
         return products.map(this::mapToDTO);
     }
 
@@ -32,6 +33,10 @@ public class ProductService {
     public Page<ProductDTO> getProductsByShop(Long shopId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return productRepository.findByShopId(shopId, pageable).map(this::mapToDTO);
+    }
+
+    public List<ProductDTO> getAllProductsNoPaging() {
+        return productRepository.findAll().stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 
     private ProductDTO mapToDTO(Product product) {
