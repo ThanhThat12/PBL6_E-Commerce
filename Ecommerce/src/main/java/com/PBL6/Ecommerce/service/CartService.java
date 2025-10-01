@@ -1,4 +1,5 @@
 package com.PBL6.Ecommerce.service;
+
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.Verification;
 import com.PBL6.Ecommerce.domain.Role;
@@ -12,16 +13,11 @@ import com.PBL6.Ecommerce.repository.CartRepository;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.domain.Product;
+
 import com.PBL6.Ecommerce.domain.Cart;
 import com.PBL6.Ecommerce.domain.CartItem;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.Random;
 @Service
 public class CartService {
     private final CartRepository cartRepository;
@@ -89,4 +85,6 @@ public class CartService {
         cartItemRepository.delete(item);
         return cart;
     }
+
+    // Đã xoá code liên quan đến CartDTO, CartItemDTO
 }
