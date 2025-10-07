@@ -14,9 +14,18 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
+        http.cors() // Enable CORS support
+            .and()
+            .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/register/*", "/api/forgot-password/**", "/api/authenticate", "/api/authenticate/**", "/api/products/**", "/api/carts", "/api/carts/").permitAll()
+                .requestMatchers(
+                    "/api/auth/login",
+                    "/api/register/*",
+                    "/api/forgot-password/**",
+                    "/api/authenticate",
+                    "/api/authenticate/**",
+                    "/api/products/**"
+                ).permitAll()
                 .requestMatchers("/api/categories/addCategory").hasRole("ADMIN") 
                 .requestMatchers("/api/categories/**").permitAll() 
                 .anyRequest().authenticated() 
