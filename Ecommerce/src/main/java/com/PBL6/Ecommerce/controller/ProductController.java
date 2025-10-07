@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import com.PBL6.Ecommerce.service.ProductService;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductDTO;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
@@ -47,5 +48,11 @@ public class ProductController {
 
         Page<ProductDTO> result = productService.getProductsByShop(shopId, page, size);
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Success", result));
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<ProductDTO>> getAllProductsNoPaging() {
+        List<ProductDTO> products = productService.getAllProductsNoPaging();
+        return ResponseEntity.ok(products);
     }
 }
