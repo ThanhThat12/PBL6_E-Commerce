@@ -29,18 +29,8 @@ public class AuthController {
     @PostMapping("/authenticate")
     public ResponseEntity<ResponseDTO<Map<String, Object>>> login(@RequestBody LoginDTO loginDTO) {
         String token = authService.authenticate(loginDTO);
-        // Lấy user info
-        com.PBL6.Ecommerce.domain.User user = userRepository.findOneByUsername(loginDTO.getUsername().toLowerCase()).orElse(null);
         Map<String, Object> data = new HashMap<>();
         data.put("token", token);
-        if (user != null) {
-            data.put("user", Map.of(
-                "id", user.getId(),
-                "username", user.getUsername(),
-                "email", user.getEmail(),
-                "role", user.getRole().name()
-            ));
-        }
         ResponseDTO<Map<String, Object>> response = new ResponseDTO<>(200, null, "Login successful", data);
         return ResponseEntity.ok(response);
     }
