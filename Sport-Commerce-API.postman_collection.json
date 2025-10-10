@@ -1,0 +1,179 @@
+{
+  "info": {
+    "name": "Sport Commerce - Registration API",
+    "description": "API collection for testing user registration with OTP verification",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Request OTP - Buyer",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"buyer@example.com\",\n  \"role\": \"BUYER\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/register/request-otp",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "auth", "register", "request-otp"]
+        },
+        "description": "Request OTP for BUYER registration. Only email and role are required."
+      }
+    },
+    {
+      "name": "2. Request OTP - Seller",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"seller@example.com\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"+84912345678\",\n  \"shopName\": \"MyShop\",\n  \"shopAddress\": \"123 Street, City, Country\",\n  \"taxId\": \"TAX123456\",\n  \"role\": \"SELLER\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/register/request-otp",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "auth", "register", "request-otp"]
+        },
+        "description": "Request OTP for SELLER registration. Requires all seller details."
+      }
+    },
+    {
+      "name": "3. Verify OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"buyer@example.com\",\n  \"otpCode\": \"123456\",\n  \"password\": \"SecurePass123!\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/register/verify-otp",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "auth", "register", "verify-otp"]
+        },
+        "description": "Verify OTP and complete registration. Returns JWT access token."
+      }
+    },
+    {
+      "name": "4. Resend OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"buyer@example.com\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/register/resend-otp",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "auth", "register", "resend-otp"]
+        },
+        "description": "Resend OTP. Must wait 60 seconds after previous request."
+      }
+    },
+    {
+      "name": "Error Cases",
+      "item": [
+        {
+          "name": "Invalid Email Format",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"invalid-email\",\n  \"role\": \"BUYER\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/register/request-otp",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "register", "request-otp"]
+            }
+          }
+        },
+        {
+          "name": "Weak Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"buyer@example.com\",\n  \"otpCode\": \"123456\",\n  \"password\": \"weak\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/register/verify-otp",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "register", "verify-otp"]
+            }
+          }
+        },
+        {
+          "name": "Invalid OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"buyer@example.com\",\n  \"otpCode\": \"000000\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/register/verify-otp",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "register", "verify-otp"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

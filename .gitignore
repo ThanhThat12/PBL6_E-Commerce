@@ -1,0 +1,95 @@
+
+# Project docs (optional)
+HELP.md
+
+# Build output
+target/
+build/
+out/
+
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# Eclipse / STS
+.classpath
+.factorypath
+.project
+.settings/
+.apt_generated
+.springBeans
+.sts4-cache
+
+# IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Compiled class files
+*.class
+
+# Application config and secrets (do NOT commit secrets)
+# If you need to commit defaults, keep templates like application.yml.template
+application*.yml
+application*.properties
+.env
+.env.*
+
+# Keystores and keys
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.h2.db
+
+# Coverage and reports
+.nyc_output/
+coverage/
+site/
+
+# Node / frontend artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE-specific folders (additional)
+.idea/
+.vscode/
+/.idea_modules/
+
+# Other
+*.swp
+*.swo
+
+# Keep packaging and source folders tracked even if they contain build dirs
+!**/src/main/**/target/
+!**/src/test/**/target/
