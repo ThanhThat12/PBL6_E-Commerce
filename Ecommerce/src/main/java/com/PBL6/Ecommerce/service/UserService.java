@@ -13,6 +13,7 @@ import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
 import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
 import com.PBL6.Ecommerce.domain.dto.ListSellerUserDTO;
 import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
+import com.PBL6.Ecommerce.domain.dto.UserListDTO;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.repository.VerificationRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.List;
@@ -184,6 +186,18 @@ public class UserService {
         return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name());
     }
 
+    public List<UserListDTO> getAllUsers() {
+        List<User> users = userRepository.getAllUsers();
+        return users.stream()
+                .map(user -> new UserListDTO(
+                    user.getId(),
+                    user.isActivated(),
+                    user.getEmail(),
+                    user.getUsername()
+                ))
+                .collect(Collectors.toList());
+    }
+}
 
     public List<UserInfoDTO> getUsersByRole(String roleName) {
         Role role;
