@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -38,15 +39,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // Tìm theo tên (có thể tìm kiếm một phần)
     Page<Product> findByNameContainingIgnoreCase(String name, Pageable pageable);
     
-    // Tìm theo category
-    Page<Product> findByCategoryId(Long categoryId, Pageable pageable);
-    
-    // Tìm theo category (không phân trang)
-    List<Product> findByCategoryId(Long categoryId);
-    
-    // Tìm theo shop
-    Page<Product> findByShopId(Long shopId, Pageable pageable);
-    
     // Tìm theo shop (không phân trang)
     List<Product> findByShopId(Long shopId);
     
@@ -74,9 +66,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                                         @Param("minPrice") BigDecimal minPrice,
                                         @Param("maxPrice") BigDecimal maxPrice,
                                         Pageable pageable);
-    
-    // Đếm số sản phẩm theo category
-    long countByCategoryId(Long categoryId);
     
     // Đếm số sản phẩm theo shop
     long countByShopId(Long shopId);
