@@ -3,7 +3,6 @@ package com.PBL6.Ecommerce.service;
 import com.PBL6.Ecommerce.repository.CategoryRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
-import com.PBL6.Ecommerce.domain.dto.AttributeDTO;
 import com.PBL6.Ecommerce.domain.Category;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

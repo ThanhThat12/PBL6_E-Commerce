@@ -23,3 +23,9 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
     @Query("DELETE FROM Shop s WHERE s.owner.id = :userId")
     void deleteByUserId(@Param("userId") Long userId);
 }
+    Optional<Shop> findByOwnerId(Long ownerId);
+    Optional<Shop> findByOwner(User owner); // Thêm method này
+    boolean existsByOwner(User owner); // Thêm method này
+    boolean existsByName(String name);
+    Optional<Shop> findByName(String name);
+}
