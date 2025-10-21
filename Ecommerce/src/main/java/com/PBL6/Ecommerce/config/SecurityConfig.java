@@ -43,6 +43,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/categories/addCategory").hasRole("ADMIN")
                 .requestMatchers("/api/categories/**").permitAll()
                 
+                // Cart endpoints - require authentication
+                .requestMatchers("/api/cart/**").authenticated()
+                
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )

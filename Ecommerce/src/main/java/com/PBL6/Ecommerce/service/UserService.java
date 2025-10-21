@@ -295,6 +295,7 @@ public class UserService {
                     user.getId(),
                     user.getEmail(),
                     user.getUsername(),
+                    user.getPhoneNumber(),
                     user.getRole().name()
                 ))
                 .collect(Collectors.toList());
@@ -486,6 +487,7 @@ public class UserService {
         user.getId(),
         user.getEmail(),
         user.getUsername(),
+        user.getPhoneNumber(),
         user.getRole().name()
     );
     }
@@ -510,6 +512,7 @@ public class UserService {
             user.getId(),
             user.getEmail(),
             user.getUsername(),
+            user.getPhoneNumber(),
             user.getRole().name()
         );
     }

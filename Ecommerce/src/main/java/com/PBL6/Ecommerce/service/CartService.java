@@ -1,31 +1,28 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.repository.CartRepository;
-import com.PBL6.Ecommerce.repository.CartItemRepository;
-import com.PBL6.Ecommerce.repository.ProductRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Product;
-import com.PBL6.Ecommerce.domain.Cart;
-import com.PBL6.Ecommerce.domain.CartItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.PBL6.Ecommerce.domain.Cart;
+import com.PBL6.Ecommerce.domain.CartItem;
+import com.PBL6.Ecommerce.domain.ProductVariant;
+import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.repository.CartItemRepository;
+import com.PBL6.Ecommerce.repository.CartRepository;
+import com.PBL6.Ecommerce.repository.ProductVariantRepository;
 
 @Service
 public class CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
-    private final ProductRepository productRepository;
-    private final UserRepository userRepository;
+    private final ProductVariantRepository productVariantRepository;
 
     public CartService(CartRepository cartRepository,
                        CartItemRepository cartItemRepository,
-                       ProductRepository productRepository,
-                       UserRepository userRepository) {
+                       ProductVariantRepository productVariantRepository) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
-        this.productRepository = productRepository;
-        this.userRepository = userRepository;
+        this.productVariantRepository = productVariantRepository;
     }
 
     /**
@@ -41,29 +38,29 @@ public class CartService {
     }
 
     /**
-     * Thêm sản phẩm vào giỏ hàng
+     * Thêm product variant vào giỏ hàng
      */
     @Transactional
-    public Cart addToCart(User user, Long productId, int quantity) {
+    public Cart addToCart(User user, Long productVariantId, int quantity) {
         if (quantity <= 0) {
             throw new RuntimeException("Số lượng phải lớn hơn 0");
         }
 
         Cart cart = getCart(user);
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
+        ProductVariant productVariant = productVariantRepository.findById(productVariantId)
+                .orElseThrow(() -> new RuntimeException("Product variant không tồn tại"));
 
         // Kiểm tra tồn kho
-        if (product.getStock() < quantity) {
-            throw new RuntimeException("Sản phẩm không đủ tồn kho");
+        if (productVariant.getStock() < quantity) {
+            throw new RuntimeException("Sản phẩm không đủ tồn kho. Tồn kho hiện tại: " + productVariant.getStock());
         }
 
         // Tìm hoặc tạo mới cart item
-        CartItem cartItem = cartItemRepository.findByCartAndProduct(cart, product)
+        CartItem cartItem = cartItemRepository.findByCartAndProductVariant(cart, productVariant)
                 .orElseGet(() -> {
                     CartItem item = new CartItem();
                     item.setCart(cart);
-                    item.setProduct(product);
+                    item.setProductVariant(productVariant);
                     item.setQuantity(0);
                     return item;
                 });
@@ -72,8 +69,8 @@ public class CartService {
         int newQuantity = cartItem.getQuantity() + quantity;
         
         // Kiểm tra lại tồn kho với số lượng mới
-        if (product.getStock() < newQuantity) {
-            throw new RuntimeException("Số lượng vượt quá tồn kho. Tồn kho hiện tại: " + product.getStock());
+        if (productVariant.getStock() < newQuantity) {
+            throw new RuntimeException("Số lượng vượt quá tồn kho. Tồn kho hiện tại: " + productVariant.getStock());
         }
 
         cartItem.setQuantity(newQuantity);
@@ -83,24 +80,24 @@ public class CartService {
     }
 
     /**
-     * Cập nhật số lượng sản phẩm trong giỏ hàng
+     * Cập nhật số lượng product variant trong giỏ hàng
      */
     @Transactional
-    public Cart updateQuantity(User user, Long productId, int quantity) {
+    public Cart updateQuantity(User user, Long productVariantId, int quantity) {
         if (quantity <= 0) {
             throw new RuntimeException("Số lượng phải lớn hơn 0");
         }
 
         Cart cart = getCart(user);
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
+        ProductVariant productVariant = productVariantRepository.findById(productVariantId)
+                .orElseThrow(() -> new RuntimeException("Product variant không tồn tại"));
 
-        CartItem item = cartItemRepository.findByCartAndProduct(cart, product)
+        CartItem item = cartItemRepository.findByCartAndProductVariant(cart, productVariant)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không có trong giỏ hàng"));
 
         // Kiểm tra tồn kho
-        if (product.getStock() < quantity) {
-            throw new RuntimeException("Số lượng vượt quá tồn kho. Tồn kho hiện tại: " + product.getStock());
+        if (productVariant.getStock() < quantity) {
+            throw new RuntimeException("Số lượng vượt quá tồn kho. Tồn kho hiện tại: " + productVariant.getStock());
         }
 
         item.setQuantity(quantity);
@@ -110,15 +107,15 @@ public class CartService {
     }
 
     /**
-     * Xóa sản phẩm khỏi giỏ hàng
+     * Xóa product variant khỏi giỏ hàng
      */
     @Transactional
-    public Cart removeFromCart(User user, Long productId) {
+    public Cart removeFromCart(User user, Long productVariantId) {
         Cart cart = getCart(user);
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
+        ProductVariant productVariant = productVariantRepository.findById(productVariantId)
+                .orElseThrow(() -> new RuntimeException("Product variant không tồn tại"));
 
-        CartItem item = cartItemRepository.findByCartAndProduct(cart, product)
+        CartItem item = cartItemRepository.findByCartAndProductVariant(cart, productVariant)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không có trong giỏ hàng"));
 
         cartItemRepository.delete(item);

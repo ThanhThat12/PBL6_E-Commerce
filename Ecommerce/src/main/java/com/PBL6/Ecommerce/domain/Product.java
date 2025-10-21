@@ -134,4 +134,6 @@ public class Product {
     public void setProductImages(List<ProductImage> productImages) {
         this.productImages = productImages;
     }
+
+
 }
