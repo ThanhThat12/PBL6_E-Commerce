@@ -16,13 +16,25 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
+import com.PBL6.Ecommerce.repository.ShopRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
+import java.time.LocalDateTime;
 
 @Service
-@Transactional
 public class ShopService {
     
-    private final ShopRepository shopRepository;
-    private final UserRepository userRepository;
+    @Autowired
+    private ShopRepository shopRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
+
     private final OrderRepository orderRepository;
 
     public ShopService(ShopRepository shopRepository, UserRepository userRepository, OrderRepository orderRepository) {
@@ -30,6 +42,7 @@ public class ShopService {
         this.userRepository = userRepository;
         this.orderRepository = orderRepository;
     }
+
 
     /**
      * Lấy thông tin shop của seller
@@ -180,26 +193,6 @@ public class ShopService {
         // Tạo DTO kết quả
         return new ShopAnalyticsDTO(totalRevenue, totalCompletedOrders, fullYearData);
     }
-}
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
-import com.PBL6.Ecommerce.repository.ShopRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
-import java.time.LocalDateTime;
-
-@Service
-public class ShopService {
-    
-    @Autowired
-    private ShopRepository shopRepository;
-    
-    @Autowired
-    private UserRepository userRepository;
-    
     @Transactional
     public Shop registerShop(Long userId, ShopRegistrationDTO shopRegistrationDTO) {
         // Tìm user theo ID

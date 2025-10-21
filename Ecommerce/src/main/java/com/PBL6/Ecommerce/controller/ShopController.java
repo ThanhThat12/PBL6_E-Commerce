@@ -10,13 +10,25 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
+import com.PBL6.Ecommerce.service.ShopService;
+import com.PBL6.Ecommerce.service.UserService;
 
 @RestController
-@RequestMapping("/api/seller")
+@RequestMapping("/api")
 public class ShopController {
     
-    private final ShopService shopService;
-
+    @Autowired
+    private ShopService shopService;
+     @Autowired
+    private UserService userService;
     public ShopController(ShopService shopService) {
         this.shopService = shopService;
     }
@@ -27,7 +39,7 @@ public class ShopController {
      * Tự động lấy shop theo seller đang đăng nhập
      * Chỉ SELLER mới có quyền truy cập
      */
-    @GetMapping("/shop")
+    @GetMapping("/seller/shop")
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ResponseDTO<ShopDTO>> getShop() {
         try {
@@ -66,7 +78,7 @@ public class ShopController {
      * Cập nhật: name, address, description, status
      * Chỉ SELLER mới có quyền và chỉ cập nhật được shop của mình
      */
-    @PutMapping("/shop")
+    @PutMapping("/seller/shop")
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ResponseDTO<ShopDTO>> updateShop(@RequestBody UpdateShopDTO updateShopDTO) {
         try {
@@ -110,7 +122,7 @@ public class ShopController {
      * @param year - Năm cần thống kê (optional, mặc định là năm hiện tại)
      * @return ShopAnalyticsDTO - Tổng doanh thu, số đơn hàng, doanh thu theo tháng
      */
-    @GetMapping("/shop/analytics")
+    @GetMapping("/seller/shop/analytics")
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ResponseDTO<ShopAnalyticsDTO>> getShopAnalytics(
             @RequestParam(required = false) Integer year) {
@@ -143,28 +155,7 @@ public class ShopController {
             );
         }
     }
-}
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
-import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
-import com.PBL6.Ecommerce.service.ShopService;
-import com.PBL6.Ecommerce.service.UserService;
-
-@RestController
-@RequestMapping("/api/shops")
-public class ShopController {
-    
-    @Autowired
-    private ShopService shopService;
-     @Autowired
-    private UserService userService;
-    
-    @PostMapping("/register")
+    @PostMapping("/shops/register")
 public ResponseEntity<ResponseDTO<Shop>> registerShop(
         @Valid @RequestBody ShopRegistrationDTO shopRegistrationDTO) {
     try {
@@ -190,7 +181,7 @@ public ResponseEntity<ResponseDTO<Shop>> registerShop(
     }
 }
     
-    @GetMapping("/user/{userId}")
+    @GetMapping("/shops/user/{userId}")
     public ResponseEntity<ResponseDTO<Shop>> getShopByUserId(@PathVariable Long userId) {
         try {
             Shop shop = shopService.getShopByUserId(userId);
@@ -222,7 +213,7 @@ public ResponseEntity<ResponseDTO<Shop>> registerShop(
         }
     }
     
-    @GetMapping("/check/{userId}")
+    @GetMapping("/shops/check/{userId}")
     public ResponseEntity<ResponseDTO<Boolean>> checkUserHasShop(@PathVariable Long userId) {
         try {
             boolean hasShop = shopService.hasShop(userId);

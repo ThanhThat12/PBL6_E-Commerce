@@ -197,7 +197,6 @@ public class UserService {
                 ))
                 .collect(Collectors.toList());
     }
-}
 
     public List<UserInfoDTO> getUsersByRole(String roleName) {
         Role role;
