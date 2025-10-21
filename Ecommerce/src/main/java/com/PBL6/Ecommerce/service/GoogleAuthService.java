@@ -1,19 +1,21 @@
 package com.PBL6.Ecommerce.service;
 
+import java.util.Collections;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.PBL6.Ecommerce.domain.Role;
 import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.dto.GoogleLoginDTO;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.util.TokenProvider;
-import com.PBL6.Ecommerce.domain.dto.GoogleLoginDTO;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import com.PBL6.Ecommerce.domain.Role;
-import java.util.Collections;
-import java.util.Optional;
 
 @Service
 public class GoogleAuthService {
@@ -70,5 +72,24 @@ public class GoogleAuthService {
         String token = tokenProvider.createToken(user.getUsername(), user.getRole().name());
 
         return token;
+    }
+    
+    /**
+     * Extract email from Google ID token
+     * @param idTokenString Google ID token string
+     * @return email address from token
+     */
+    public String getEmailFromToken(String idTokenString) throws Exception {
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                new NetHttpTransport(), new GsonFactory())
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
+
+        GoogleIdToken idToken = verifier.verify(idTokenString);
+        if (idToken == null) {
+            throw new RuntimeException("Invalid Google token");
+        }
+
+        return idToken.getPayload().getEmail();
     }
 }

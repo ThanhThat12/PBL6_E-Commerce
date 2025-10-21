@@ -1,35 +1,38 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Verification;
-import com.PBL6.Ecommerce.domain.Role;
-import com.PBL6.Ecommerce.domain.Cart;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.dto.ListAdminUserDTO;
-import com.PBL6.Ecommerce.domain.dto.AdminUserDetailDTO;
-import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
-import com.PBL6.Ecommerce.domain.dto.ListCustomerUserDTO;
-import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
-import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
-import com.PBL6.Ecommerce.domain.dto.ListSellerUserDTO;
-import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
-import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.repository.VerificationRepository;
-import com.PBL6.Ecommerce.repository.CartRepository;
-import com.PBL6.Ecommerce.repository.CartItemRepository;
-import com.PBL6.Ecommerce.repository.ShopRepository;
-import com.PBL6.Ecommerce.repository.ProductRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.Random;
-import java.util.List;
-import java.util.stream.Collectors;
+import com.PBL6.Ecommerce.domain.Cart;
+import com.PBL6.Ecommerce.domain.Role;
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.Verification;
+import com.PBL6.Ecommerce.domain.dto.AdminUserDetailDTO;
+import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
+import com.PBL6.Ecommerce.domain.dto.ListAdminUserDTO;
+import com.PBL6.Ecommerce.domain.dto.ListCustomerUserDTO;
+import com.PBL6.Ecommerce.domain.dto.ListSellerUserDTO;
+import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
+import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
+import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
+import com.PBL6.Ecommerce.repository.CartItemRepository;
+import com.PBL6.Ecommerce.repository.CartRepository;
+import com.PBL6.Ecommerce.repository.ProductRepository;
+import com.PBL6.Ecommerce.repository.ShopRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.repository.VerificationRepository;
 
 @Service
 public class UserService {
@@ -38,6 +41,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final SmsService smsService;
+    private final LoginAttemptService loginAttemptService;
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ShopRepository shopRepository;
@@ -48,6 +52,7 @@ public class UserService {
                        PasswordEncoder passwordEncoder,
                        EmailService emailService,
                        SmsService smsService,
+                       LoginAttemptService loginAttemptService,
                        CartRepository cartRepository,
                        CartItemRepository cartItemRepository,
                        ShopRepository shopRepository,
@@ -57,14 +62,39 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.smsService = smsService;
+        this.loginAttemptService = loginAttemptService;
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.shopRepository = shopRepository;
         this.productRepository = productRepository;
     }
 
+    // Locks per contact to avoid concurrent verification insertions
+    private final ConcurrentMap<String, Object> contactLocks = new ConcurrentHashMap<>();
+
     public String checkContact(CheckContactDTO dto) {
         String contact = dto.getContact();
+
+        // Check if contact is rate-limited for OTP resend
+        if (!loginAttemptService.isOtpResendAllowed(contact)) {
+            throw new RuntimeException("Bạn đã gửi OTP quá nhiều lần. Vui lòng thử lại sau 15 phút.");
+        }
+
+        // Time-based cooldown: prevent quick consecutive resends (60 seconds)
+        Optional<Verification> lastOpt = verificationRepository.findTopByContactOrderByCreatedAtDesc(contact);
+        if (lastOpt.isPresent()) {
+            Verification last = lastOpt.get();
+            // Prefer explicit lastResendTime if present, otherwise fallback to createdAt (backwards compatibility)
+            java.time.LocalDateTime ref = last.getLastResendTime() != null ? last.getLastResendTime() : last.getCreatedAt();
+            // If we can't determine a reliable timestamp, deny resend to be safe and avoid creating duplicate rows
+            if (ref == null) {
+                throw new RuntimeException("Vui lòng đợi 60 giây trước khi yêu cầu mã OTP mới.");
+            }
+            long secondsSince = java.time.Duration.between(ref, LocalDateTime.now()).getSeconds();
+            if (secondsSince < 60) {
+                throw new RuntimeException("Vui lòng đợi " + (60 - secondsSince) + " giây trước khi yêu cầu mã OTP mới.");
+            }
+        }
 
         // 1. Kiểm tra tồn tại
         if (contact.contains("@")) {
@@ -77,17 +107,42 @@ public class UserService {
             }
         }
 
-        // 2. Sinh OTP
+
+        // 2. Sinh OTP and save inside a per-contact synchronized block to avoid duplicate DB inserts
         String otp = String.format("%06d", new Random().nextInt(999999));
 
-        Verification verification = new Verification(
-                contact,
-                otp,
-                LocalDateTime.now().plusMinutes(5),
-                false,
-                LocalDateTime.now()
-        );
-        verificationRepository.save(verification);
+        Object lock = contactLocks.computeIfAbsent(contact, k -> new Object());
+        synchronized (lock) {
+            // Re-check latest verification inside lock to avoid race condition
+            Optional<Verification> latest = verificationRepository.findTopByContactOrderByCreatedAtDesc(contact);
+            if (latest.isPresent()) {
+                Verification l = latest.get();
+                java.time.LocalDateTime ref = l.getLastResendTime() != null ? l.getLastResendTime() : l.getCreatedAt();
+                if (ref == null) {
+                    throw new RuntimeException("Vui lòng đợi 60 giây trước khi yêu cầu mã OTP mới.");
+                }
+                long secondsSince = java.time.Duration.between(ref, LocalDateTime.now()).getSeconds();
+                if (secondsSince < 60) {
+                    throw new RuntimeException("Vui lòng đợi " + (60 - secondsSince) + " giây trước khi yêu cầu mã OTP mới.");
+                }
+            }
+
+            Verification verification = new Verification(
+                    contact,
+                    otp,
+                    LocalDateTime.now().plusMinutes(5),
+                    false,
+                    LocalDateTime.now()
+            );
+            verification.setFailedAttempts(0);
+            verification.setUsed(false);
+            verification.setLocked(false);
+            verification.setLastResendTime(LocalDateTime.now()); // set cooldown timestamp
+            verificationRepository.save(verification);
+
+            // Record OTP resend attempt for rate limiting
+            loginAttemptService.recordOtpResendAttempt(contact);
+        }
 
         // 3. Gửi OTP
         if (contact.contains("@")) {
@@ -100,23 +155,64 @@ public class UserService {
     }
 
     public String verifyOtp(VerifyOtpDTO dto) {
+        String contact = dto.getContact();
+        
+        // Check if OTP verification is rate-limited (Prompt 2)
+        if (!loginAttemptService.isOtpVerifyAllowed(contact)) {
+            throw new RuntimeException("Bạn đã xác thực OTP quá nhiều lần. Vui lòng thử lại sau 15 phút.");
+        }
+        
         Optional<Verification> verificationOpt =
-                verificationRepository.findTopByContactOrderByCreatedAtDesc(dto.getContact());
+                verificationRepository.findTopByContactOrderByCreatedAtDesc(contact);
 
         if (verificationOpt.isEmpty()) {
             throw new RuntimeException("Không tìm thấy OTP");
         }
 
         Verification verification = verificationOpt.get();
-        if (!verification.getOtp().equals(dto.getOtp())) {
-            throw new RuntimeException("OTP không đúng");
+        
+        // Prompt 3: Check if OTP is locked due to too many failed attempts
+        if (verification.isLocked()) {
+            throw new RuntimeException("OTP này đã bị khóa do nhiều lần xác thực thất bại. Vui lòng yêu cầu OTP mới.");
         }
+        
+        // Prompt 3: Check if OTP is already used
+        if (verification.isUsed()) {
+            throw new RuntimeException("OTP này đã được sử dụng rồi. Vui lòng yêu cầu OTP mới.");
+        }
+        
+        // Check OTP value
+        if (!verification.getOtp().equals(dto.getOtp())) {
+            // Prompt 3: Increment failed attempts
+            verification.setFailedAttempts(verification.getFailedAttempts() + 1);
+            
+            // Prompt 3: Lock OTP after 3 failed attempts
+            if (verification.getFailedAttempts() >= 3) {
+                verification.setLocked(true);
+                verificationRepository.save(verification);
+                loginAttemptService.recordOtpVerifyAttempt(contact);
+                throw new RuntimeException("OTP không đúng. OTP đã bị khóa do 3 lần xác thực thất bại. Vui lòng yêu cầu OTP mới.");
+            }
+            
+            verificationRepository.save(verification);
+            loginAttemptService.recordOtpVerifyAttempt(contact);
+            int remainingAttempts = 3 - verification.getFailedAttempts();
+            throw new RuntimeException("OTP không đúng. Bạn còn " + remainingAttempts + " lần thử.");
+        }
+        
+        // Check OTP expiry
         if (verification.getExpiryTime().isBefore(LocalDateTime.now())) {
             throw new RuntimeException("OTP đã hết hạn");
         }
 
+        // Prompt 3: Mark OTP as used after successful verification
         verification.setVerified(true);
+        verification.setUsed(true);
+        verification.setFailedAttempts(0); // Reset failed attempts on success
         verificationRepository.save(verification);
+        
+        // Reset rate limiting for this contact after successful verification
+        loginAttemptService.resetContactAttempts(contact);
 
         return "Xác thực thành công";
     }
@@ -181,7 +277,7 @@ public class UserService {
         }
         User user = userOpt.orElseThrow(() -> new RuntimeException("User not found"));
 
-        return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name());
+        return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getPhoneNumber(), user.getRole().name());
     }
 
 

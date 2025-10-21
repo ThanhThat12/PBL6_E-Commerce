@@ -1,18 +1,21 @@
 package com.PBL6.Ecommerce.controller;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
 import com.PBL6.Ecommerce.domain.dto.AdminUserDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
-import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
 import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateUserRoleDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateUserStatusDTO;
 import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
+import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
+import com.PBL6.Ecommerce.service.LoginAttemptService;
 import com.PBL6.Ecommerce.service.UserService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 
@@ -20,45 +23,81 @@ import java.util.List;
 @RequestMapping("/api")
 public class UserController {
     private final UserService userService;
+    private final LoginAttemptService loginAttemptService; // Prompt 2: Rate limiting
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, LoginAttemptService loginAttemptService) {
         this.userService = userService;
+        this.loginAttemptService = loginAttemptService;
     }
+    
     @PostMapping("/register/check-contact")
-    public ResponseEntity<ResponseDTO<String>> checkContact(@RequestBody CheckContactDTO dto) {
+    public ResponseEntity<ResponseDTO<String>> checkContact(@RequestBody CheckContactDTO dto, HttpServletRequest request) {
         try {
+            // Prompt 2: Check global rate limiting
+            String clientIp = getClientIp(request);
+            if (!loginAttemptService.isGlobalRequestAllowed(clientIp)) {
+                ResponseDTO<String> response = new ResponseDTO<>(429, "Too Many Requests", "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 1 phút.", null);
+                return ResponseEntity.status(429).body(response);
+            }
+            loginAttemptService.recordGlobalAttempt(clientIp);
+            
             String result = userService.checkContact(dto);
             ResponseDTO<String> response = new ResponseDTO<>(200, null, "Thành công", result);
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("quá nhiều lần") || e.getMessage().contains("khóa")) {
+                ResponseDTO<String> response = new ResponseDTO<>(429, "Too Many Requests", e.getMessage(), null);
+                return ResponseEntity.status(429).body(response);
+            }
             ResponseDTO<String> response = new ResponseDTO<>(400, e.getMessage(), "Thất bại", null);
             return ResponseEntity.badRequest().body(response);
         }
     }
 
     @PostMapping("/register/verify-otp")
-    public ResponseEntity<ResponseDTO<String>> verifyOtp(@RequestBody VerifyOtpDTO dto) {
+    public ResponseEntity<ResponseDTO<String>> verifyOtp(@RequestBody VerifyOtpDTO dto, HttpServletRequest request) {
         try {
+            // Prompt 2: Check global rate limiting
+            String clientIp = getClientIp(request);
+            if (!loginAttemptService.isGlobalRequestAllowed(clientIp)) {
+                ResponseDTO<String> response = new ResponseDTO<>(429, "Too Many Requests", "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 1 phút.", null);
+                return ResponseEntity.status(429).body(response);
+            }
+            loginAttemptService.recordGlobalAttempt(clientIp);
+            
             String result = userService.verifyOtp(dto);
             ResponseDTO<String> response = new ResponseDTO<>(200, null, "Thành công", result);
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("quá nhiều lần") || e.getMessage().contains("khóa")) {
+                ResponseDTO<String> response = new ResponseDTO<>(429, "Too Many Requests", e.getMessage(), null);
+                return ResponseEntity.status(429).body(response);
+            }
             ResponseDTO<String> response = new ResponseDTO<>(400, e.getMessage(), "Thất bại", null);
             return ResponseEntity.badRequest().body(response);
         }
     }
 
     @PostMapping("/register/register")
-    public ResponseEntity<ResponseDTO<String>> register(@RequestBody RegisterDTO dto) {
+    public ResponseEntity<ResponseDTO<String>> register(@RequestBody RegisterDTO dto, HttpServletRequest request) {
         try {
+            // Prompt 2: Check global rate limiting
+            String clientIp = getClientIp(request);
+            if (!loginAttemptService.isGlobalRequestAllowed(clientIp)) {
+                ResponseDTO<String> response = new ResponseDTO<>(429, "Too Many Requests", "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 1 phút.", null);
+                return ResponseEntity.status(429).body(response);
+            }
+            loginAttemptService.recordGlobalAttempt(clientIp);
+            
             String result = userService.register(dto);
             ResponseDTO<String> response = new ResponseDTO<>(200, null, "Thành công", result);
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             ResponseDTO<String> response = new ResponseDTO<>(400, e.getMessage(), "Thất bại", null);
             return ResponseEntity.badRequest().body(response);
         }
     }
+    
     @GetMapping("/user/me")
     public ResponseEntity<ResponseDTO<UserInfoDTO>> getCurrentUser() {
         try {
@@ -70,8 +109,6 @@ public class UserController {
             );
         }
     }
-
-
 
     // Admin APIs - Chỉ admin mới có thể truy cập
     @GetMapping("/admin/users/admin")
@@ -173,5 +210,19 @@ public class UserController {
             );
         }
     }
+    
+    /**
+     * Extract client IP address from request, handling proxies
+     */
+    private String getClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty()) {
+            return xRealIp;
+        }
+        return request.getRemoteAddr();
+    }
 }
-
