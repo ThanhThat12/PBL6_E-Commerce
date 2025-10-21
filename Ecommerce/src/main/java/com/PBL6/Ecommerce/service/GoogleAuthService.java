@@ -48,8 +48,9 @@ public class GoogleAuthService {
 
         GoogleIdToken.Payload payload = idToken.getPayload();
         String email = payload.getEmail();
-        String name = (String) payload.get("name");
-        String picture = (String) payload.get("picture");
+        String name = (String) payload.get("name");  // Thay vì "username"
+        String givenName = (String) payload.get("given_name");
+        String familyName = (String) payload.get("family_name");
 
         Optional<User> userOpt = userRepository.findOneByEmail(email);
         User user;

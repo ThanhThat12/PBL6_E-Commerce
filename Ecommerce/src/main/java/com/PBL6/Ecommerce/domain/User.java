@@ -29,6 +29,10 @@ public class User {
 
     @Column(length = 100, unique = true)
     private String facebookId;
+
+    // Thêm quan hệ với Shop
+    @OneToOne(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Shop shop;
     
 public void setActivated(boolean activated) {
     this.activated = activated;
@@ -80,5 +84,7 @@ public String getPhoneNumber() {
 public void setPhoneNumber(String phoneNumber) {
     this.phoneNumber = phoneNumber;
 }
+public Shop getShop() { return shop; }
+public void setShop(Shop shop) { this.shop = shop; }
 
 }

@@ -150,9 +150,9 @@ public class UserService {
 
         String principal = authentication.getName();
 
-        Optional<User> userOpt = userRepository.findOneByEmail(principal);
+        Optional<User> userOpt = userRepository.findOneByUsername(principal);
         if (userOpt.isEmpty()) {
-            userOpt = userRepository.findOneByUsername(principal);
+            userOpt = userRepository.findOneByEmail(principal);
         }
         User user = userOpt.orElseThrow(() -> new RuntimeException("User not found"));
 

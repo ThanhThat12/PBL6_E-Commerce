@@ -3,6 +3,9 @@ package com.PBL6.Ecommerce.domain.dto;
 public class AttributeDTO {
     private Long id;
     private String name;
+
+    public AttributeDTO() {
+    }
     public AttributeDTO(Long id, String name) {
         this.id = id;
         this.name = name;
