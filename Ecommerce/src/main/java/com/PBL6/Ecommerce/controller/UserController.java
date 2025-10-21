@@ -5,9 +5,12 @@ import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
 import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
+import com.PBL6.Ecommerce.domain.dto.UserListDTO;
 import com.PBL6.Ecommerce.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api")
@@ -57,6 +60,18 @@ public class UserController {
         try {
             UserInfoDTO userInfo = userService.getCurrentUser();
             return ResponseEntity.ok(new ResponseDTO<>(200, null, "Lấy thông tin thành công", userInfo));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(
+                new ResponseDTO<>(400, e.getMessage(), "Thất bại", null)
+            );
+        }
+    }
+
+    @GetMapping("/users")
+    public ResponseEntity<ResponseDTO<List<UserListDTO>>> getAllUsers() {
+        try {
+            List<UserListDTO> users = userService.getAllUsers();
+            return ResponseEntity.ok(new ResponseDTO<>(200, null, "Lấy danh sách user thành công", users));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(
                 new ResponseDTO<>(400, e.getMessage(), "Thất bại", null)

@@ -7,6 +7,7 @@ import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
 import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
 import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
+import com.PBL6.Ecommerce.domain.dto.UserListDTO;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.repository.VerificationRepository;
 import org.springframework.security.core.Authentication;
@@ -15,8 +16,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -157,5 +160,17 @@ public class UserService {
         User user = userOpt.orElseThrow(() -> new RuntimeException("User not found"));
 
         return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name());
+    }
+
+    public List<UserListDTO> getAllUsers() {
+        List<User> users = userRepository.getAllUsers();
+        return users.stream()
+                .map(user -> new UserListDTO(
+                    user.getId(),
+                    user.isActivated(),
+                    user.getEmail(),
+                    user.getUsername()
+                ))
+                .collect(Collectors.toList());
     }
 }

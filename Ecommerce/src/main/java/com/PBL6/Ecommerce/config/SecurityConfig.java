@@ -16,7 +16,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/register/*", "/api/forgot-password/**", "/api/authenticate", "/api/authenticate/**", "/api/products/**").permitAll()
+                .requestMatchers("/api/register/*", "/api/forgot-password/**", "/api/authenticate", "/api/authenticate/**", "/api/products/**", "/api/users").permitAll()
                 .requestMatchers("/api/categories/addCategory").hasRole("ADMIN") 
                 .requestMatchers("/api/categories/**").permitAll() 
                 .anyRequest().authenticated() 
