@@ -44,13 +44,4 @@ public class CategoryController {
         }
     }
 
-    @GetMapping("/{id}/attributes")
-    public ResponseEntity<ResponseDTO<?>> getAttributes(@PathVariable Long id) {
-        try {
-            var data = categoryService.getAttributesByCategory(id);
-            return ResponseEntity.ok(new ResponseDTO<>(200, null, "Lấy thuộc tính thành công", data));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new ResponseDTO<>(400, e.getMessage(), "Thất bại", null));
-        }
-    }
 }
