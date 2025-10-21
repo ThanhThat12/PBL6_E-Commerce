@@ -1,27 +1,16 @@
 package com.PBL6.Ecommerce.service;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Verification;
-import com.PBL6.Ecommerce.domain.Role;
-import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
-import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
-import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
-import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
-import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.repository.VerificationRepository;
+
 import com.PBL6.Ecommerce.repository.CartRepository;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.Product;
 import com.PBL6.Ecommerce.domain.Cart;
 import com.PBL6.Ecommerce.domain.CartItem;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.Random;
 @Service
 public class CartService {
     private final CartRepository cartRepository;
@@ -39,8 +28,11 @@ public class CartService {
         this.userRepository = userRepository;
     }
 
+    /**
+     * Lấy hoặc tạo cart mới cho user
+     */
     public Cart getCart(User user) {
-        return cartRepository.findByUser(user)
+        return cartRepository.findByUserId(user.getId())
                 .orElseGet(() -> {
                     Cart newCart = new Cart();
                     newCart.setUser(user);
@@ -48,11 +40,25 @@ public class CartService {
                 });
     }
 
+    /**
+     * Thêm sản phẩm vào giỏ hàng
+     */
+    @Transactional
     public Cart addToCart(User user, Long productId, int quantity) {
+        if (quantity <= 0) {
+            throw new RuntimeException("Số lượng phải lớn hơn 0");
+        }
+
         Cart cart = getCart(user);
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
 
+        // Kiểm tra tồn kho
+        if (product.getStock() < quantity) {
+            throw new RuntimeException("Sản phẩm không đủ tồn kho");
+        }
+
+        // Tìm hoặc tạo mới cart item
         CartItem cartItem = cartItemRepository.findByCartAndProduct(cart, product)
                 .orElseGet(() -> {
                     CartItem item = new CartItem();
@@ -62,31 +68,84 @@ public class CartService {
                     return item;
                 });
 
-        cartItem.setQuantity(cartItem.getQuantity() + quantity);
+        // Cập nhật số lượng
+        int newQuantity = cartItem.getQuantity() + quantity;
+        
+        // Kiểm tra lại tồn kho với số lượng mới
+        if (product.getStock() < newQuantity) {
+            throw new RuntimeException("Số lượng vượt quá tồn kho. Tồn kho hiện tại: " + product.getStock());
+        }
+
+        cartItem.setQuantity(newQuantity);
         cartItemRepository.save(cartItem);
+        
         return cart;
     }
 
+    /**
+     * Cập nhật số lượng sản phẩm trong giỏ hàng
+     */
+    @Transactional
     public Cart updateQuantity(User user, Long productId, int quantity) {
+        if (quantity <= 0) {
+            throw new RuntimeException("Số lượng phải lớn hơn 0");
+        }
+
         Cart cart = getCart(user);
-        CartItem item = cartItemRepository.findByCartAndProduct(cart,
-                        productRepository.findById(productId)
-                                .orElseThrow(() -> new RuntimeException("Product not found")))
-                .orElseThrow(() -> new RuntimeException("Item not in cart"));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
+
+        CartItem item = cartItemRepository.findByCartAndProduct(cart, product)
+                .orElseThrow(() -> new RuntimeException("Sản phẩm không có trong giỏ hàng"));
+
+        // Kiểm tra tồn kho
+        if (product.getStock() < quantity) {
+            throw new RuntimeException("Số lượng vượt quá tồn kho. Tồn kho hiện tại: " + product.getStock());
+        }
 
         item.setQuantity(quantity);
         cartItemRepository.save(item);
+        
         return cart;
     }
 
+    /**
+     * Xóa sản phẩm khỏi giỏ hàng
+     */
+    @Transactional
     public Cart removeFromCart(User user, Long productId) {
         Cart cart = getCart(user);
-        CartItem item = cartItemRepository.findByCartAndProduct(cart,
-                        productRepository.findById(productId)
-                                .orElseThrow(() -> new RuntimeException("Product not found")))
-                .orElseThrow(() -> new RuntimeException("Item not in cart"));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
+
+        CartItem item = cartItemRepository.findByCartAndProduct(cart, product)
+                .orElseThrow(() -> new RuntimeException("Sản phẩm không có trong giỏ hàng"));
 
         cartItemRepository.delete(item);
+        
         return cart;
+    }
+
+    /**
+     * Xóa toàn bộ giỏ hàng
+     */
+    @Transactional
+    public void clearCart(User user) {
+        Cart cart = getCart(user);
+        cartItemRepository.deleteByCartId(cart.getId());
+    }
+
+    /**
+     * Lấy tổng số sản phẩm trong giỏ hàng
+     */
+    public int getCartItemCount(User user) {
+        Cart cart = cartRepository.findByUserId(user.getId()).orElse(null);
+        if (cart == null) {
+            return 0;
+        }
+        return cartItemRepository.findByCartId(cart.getId())
+                .stream()
+                .mapToInt(CartItem::getQuantity)
+                .sum();
     }
 }

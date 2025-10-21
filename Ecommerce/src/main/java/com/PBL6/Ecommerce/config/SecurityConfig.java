@@ -14,14 +14,34 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
+        http
+            .cors(cors -> cors.and()) // Modern syntax
+            .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/register/*", "/api/forgot-password/**", "/api/authenticate", "/api/authenticate/**", "/api/products/**", "/api/users").permitAll()
-                .requestMatchers("/api/categories/addCategory").hasRole("ADMIN") 
-                .requestMatchers("/api/categories/**").permitAll() 
+                // Public endpoints - most specific first
+                .requestMatchers(
+                    "/api/auth/login",
+                    "/api/register/**",
+                    "/api/forgot-password/**",
+                    "/api/authenticate",
+                    "/api/authenticate/**"
+                ).permitAll()
+                
+                // Product endpoints - specific to general
+                .requestMatchers("/api/products/search").permitAll()
+                .requestMatchers("/api/products/{id}").permitAll()
+                .requestMatchers("/api/products/category/**").permitAll()
+                .requestMatchers("/api/products").hasAnyRole("ADMIN", "SELLER")
+                
+                // Category endpoints
+                .requestMatchers("/api/categories/addCategory").hasRole("ADMIN")
+                .requestMatchers("/api/categories/**").permitAll()
+                
+                // All other requests require authentication
                 .anyRequest().authenticated() 
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt());
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(jwtDecoder())));
+        
         return http.build();
     }
     @Bean
