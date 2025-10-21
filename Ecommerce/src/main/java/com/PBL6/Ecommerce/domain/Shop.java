@@ -40,7 +40,10 @@ public class Shop {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private ShopStatus status = ShopStatus.ACTIVE;
+    private ShopStatus status = ShopStatus.PENDING;
+
+    @Column(nullable = false)
+    private boolean verified = false;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -49,10 +52,20 @@ public class Shop {
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Product> products;
 
-    // Enum trạng thái shop
+    // Enum trạng thái shop (admin workflow)
     public enum ShopStatus {
-        ACTIVE,
-        INACTIVE
+        PENDING,
+        APPROVED,
+        REJECTED,
+        SUSPENDED
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
     }
 
     public Long getId() {

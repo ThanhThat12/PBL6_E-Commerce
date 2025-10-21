@@ -9,6 +9,7 @@ import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.util.TokenProvider;
 @Service
+
 public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;

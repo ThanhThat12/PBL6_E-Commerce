@@ -19,19 +19,17 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
-    private final com.PBL6.Ecommerce.repository.UserRepository userRepository;
 
-    public AuthController(AuthService authService, com.PBL6.Ecommerce.repository.UserRepository userRepository) {
+    public AuthController(AuthService authService) {
         this.authService = authService;
-        this.userRepository = userRepository;
     }
 
     @PostMapping("/authenticate")
-    public ResponseEntity<ResponseDTO<Map<String, Object>>> login(@RequestBody LoginDTO loginDTO) {
-        String token = authService.authenticate(loginDTO);
-        Map<String, Object> data = new HashMap<>();
-        data.put("token", token);
-        ResponseDTO<Map<String, Object>> response = new ResponseDTO<>(200, null, "Login successful", data);
-        return ResponseEntity.ok(response);
-    }
+public ResponseEntity<ResponseDTO<Map<String, Object>>> login(@RequestBody LoginDTO loginDTO) {
+    String token = authService.authenticate(loginDTO);
+    Map<String, Object> data = new HashMap<>();
+    data.put("token", token);
+    ResponseDTO<Map<String, Object>> response = new ResponseDTO<>(200, null, "Login successful", data);
+    return ResponseEntity.ok(response);
+}
 }

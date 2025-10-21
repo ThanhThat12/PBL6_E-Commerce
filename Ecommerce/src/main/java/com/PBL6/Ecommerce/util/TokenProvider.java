@@ -18,7 +18,7 @@ public class TokenProvider {
     public String createToken(String username, String role) {
         return Jwts.builder()
                 .setSubject(username)
-                .claim("authorities", role)
+                .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key, SignatureAlgorithm.HS256)
