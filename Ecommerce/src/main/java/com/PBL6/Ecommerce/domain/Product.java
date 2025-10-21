@@ -1,20 +1,20 @@
 package com.PBL6.Ecommerce.domain;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.EnumType;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 
 @Entity
 @Table(name = "products")
@@ -23,54 +23,43 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "shop_id")
-    private Shop shop;
-
-    @ManyToOne
-    @JoinColumn(name = "category_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
-    private String image;
+    // Thêm mapping đến Shop
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shop_id", nullable = false)
+    private Shop shop;
+
+    @Column(nullable = false, length = 255)
     private String name;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
-    private BigDecimal price;
-    private Integer stock;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "product_condition") 
-    private Condition condition;
+    @Column(name = "base_price", nullable = false, precision = 10, scale = 2)
+    private BigDecimal basePrice;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 
-    public enum Condition {
-        NEW, USED
-    }
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
+    @Column(name = "main_image", length = 500)
+    private String mainImage;
 
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductVariant> productVariants = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductImage> productImages = new ArrayList<>();
+
+    // Getters and Setters
     public Long getId() {
         return id;
     }
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public Shop getShop() {
-        return shop;
-    }
-
-    public void setShop(Shop shop) {
-        this.shop = shop;
     }
 
     public Category getCategory() {
@@ -81,12 +70,13 @@ public class Product {
         this.category = category;
     }
 
-    public String getImage() {
-        return image;
+    // Thêm getter/setter cho Shop
+    public Shop getShop() {
+        return shop;
     }
 
-    public void setImage(String image) {
-        this.image = image;
+    public void setShop(Shop shop) {
+        this.shop = shop;
     }
 
     public String getName() {
@@ -105,44 +95,45 @@ public class Product {
         this.description = description;
     }
 
-    public BigDecimal getPrice() {
-        return price;
+    public BigDecimal getBasePrice() {
+        return basePrice;
     }
 
-    public void setPrice(BigDecimal price) {
-        this.price = price;
+    public void setBasePrice(BigDecimal basePrice) {
+        this.basePrice = basePrice;
     }
 
-    public Integer getStock() {
-        return stock;
+    public Boolean getIsActive() {
+        return isActive;
     }
 
-    public void setStock(Integer stock) {
-        this.stock = stock;
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
     }
 
-    public Condition getCondition() {
-        return condition;
+    public String getMainImage() {
+        return mainImage;
     }
 
-    public void setCondition(Condition condition) {
-        this.condition = condition;
+    public void setMainImage(String mainImage) {
+        this.mainImage = mainImage;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public List<ProductVariant> getProductVariants() {
+        return productVariants;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    public void setProductVariants(List<ProductVariant> productVariants) {
+        this.productVariants = productVariants;
     }
 
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
+    public List<ProductImage> getProductImages() {
+        return productImages;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
+    public void setProductImages(List<ProductImage> productImages) {
+        this.productImages = productImages;
     }
-    
+
+
 }

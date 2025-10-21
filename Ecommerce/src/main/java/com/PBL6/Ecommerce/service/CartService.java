@@ -1,42 +1,35 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Verification;
-import com.PBL6.Ecommerce.domain.Role;
-import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
-import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
-import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
-import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
-import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.repository.VerificationRepository;
-import com.PBL6.Ecommerce.repository.CartRepository;
-import com.PBL6.Ecommerce.repository.CartItemRepository;
-import com.PBL6.Ecommerce.repository.ProductRepository;
-import com.PBL6.Ecommerce.domain.Product;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.domain.Cart;
 import com.PBL6.Ecommerce.domain.CartItem;
-import org.springframework.stereotype.Service;
+import com.PBL6.Ecommerce.domain.ProductVariant;
+import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.repository.CartItemRepository;
+import com.PBL6.Ecommerce.repository.CartRepository;
+import com.PBL6.Ecommerce.repository.ProductVariantRepository;
 
 @Service
 public class CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
-    private final ProductRepository productRepository;
-    private final UserRepository userRepository;
+    private final ProductVariantRepository productVariantRepository;
 
     public CartService(CartRepository cartRepository,
                        CartItemRepository cartItemRepository,
-                       ProductRepository productRepository,
-                       UserRepository userRepository) {
+                       ProductVariantRepository productVariantRepository) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
-        this.productRepository = productRepository;
-        this.userRepository = userRepository;
+        this.productVariantRepository = productVariantRepository;
     }
 
+    /**
+     * Lấy hoặc tạo cart mới cho user
+     */
     public Cart getCart(User user) {
-        return cartRepository.findByUser(user)
+        return cartRepository.findByUserId(user.getId())
                 .orElseGet(() -> {
                     Cart newCart = new Cart();
                     newCart.setUser(user);
@@ -44,47 +37,112 @@ public class CartService {
                 });
     }
 
-    public Cart addToCart(User user, Long productId, int quantity) {
-        Cart cart = getCart(user);
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+    /**
+     * Thêm product variant vào giỏ hàng
+     */
+    @Transactional
+    public Cart addToCart(User user, Long productVariantId, int quantity) {
+        if (quantity <= 0) {
+            throw new RuntimeException("Số lượng phải lớn hơn 0");
+        }
 
-        CartItem cartItem = cartItemRepository.findByCartAndProduct(cart, product)
+        Cart cart = getCart(user);
+        ProductVariant productVariant = productVariantRepository.findById(productVariantId)
+                .orElseThrow(() -> new RuntimeException("Product variant không tồn tại"));
+
+        // Kiểm tra tồn kho
+        if (productVariant.getStock() < quantity) {
+            throw new RuntimeException("Sản phẩm không đủ tồn kho. Tồn kho hiện tại: " + productVariant.getStock());
+        }
+
+        // Tìm hoặc tạo mới cart item
+        CartItem cartItem = cartItemRepository.findByCartAndProductVariant(cart, productVariant)
                 .orElseGet(() -> {
                     CartItem item = new CartItem();
                     item.setCart(cart);
-                    item.setProduct(product);
+                    item.setProductVariant(productVariant);
                     item.setQuantity(0);
                     return item;
                 });
 
-        cartItem.setQuantity(cartItem.getQuantity() + quantity);
+        // Cập nhật số lượng
+        int newQuantity = cartItem.getQuantity() + quantity;
+        
+        // Kiểm tra lại tồn kho với số lượng mới
+        if (productVariant.getStock() < newQuantity) {
+            throw new RuntimeException("Số lượng vượt quá tồn kho. Tồn kho hiện tại: " + productVariant.getStock());
+        }
+
+        cartItem.setQuantity(newQuantity);
         cartItemRepository.save(cartItem);
+        
         return cart;
     }
 
-    public Cart updateQuantity(User user, Long productId, int quantity) {
+    /**
+     * Cập nhật số lượng product variant trong giỏ hàng
+     */
+    @Transactional
+    public Cart updateQuantity(User user, Long productVariantId, int quantity) {
+        if (quantity <= 0) {
+            throw new RuntimeException("Số lượng phải lớn hơn 0");
+        }
+
         Cart cart = getCart(user);
-        CartItem item = cartItemRepository.findByCartAndProduct(cart,
-                        productRepository.findById(productId)
-                                .orElseThrow(() -> new RuntimeException("Product not found")))
-                .orElseThrow(() -> new RuntimeException("Item not in cart"));
+        ProductVariant productVariant = productVariantRepository.findById(productVariantId)
+                .orElseThrow(() -> new RuntimeException("Product variant không tồn tại"));
+
+        CartItem item = cartItemRepository.findByCartAndProductVariant(cart, productVariant)
+                .orElseThrow(() -> new RuntimeException("Sản phẩm không có trong giỏ hàng"));
+
+        // Kiểm tra tồn kho
+        if (productVariant.getStock() < quantity) {
+            throw new RuntimeException("Số lượng vượt quá tồn kho. Tồn kho hiện tại: " + productVariant.getStock());
+        }
 
         item.setQuantity(quantity);
         cartItemRepository.save(item);
+        
         return cart;
     }
 
-    public Cart removeFromCart(User user, Long productId) {
+    /**
+     * Xóa product variant khỏi giỏ hàng
+     */
+    @Transactional
+    public Cart removeFromCart(User user, Long productVariantId) {
         Cart cart = getCart(user);
-        CartItem item = cartItemRepository.findByCartAndProduct(cart,
-                        productRepository.findById(productId)
-                                .orElseThrow(() -> new RuntimeException("Product not found")))
-                .orElseThrow(() -> new RuntimeException("Item not in cart"));
+        ProductVariant productVariant = productVariantRepository.findById(productVariantId)
+                .orElseThrow(() -> new RuntimeException("Product variant không tồn tại"));
+
+        CartItem item = cartItemRepository.findByCartAndProductVariant(cart, productVariant)
+                .orElseThrow(() -> new RuntimeException("Sản phẩm không có trong giỏ hàng"));
 
         cartItemRepository.delete(item);
+        
         return cart;
     }
 
-    // Đã xoá code liên quan đến CartDTO, CartItemDTO
+    /**
+     * Xóa toàn bộ giỏ hàng
+     */
+    @Transactional
+    public void clearCart(User user) {
+        Cart cart = getCart(user);
+        cartItemRepository.deleteByCartId(cart.getId());
+    }
+
+    /**
+     * Lấy tổng số sản phẩm trong giỏ hàng
+     */
+    public int getCartItemCount(User user) {
+        Cart cart = cartRepository.findByUserId(user.getId()).orElse(null);
+        if (cart == null) {
+            return 0;
+        }
+        return cartItemRepository.findByCartId(cart.getId())
+                .stream()
+                .mapToInt(CartItem::getQuantity)
+                .sum();
+    }
 }
