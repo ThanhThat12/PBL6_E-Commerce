@@ -1,10 +1,6 @@
 package com.PBL6.Ecommerce.repository;
 
 import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -33,4 +29,3 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
     boolean existsByName(String name);
     Optional<Shop> findByName(String name);
 }
-

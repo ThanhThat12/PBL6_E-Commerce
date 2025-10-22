@@ -13,6 +13,7 @@ import com.PBL6.Ecommerce.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
@@ -72,6 +73,7 @@ public class UserController {
 
 
 
+
     // Admin APIs - Chỉ admin mới có thể truy cập
     @GetMapping("/admin/users/admin")
     @PreAuthorize("hasRole('ADMIN')")
@@ -79,12 +81,14 @@ public class UserController {
         try {
             List<UserInfoDTO> adminUsers = userService.getUsersByRole("ADMIN");
             return ResponseEntity.ok(new ResponseDTO<>(200, null, "Lấy danh sách admin thành công", adminUsers));
+
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(
                 new ResponseDTO<>(400, e.getMessage(), "Thất bại", null)
             );
         }
     }
+
 
     @GetMapping("/admin/users/sellers")
     @PreAuthorize("hasRole('ADMIN')")

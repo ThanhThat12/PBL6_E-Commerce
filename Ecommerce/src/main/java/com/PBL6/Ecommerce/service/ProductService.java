@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -75,11 +76,12 @@ public class ProductService {
         } 
         // Nếu là SELLER, chỉ có thể tạo sản phẩm cho shop của mình
         else if (isSeller(authentication)) {
-            shop = currentUser.getShop();
-            if (shop == null) {
+            // SỬA ĐÂY
+            Optional<Shop> shopOpt = shopRepository.findByOwnerId(currentUser.getId());
+            if (shopOpt.isEmpty()) {
                 throw new RuntimeException("Seller chưa có cửa hàng");
             }
-            // Ghi đè shopId từ request bằng shop của seller
+            shop = shopOpt.get();
             request.setShopId(shop.getId());
         } else {
             throw new RuntimeException("Không có quyền tạo sản phẩm");
@@ -115,24 +117,39 @@ public class ProductService {
     // Lấy tất cả sản phẩm cho quản lý (Admin xem tất cả, Seller xem của mình)
     @Transactional(readOnly = true)
     public Page<ProductDTO> getAllProductsForManagement(Pageable pageable, Authentication authentication) {
-        Page<Product> products;
+        User currentUser = getCurrentUser(authentication);
         
-        if (isAdmin(authentication)) {
-            // Admin xem tất cả sản phẩm
-            products = productRepository.findAll(pageable);
-        } else if (isSeller(authentication)) {
-            // Seller chỉ xem sản phẩm của shop mình
-            User currentUser = getCurrentUser(authentication);
-            Shop shop = currentUser.getShop();
-            if (shop == null) {
+        // DEBUG LOG
+        System.out.println("🔍 DEBUG - Current user: " + currentUser.getUsername() + ", Role: " + currentUser.getRole());
+        
+        if (currentUser.getRole() == Role.ADMIN) {
+            System.out.println("🔍 DEBUG - User is ADMIN, getting all products");
+            Page<Product> products = productRepository.findAll(pageable);
+            return products.map(this::convertToProductDTO);
+        } 
+        else if (currentUser.getRole() == Role.SELLER) {
+            System.out.println("🔍 DEBUG - User is SELLER, finding shop by owner_id...");
+            
+            // *** SỬA ĐÂY: Dùng shopRepository.findByOwnerId thay vì currentUser.getShop() ***
+            Optional<Shop> shopOpt = shopRepository.findByOwnerId(currentUser.getId());
+            
+            if (shopOpt.isEmpty()) {
+                System.out.println("❌ DEBUG - Seller chưa có shop với owner_id = " + currentUser.getId());
                 throw new RuntimeException("Seller chưa có cửa hàng");
             }
-            products = productRepository.findByShopId(shop.getId(), pageable);
-        } else {
+            
+            Shop shop = shopOpt.get();
+            System.out.println("✅ DEBUG - Shop found: " + shop.getName() + ", ID: " + shop.getId());
+            
+            Page<Product> products = productRepository.findByShopId(shop.getId(), pageable);
+            System.out.println("✅ DEBUG - Found " + products.getTotalElements() + " products for shop");
+            
+            return products.map(this::convertToProductDTO);
+        } 
+        else {
+            System.out.println("❌ DEBUG - User role không hợp lệ: " + currentUser.getRole());
             throw new RuntimeException("Không có quyền truy cập");
         }
-        
-        return products.map(this::convertToProductDTO);
     }
     
     // Lấy tất cả sản phẩm đang hoạt động (cho khách hàng)
@@ -213,11 +230,14 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Page<ProductDTO> getSellerProducts(Pageable pageable, Authentication authentication) {
         User currentUser = getCurrentUser(authentication);
-        Shop shop = currentUser.getShop();
-        if (shop == null) {
+        
+        // SỬA ĐÂY
+        Optional<Shop> shopOpt = shopRepository.findByOwnerId(currentUser.getId());
+        if (shopOpt.isEmpty()) {
             throw new RuntimeException("Seller chưa có cửa hàng");
         }
         
+        Shop shop = shopOpt.get();
         Page<Product> products = productRepository.findByShopId(shop.getId(), pageable);
         return products.map(this::convertToProductDTO);
     }
@@ -226,11 +246,14 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<ProductDTO> getSellerProductsList(Authentication authentication) {
         User currentUser = getCurrentUser(authentication);
-        Shop shop = currentUser.getShop();
-        if (shop == null) {
+        
+        // SỬA ĐÂY
+        Optional<Shop> shopOpt = shopRepository.findByOwnerId(currentUser.getId());
+        if (shopOpt.isEmpty()) {
             throw new RuntimeException("Seller chưa có cửa hàng");
         }
         
+        Shop shop = shopOpt.get();
         return productRepository.findByShopId(shop.getId())
                 .stream()
                 .map(this::convertToProductDTO)
@@ -282,23 +305,32 @@ public class ProductService {
             Product product = productRepository.findById(productId).orElse(null);
             if (product == null) return false;
             
-            User user = userRepository.findByEmail(username).orElse(null);
+            // SỬA: TÌM BẰNG USERNAME THAY VÌ EMAIL
+            User user = userRepository.findByUsername(username).orElse(null);
             if (user == null) return false;
             
-            // Kiểm tra nếu user có shop và shop đó sở hữu sản phẩm
-            if (user.getShop() == null) return false;
+            // SỬA ĐÂY: Dùng shopRepository.findByOwnerId
+            Optional<Shop> shopOpt = shopRepository.findByOwnerId(user.getId());
+            if (shopOpt.isEmpty()) return false;
             
-            return product.getShop().getId().equals(user.getShop().getId());
+            Shop userShop = shopOpt.get();
+            return product.getShop().getId().equals(userShop.getId());
         } catch (Exception e) {
+            System.out.println("❌ DEBUG - Error in isProductOwner: " + e.getMessage());
             return false;
         }
     }
     
     // Helper methods
     private User getCurrentUser(Authentication authentication) {
-        String email = authentication.getName();
-        return userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+        String username = authentication.getName();  // ← ĐÂY LÀ USERNAME
+        
+        // DEBUG LOG
+        System.out.println("🔍 DEBUG - Looking for user with username: " + username);
+        
+        // SỬA: TÌM BẰNG USERNAME THAY VÌ EMAIL
+        return userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
     }
     
     private boolean isAdmin(Authentication authentication) {
@@ -316,8 +348,15 @@ public class ProductService {
         
         if (isSeller(authentication)) {
             User currentUser = getCurrentUser(authentication);
-            Shop userShop = currentUser.getShop();
-            return userShop != null && product.getShop().getId().equals(userShop.getId());
+            
+            // SỬA ĐÂY
+            Optional<Shop> shopOpt = shopRepository.findByOwnerId(currentUser.getId());
+            if (shopOpt.isEmpty()) {
+                return false;
+            }
+            
+            Shop userShop = shopOpt.get();
+            return product.getShop().getId().equals(userShop.getId());
         }
         
         return false;
