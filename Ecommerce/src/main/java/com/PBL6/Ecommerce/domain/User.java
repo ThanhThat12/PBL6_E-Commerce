@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.domain;
 import jakarta.persistence.*;
+import java.util.List;
 
 
 @Entity
@@ -30,9 +31,19 @@ public class User {
     @Column(length = 100, unique = true)
     private String facebookId;
 
+    @Column(length = 100, unique = true)
+    private String googleId;
+
     // Thêm quan hệ với Shop
     @OneToOne(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Shop shop;
+
+     // Thêm quan hệ với Address (một user có nhiều địa chỉ)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Address> addresses;
+
+    public List<Address> getAddresses() { return addresses; }
+    public void setAddresses(List<Address> addresses) { this.addresses = addresses; }
     
 public void setActivated(boolean activated) {
     this.activated = activated;
@@ -77,6 +88,12 @@ public String getFacebookId() {
 }
 public void setFacebookId(String facebookId) {
     this.facebookId = facebookId;
+}
+public String getGoogleId() {
+    return googleId;
+}
+public void setGoogleId(String googleId) {
+    this.googleId = googleId;
 }
 public String getPhoneNumber() {
     return phoneNumber;

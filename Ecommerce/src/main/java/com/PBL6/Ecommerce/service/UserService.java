@@ -176,11 +176,24 @@ public class UserService {
         }
 
         String principal = authentication.getName();
+        Optional<User> userOpt = Optional.empty();
 
-        Optional<User> userOpt = userRepository.findOneByUsername(principal);
+        // Nếu principal là numeric -> tìm theo id (TokenProvider đặt sub = userId)
+        if (principal != null && principal.matches("^\\d+$")) {
+            try {
+                Long id = Long.parseLong(principal);
+                userOpt = userRepository.findById(id);
+            } catch (NumberFormatException ignored) { }
+        }
+
+        // Nếu chưa tìm theo id thì thử username -> email
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findOneByUsername(principal);
+        }
         if (userOpt.isEmpty()) {
             userOpt = userRepository.findOneByEmail(principal);
         }
+
         User user = userOpt.orElseThrow(() -> new RuntimeException("User not found"));
 
         return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name());

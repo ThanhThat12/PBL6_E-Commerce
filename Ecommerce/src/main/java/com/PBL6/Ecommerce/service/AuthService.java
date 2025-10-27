@@ -8,6 +8,7 @@ import com.PBL6.Ecommerce.domain.dto.LoginDTO;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.util.TokenProvider;
+import java.util.List;
 @Service
 public class AuthService {
     private final UserRepository userRepository;
@@ -35,8 +36,7 @@ public class AuthService {
             throw new RuntimeException("User not activated");
         }
 
-        String token = tokenProvider.createToken(user.getUsername(), user.getRole().name());
-
-         return token;
+        String token = tokenProvider.createToken(user.getId(), user.getUsername(), user.getEmail(), List.of(user.getRole().name()));
+        return token;
     }
 }
