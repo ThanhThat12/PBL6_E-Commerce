@@ -6,6 +6,7 @@ import com.PBL6.Ecommerce.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
@@ -92,7 +93,17 @@ public class ProductService {
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setBasePrice(request.getBasePrice());
-        product.setIsActive(request.getIsActive());
+        
+        // 🆕 PRODUCT APPROVAL SYSTEM:
+        if (isAdmin(authentication)) {
+            // Admin tạo sản phẩm → active ngay
+            product.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
+        } else {
+            // Seller tạo sản phẩm → chờ duyệt (is_active = 0)
+            product.setIsActive(false);
+            System.out.println("🔍 DEBUG - Seller tạo sản phẩm, is_active = false (chờ admin duyệt)");
+        }
+
         product.setMainImage(request.getMainImage());
         product.setCategory(category);
         product.setShop(shop);
@@ -113,6 +124,39 @@ public class ProductService {
         
         return convertToProductDTO(product);
     }
+
+     // 🆕 Admin duyệt/từ chối sản phẩm
+    @PreAuthorize("hasRole('ADMIN')")
+    public ProductDTO approveProduct(Long productId, Boolean approved) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + productId));
+        
+        product.setIsActive(approved);
+        product = productRepository.save(product);
+        
+        // TODO: Gửi notification cho seller về kết quả duyệt
+        // notificationService.notifyProductApproval(product.getShop().getOwner(), product, approved);
+        
+        System.out.println("🔍 DEBUG - Admin " + (approved ? "duyệt" : "từ chối") + " sản phẩm ID: " + productId);
+        
+        return convertToProductDTO(product);
+    }
+
+      // 🆕 Lấy danh sách sản phẩm chờ duyệt (chỉ admin)
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional(readOnly = true)
+    public Page<ProductDTO> getPendingProducts(Pageable pageable) {
+        Page<Product> pendingProducts = productRepository.findByIsActiveFalse(pageable);
+        return pendingProducts.map(this::convertToProductDTO);
+    }
+
+    // 🆕 Đếm số sản phẩm chờ duyệt
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional(readOnly = true)
+    public long countPendingProducts() {
+        return productRepository.countByIsActiveFalse();
+    }
+    
     
     // Lấy tất cả sản phẩm cho quản lý (Admin xem tất cả, Seller xem của mình)
     @Transactional(readOnly = true)
@@ -199,8 +243,11 @@ public class ProductService {
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setBasePrice(request.getBasePrice());
-        product.setIsActive(request.getIsActive());
         product.setMainImage(request.getMainImage());
+
+         if (isAdmin(authentication)) {
+            product.setIsActive(request.getIsActive());
+        }
         
         // Cập nhật category nếu thay đổi
         if (!product.getCategory().getId().equals(request.getCategoryId())) {
@@ -260,22 +307,18 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
     
-    // Thay đổi trạng thái sản phẩm
+     
+    // 🔧 SỬA: Chỉ admin mới được thay đổi trạng thái sản phẩm
+    @PreAuthorize("hasRole('ADMIN')")
     public ProductDTO toggleProductStatus(Long id, Authentication authentication) {
         Product product = productRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + id));
-        
-        // Kiểm tra quyền sở hữu
-        if (!canModifyProduct(product, authentication)) {
-            throw new RuntimeException("Không có quyền thay đổi trạng thái sản phẩm này");
-        }
         
         product.setIsActive(!product.getIsActive());
         product = productRepository.save(product);
         
         return convertToProductDTO(product);
     }
-    
     // Thêm sản phẩm đơn giản (cho admin hoặc không cần authentication)
     public ProductDTO addProduct(ProductCreateDTO dto) {
         // Kiểm tra category tồn tại
