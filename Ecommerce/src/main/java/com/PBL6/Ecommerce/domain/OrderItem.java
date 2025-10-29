@@ -1,12 +1,8 @@
 package com.PBL6.Ecommerce.domain;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.JoinColumn;
+
 import java.math.BigDecimal;
+import jakarta.persistence.*;
+
 @Entity
 @Table(name = "order_items")
 public class OrderItem {
@@ -14,55 +10,33 @@ public class OrderItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @Column(precision = 15, scale = 2)
+    private BigDecimal price;
+
+    private Integer quantity;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private Order order;
 
-    @ManyToOne
-    @JoinColumn(name = "product_id")
-    private Product product;
+    // trỏ tới variant (tên field 'variant' khớp với mapping ở ProductVariant)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "variant_id")
+    private ProductVariant variant;
 
-    private int quantity;
-    private BigDecimal price;
+    // getters / setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
 
-    public Order getOrder() {
-        return order;
-    }
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
 
-    public void setOrder(Order order) {
-        this.order = order;
-    }
-
-    public Product getProduct() {
-        return product;
-    }
-
-    public void setProduct(Product product) {
-        this.product = product;
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(int quantity) {
-        this.quantity = quantity;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-    public void setPrice(BigDecimal price) {
-        this.price = price;
-    }
+    public ProductVariant getVariant() { return variant; }
+    public void setVariant(ProductVariant variant) { this.variant = variant; }
 }

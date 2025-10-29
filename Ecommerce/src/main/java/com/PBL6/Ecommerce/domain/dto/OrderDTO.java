@@ -2,52 +2,73 @@ package com.PBL6.Ecommerce.domain.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 public class OrderDTO {
     private Long id;
-    private Long userId;
-    private String userName;
-    private Long shopId;
-    private String shopName;
+    private LocalDateTime createdAt;
+    private String method;
     private String status;
     private BigDecimal totalAmount;
-    private String method;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private List<OrderItemDTO> orderItems;
+    private Long userId;
 
-    // getters and setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    // Constructors
+    public OrderDTO() {}
 
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
+    public OrderDTO(Long id, LocalDateTime createdAt, String method, String status, BigDecimal totalAmount, Long userId) {
+        this.id = id;
+        this.createdAt = createdAt;
+        this.method = method;
+        this.status = status;
+        this.totalAmount = totalAmount;
+        this.userId = userId;
+    }
 
-    public String getUserName() { return userName; }
-    public void setUserName(String userName) { this.userName = userName; }
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
 
-    public Long getShopId() { return shopId; }
-    public void setShopId(Long shopId) { this.shopId = shopId; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getShopName() { return shopName; }
-    public void setShopName(String shopName) { this.shopName = shopName; }
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
 
-    public BigDecimal getTotalAmount() { return totalAmount; }
-    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public String getMethod() {
+        return method;
+    }
 
-    public String getMethod() { return method; }
-    public void setMethod(String method) { this.method = method; }
+    public void setMethod(String method) {
+        this.method = method;
+    }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getStatus() {
+        return status;
+    }
 
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public void setStatus(String status) {
+        this.status = status;
+    }
 
-    public List<OrderItemDTO> getOrderItems() { return orderItems; }
-    public void setOrderItems(List<OrderItemDTO> orderItems) { this.orderItems = orderItems; }
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
 }

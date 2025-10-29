@@ -1,5 +1,20 @@
 package com.PBL6.Ecommerce.domain;
-import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 
 
 @Entity
@@ -30,9 +45,32 @@ public class User {
     @Column(length = 100, unique = true)
     private String facebookId;
 
+    @Column(length = 100, unique = true)
+    private String googleId;
+
+    @Column(length = 100)
+    private String fullName;
+
+    @Column(length = 500)
+    private String avatarUrl;
+
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+
     // Thêm quan hệ với Shop
     @OneToOne(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Shop shop;
+
+     // Thêm quan hệ với Address (một user có nhiều địa chỉ)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Address> addresses;
+
+    public List<Address> getAddresses() { return addresses; }
+    public void setAddresses(List<Address> addresses) { this.addresses = addresses; }
     
 public void setActivated(boolean activated) {
     this.activated = activated;
@@ -78,13 +116,52 @@ public String getFacebookId() {
 public void setFacebookId(String facebookId) {
     this.facebookId = facebookId;
 }
+public String getGoogleId() {
+    return googleId;
+}
+public void setGoogleId(String googleId) {
+    this.googleId = googleId;
+}
 public String getPhoneNumber() {
     return phoneNumber;
 }
-public void setPhoneNumber(String phoneNumber) {
-    this.phoneNumber = phoneNumber;
-}
-public Shop getShop() { return shop; }
-public void setShop(Shop shop) { this.shop = shop; }
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Shop getShop() { return shop; }
+    public void setShop(Shop shop) { this.shop = shop; }
 
 }

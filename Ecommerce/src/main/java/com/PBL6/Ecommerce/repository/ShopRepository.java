@@ -29,4 +29,3 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
     boolean existsByName(String name);
     Optional<Shop> findByName(String name);
 }
-

@@ -1,16 +1,15 @@
+// ...existing code...
 package com.PBL6.Ecommerce.util;
 
-import java.security.Key;
-import java.util.Date;
-import java.util.UUID;
-
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.Date;
+import java.util.List;
 
 @Component
 public class TokenProvider {
@@ -18,82 +17,69 @@ public class TokenProvider {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    @Value("${jwt.expiration:3600000}")
+    @Value("${jwt.expiration-ms}")
     private long jwtExpirationMs;
- 
-    private Key getKey() {
-        // Validate secret key meets minimum security requirements (at least 256 bits = 32 characters)
-        if (jwtSecret == null || jwtSecret.length() < 32) {
-            throw new IllegalArgumentException(
-                "JWT secret key must be at least 32 characters long (256 bits) for HS256 algorithm. " +
-                "Current length: " + (jwtSecret != null ? jwtSecret.length() : 0)
-            );
-        }
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+
+    private Key signingKey() {
+        return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    /**
-     * Create JWT token with JTI (JWT ID) for revocation support
-     * Prompt 4: Token Revocation feature
-     */
-    public String createToken(String username, String role) {
-        String jti = UUID.randomUUID().toString(); // Unique token ID for revocation
+    // Create access token with sub=userId and claims
+    public String createToken(Long userId, String username, String email, List<String> roles) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
-        
-        return Jwts.builder()
-                .setId(jti) // Add JTI claim for revocation tracking
-                .setSubject(username)
-                .claim("authorities", role)
+        Date exp = new Date(now.getTime() + jwtExpirationMs);
+
+        JwtBuilder b = Jwts.builder()
                 .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getKey(), SignatureAlgorithm.HS256)
-                .compact();
+                .setExpiration(exp)
+                .signWith(signingKey(), SignatureAlgorithm.HS256);
+
+        if (userId != null) {
+            b.setSubject(String.valueOf(userId));
+        } else if (username != null) {
+            b.setSubject(username);
+        }
+
+        if (username != null) b.claim("username", username);
+        if (email != null) b.claim("email", email);
+        if (roles != null && !roles.isEmpty()) b.claim("roles", roles);
+
+        return b.compact();
     }
 
-    /**
-     * Validate JWT token signature and expiration
-     */
     public boolean validateJwt(String authToken) {
         try {
-            Jwts.parserBuilder().setSigningKey(getKey()).build().parseClaimsJws(authToken);
+            Jwts.parserBuilder().setSigningKey(signingKey()).build().parseClaimsJws(authToken);
             return true;
         } catch (JwtException e) {
             return false;
         }
     }
 
-    /**
-     * Extract username from JWT token
-     */
+    public Claims getAllClaims(String token) {
+        return Jwts.parserBuilder().setSigningKey(signingKey()).build().parseClaimsJws(token).getBody();
+    }
+
+    public Long getUserIdFromJwt(String token) {
+        Claims claims = getAllClaims(token);
+        String sub = claims.getSubject();
+        if (sub == null) return null;
+        try { return Long.parseLong(sub); } catch (NumberFormatException ignored) { return null; }
+    }
+
     public String getUsernameFromJwt(String token) {
-        return Jwts.parserBuilder().setSigningKey(getKey()).build().parseClaimsJws(token).getBody().getSubject();
+        Claims claims = getAllClaims(token);
+        Object u = claims.get("username");
+        return u != null ? String.valueOf(u) : claims.getSubject();
     }
-    
-    /**
-     * Extract JTI (JWT ID) from token for revocation checking
-     * Prompt 4: Token Revocation feature
-     */
-    public String getJtiFromJwt(String token) {
-        return Jwts.parserBuilder().setSigningKey(getKey()).build().parseClaimsJws(token).getBody().getId();
+
+    @SuppressWarnings("unchecked")
+    public List<String> getRolesFromJwt(String token) {
+        Claims claims = getAllClaims(token);
+        Object r = claims.get("roles");
+        if (r instanceof List) return (List<String>) r;
+        if (r instanceof String) return List.of(String.valueOf(r));
+        return List.of();
     }
-    
-    /**
-     * Extract expiration date from token
-     */
-    public Date getExpirationFromJwt(String token) {
-        return Jwts.parserBuilder().setSigningKey(getKey()).build().parseClaimsJws(token).getBody().getExpiration();
-    }
-    
-    /**
-     * Calculate remaining expiration time in seconds
-     */
-    public long getRemainingExpirationSeconds(String token) {
-        Date expirationDate = getExpirationFromJwt(token);
-        Date now = new Date();
-        if (expirationDate.before(now)) {
-            return 0;
-        }
-        return (expirationDate.getTime() - now.getTime()) / 1000;
-    }
+
 }

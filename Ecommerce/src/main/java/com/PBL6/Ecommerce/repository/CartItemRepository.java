@@ -16,17 +16,22 @@ import com.PBL6.Ecommerce.domain.ProductVariant;
 @Repository
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     
-    // Tìm tất cả items trong 1 cart
+    // ✅ Tìm tất cả items trong 1 cart
     List<CartItem> findByCartId(Long cartId);
     
-    // Tìm CartItem theo Cart và ProductVariant
+    // ✅ Tìm CartItem theo Cart và Product objects
     Optional<CartItem> findByCartAndProductVariant(Cart cart, ProductVariant productVariant);
-    
-    // Tìm CartItem theo cartId và productVariantId
+
+    // ✅ Tìm CartItem theo cartId và productVariantId
     Optional<CartItem> findByCartIdAndProductVariantId(Long cartId, Long productVariantId);
     
-    // Xóa tất cả items trong 1 cart
+    // ✅ Đếm số CartItem theo productId
+    @Query("SELECT COUNT(ci) FROM CartItem ci WHERE ci.productVariant.product.id = :productId")
+    long countByProductVariant_ProductId(@Param("productId") Long productId);
+    
+    // ✅ Xóa tất cả items trong 1 cart
     @Modifying
     @Query("DELETE FROM CartItem ci WHERE ci.cart.id = :cartId")
     void deleteByCartId(@Param("cartId") Long cartId);
+    
 }

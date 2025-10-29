@@ -1,12 +1,17 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.repository.CategoryRepository;
-import com.PBL6.Ecommerce.repository.ProductRepository;
-import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
-import com.PBL6.Ecommerce.domain.Category;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
+
+import com.PBL6.Ecommerce.domain.Category;
+import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
+import com.PBL6.Ecommerce.exception.CategoryInUseException;
+import com.PBL6.Ecommerce.exception.CategoryNotFoundException;
+import com.PBL6.Ecommerce.exception.DuplicateCategoryException;
+import com.PBL6.Ecommerce.repository.CategoryRepository;
+import com.PBL6.Ecommerce.repository.ProductRepository;
 
 @Service
 public class CategoryService {
@@ -29,7 +34,7 @@ public class CategoryService {
     public CategoryDTO addCategory(CategoryDTO dto) {
         // 1. VALIDATION - Kiểm tra tên đã tồn tại chưa
         if (categoryRepository.existsByName(dto.getName())) {
-            throw new RuntimeException("Tên danh mục đã tồn tại");
+            throw new DuplicateCategoryException(dto.getName());
         }
         
         // 2. TẠO ENTITY MỚI
@@ -51,12 +56,12 @@ public class CategoryService {
     public void deleteCategory(Long categoryId) {
         // Kiểm tra category có tồn tại không
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Danh mục không tồn tại"));
+                .orElseThrow(() -> new CategoryNotFoundException(categoryId));
         
         // Kiểm tra có products nào đang sử dụng category này không
         long productCount = productRepository.countByCategoryId(categoryId);
         if (productCount > 0) {
-            throw new RuntimeException("Không thể xóa danh mục đang có " + productCount + " sản phẩm");
+            throw new CategoryInUseException(categoryId, productCount);
         }
                 
         // Xóa category

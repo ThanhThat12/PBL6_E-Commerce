@@ -1,11 +1,12 @@
+// ...existing code...
 package com.PBL6.Ecommerce.domain;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.JoinColumn;
 
 @Entity
 @Table(name = "cart_items")
@@ -18,13 +19,11 @@ public class CartItem {
     @JoinColumn(name = "cart_id")
     private Cart cart;
 
-
+    // ...existing code...
+    // replace Product reference with ProductVariant
     @ManyToOne
     @JoinColumn(name = "product_variant_id")
     private ProductVariant productVariant;
-
-    @JoinColumn(name = "product_id")
-    private Long productId;
 
     private int quantity;
 
@@ -44,6 +43,7 @@ public class CartItem {
         this.cart = cart;
     }
 
+    // replaced getter/setter for product with productVariant
     public ProductVariant getProductVariant() {
         return productVariant;
     }
@@ -52,19 +52,15 @@ public class CartItem {
         this.productVariant = productVariant;
     }
 
-    public Long getProductId() {
-        return productId;
+    public Product getProduct() {
+        // convenience: return owning product if needed (nullable)
+        return productVariant != null ? productVariant.getProduct() : null;
     }
 
-    public void setProductId(Long productId) {
-        this.productId = productId;
-    }
+    public Product getProductDirect() { return getProduct(); }
 
-    public int getQuantity() {
-        return quantity;
-    }
+    public int getQuantity() { return quantity; }
 
-    public void setQuantity(int quantity) {
-        this.quantity = quantity;
-    }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+    
 }
