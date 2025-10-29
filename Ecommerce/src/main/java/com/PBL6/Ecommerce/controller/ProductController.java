@@ -107,19 +107,7 @@ public class ProductController {
         }
     }
     
-    // Thêm sản phẩm đơn giản (cho admin)
-    @PostMapping("/add")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<ProductDTO>> addProduct(@RequestBody ProductCreateDTO request) {
-        try {
-            ProductDTO product = productService.addProduct(request);
-            ResponseDTO<ProductDTO> response = new ResponseDTO<>(201, null, "Thêm sản phẩm thành công", product);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ResponseDTO<ProductDTO> response = new ResponseDTO<>(400, "BAD_REQUEST", "Lỗi khi thêm sản phẩm: " + e.getMessage(), null);
-            return ResponseEntity.badRequest().body(response);
-        }
-    }
+   
     
     // Lấy tất cả sản phẩm - Admin xem tất cả, Seller chỉ xem của mình
     @GetMapping("/manage")
@@ -235,23 +223,7 @@ public class ProductController {
         }
     }
     
-    // Cập nhật sản phẩm - Admin hoặc seller sở hữu sản phẩm
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('SELLER') and @productService.isProductOwner(#id, authentication.name))")
-    public ResponseEntity<ResponseDTO<ProductDTO>> updateProduct(
-            @PathVariable Long id, 
-            @RequestBody ProductCreateDTO request,
-            Authentication authentication) {
-        try {
-            ProductDTO product = productService.updateProduct(id, request, authentication);
-            ResponseDTO<ProductDTO> response = new ResponseDTO<>(200, null, "Cập nhật sản phẩm thành công", product);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ResponseDTO<ProductDTO> response = new ResponseDTO<>(400, "BAD_REQUEST", "Lỗi khi cập nhật sản phẩm: " + e.getMessage(), null);
-            return ResponseEntity.badRequest().body(response);
-        }
-    }
-    
+ 
     // Xóa sản phẩm - Admin hoặc seller sở hữu sản phẩm
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or (hasRole('SELLER') and @productService.isProductOwner(#id, authentication.name))")

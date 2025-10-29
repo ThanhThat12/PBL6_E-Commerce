@@ -27,6 +27,13 @@ public class ProductImage {
     @Column(length = 50)
     private String color;
 
+     // Constructors
+    public ProductImage() {}
+
+    public ProductImage(String imageUrl, String color) {
+        this.imageUrl = imageUrl;
+        this.color = color;
+    }
     // Getters and Setters
     public Long getId() {
         return id;

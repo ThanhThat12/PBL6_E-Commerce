@@ -1,19 +1,31 @@
 package com.PBL6.Ecommerce.domain.dto;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 import java.util.List;
 
 public class ProductCreateDTO {
+    @NotNull(message = "Category ID không được để trống")
     private Long categoryId;
-    private Long shopId;
+    
+    private Long shopId; // Optional cho seller
+    
+    @NotBlank(message = "Tên sản phẩm không được để trống")
     private String name;
+    
     private String description;
+    
+    @NotNull(message = "Giá không được để trống")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Giá phải lớn hơn 0")
     private BigDecimal basePrice;
+    
     private Boolean isActive = true;
     private String mainImage;
     private List<ProductVariantDTO> variants;
     private List<String> imageUrls;
-
+    
     // Getters and Setters
     public Long getCategoryId() { return categoryId; }
     public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }

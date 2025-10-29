@@ -5,6 +5,14 @@ public class ProductImageDTO {
     private String imageUrl;
     private String color;
 
+     // Constructors
+    public ProductImageDTO() {}
+
+    public ProductImageDTO(String imageUrl, String color) {
+        this.imageUrl = imageUrl;
+        this.color = color;
+    }
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

@@ -1,59 +1,81 @@
 package com.PBL6.Ecommerce.config;
 
+import com.PBL6.Ecommerce.util.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 public class SecurityConfig {
 
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.and()) // Modern syntax
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints - most specific first
+                // 🔓 Public endpoints - No authentication required
                 .requestMatchers(
-                    "/api/auth/login",
-                    "/api/register/**",
+                    "/api/auth/**",
+                    "/api/register/**", 
                     "/api/forgot-password/**",
-                    "/api/authenticate",
-                    "/api/authenticate/**"
+                    "/api/authenticate/**",
+                    "/error",
+                    "/favicon.ico"
                 ).permitAll()
                 
-                // Product endpoints - specific to general
+                // 🔓 Public product endpoints - Customers can view
                 .requestMatchers("/api/products/search").permitAll()
                 .requestMatchers("/api/products/{id}").permitAll()
                 .requestMatchers("/api/products/category/**").permitAll()
+                .requestMatchers("/api/categories").permitAll()
+                .requestMatchers("/api/categories/{id}").permitAll()
+                
+                // 🔐 Protected product endpoints - Authentication required
                 .requestMatchers("/api/products").hasAnyRole("ADMIN", "SELLER")
-                
-                // Category endpoints
+                .requestMatchers("/api/products/**").hasAnyRole("ADMIN", "SELLER")
                 .requestMatchers("/api/categories/addCategory").hasRole("ADMIN")
-                .requestMatchers("/api/categories/**").permitAll()
                 
-                // All other requests require authentication
+                // 🔐 All other requests require authentication
                 .anyRequest().authenticated() 
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(jwtDecoder())));
+            // 🔑 Add JWT filter BEFORE UsernamePasswordAuthenticationFilter
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
     }
+    
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+    
     @Bean
-    public JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withSecretKey(
-            new javax.crypto.spec.SecretKeySpec(
-                "my-secret-key-which-should-be-long".getBytes(), "HmacSHA256"
-            )
-        ).build();
-}
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
 }
