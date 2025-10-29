@@ -72,15 +72,15 @@ public class CartController {
     }
 
     /**
-     * PUT /api/cart/{productVariantId} - Cập nhật số lượng
+     * PUT /api/cart/{cartItemId} - Cập nhật số lượng
      */
-    @PutMapping("/{productVariantId}")
+    @PutMapping("/{cartItemId}")
     public ResponseEntity<ResponseDTO<String>> updateQuantity(
-            @PathVariable Long productVariantId,
+            @PathVariable Long cartItemId,
             @RequestBody UpdateCartQuantityRequest request) {
         try {
             User user = getCurrentUser();
-            cartService.updateQuantity(user, productVariantId, request.getQuantity());
+            cartService.updateQuantityByCartItemId(user, cartItemId, request.getQuantity());
             
             return ResponseEntity.ok(
                 new ResponseDTO<>(200, null, "Cập nhật thành công", "Số lượng sản phẩm đã được cập nhật")
@@ -93,13 +93,13 @@ public class CartController {
     }
 
     /**
-     * DELETE /api/cart/{productVariantId} - Xóa khỏi giỏ
+     * DELETE /api/cart/{cartItemId} - Xóa khỏi giỏ
      */
-    @DeleteMapping("/{productVariantId}")
-    public ResponseEntity<ResponseDTO<String>> removeFromCart(@PathVariable Long productVariantId) {
+    @DeleteMapping("/{cartItemId}")
+    public ResponseEntity<ResponseDTO<String>> removeFromCart(@PathVariable Long cartItemId) {
         try {
             User user = getCurrentUser();
-            cartService.removeFromCart(user, productVariantId);
+            cartService.removeFromCartByCartItemId(user, cartItemId);
             
             return ResponseEntity.ok(
                 new ResponseDTO<>(200, null, "Xóa thành công", "Sản phẩm đã được xóa khỏi giỏ hàng")
@@ -173,12 +173,36 @@ public class CartController {
                 CartItemResponseDTO itemDTO = new CartItemResponseDTO();
                 itemDTO.setId(item.getId());
                 itemDTO.setProductVariantId(item.getProductVariant().getId());
+                itemDTO.setProductId(item.getProductVariant().getProduct().getId());
                 itemDTO.setProductName(item.getProductVariant().getProduct().getName());
                 itemDTO.setProductSku(item.getProductVariant().getSku());
                 itemDTO.setProductImage(item.getProductVariant().getProduct().getMainImage());
                 itemDTO.setPrice(item.getProductVariant().getPrice());
                 itemDTO.setStock(item.getProductVariant().getStock());
                 itemDTO.setQuantity(item.getQuantity());
+                // Set variantValues (size, color, ...)
+                if (item.getProductVariant().getVariantValues() != null) {
+                    List<com.PBL6.Ecommerce.domain.dto.ProductVariantValueDTO> variantValueDTOs = new ArrayList<>();
+                    for (com.PBL6.Ecommerce.domain.ProductVariantValue value : item.getProductVariant().getVariantValues()) {
+                        com.PBL6.Ecommerce.domain.dto.ProductVariantValueDTO valueDTO = new com.PBL6.Ecommerce.domain.dto.ProductVariantValueDTO();
+                        valueDTO.setId(value.getId());
+                        valueDTO.setValue(value.getValue());
+                        if (value.getProductAttribute() != null) {
+                            valueDTO.setProductAttributeId(value.getProductAttribute().getId());
+                            com.PBL6.Ecommerce.domain.dto.AttributeDTO attrDTO = new com.PBL6.Ecommerce.domain.dto.AttributeDTO();
+                            attrDTO.setId(value.getProductAttribute().getId());
+                            attrDTO.setName(value.getProductAttribute().getName());
+                            valueDTO.setProductAttribute(attrDTO);
+                        }
+                        variantValueDTOs.add(valueDTO);
+                    }
+                    itemDTO.setVariantValues(variantValueDTOs);
+                }
+                // Add shop information
+                if (item.getProductVariant().getProduct().getShop() != null) {
+                    itemDTO.setShopId(item.getProductVariant().getProduct().getShop().getId());
+                    itemDTO.setShopName(item.getProductVariant().getProduct().getShop().getName());
+                }
 
                 BigDecimal subtotal = item.getProductVariant().getPrice()
                         .multiply(BigDecimal.valueOf(item.getQuantity()));

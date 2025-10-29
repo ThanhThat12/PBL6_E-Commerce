@@ -2,9 +2,11 @@ package com.PBL6.Ecommerce.domain.dto;
 
 import java.math.BigDecimal;
 
+import java.util.List;
 public class CartItemResponseDTO {
     private Long id;
     private Long productVariantId;
+    private Long productId;
     private String productName;
     private String productSku;
     private String productImage;
@@ -12,6 +14,16 @@ public class CartItemResponseDTO {
     private Integer stock;
     private int quantity;
     private BigDecimal subtotal;
+    private Long shopId;
+    private String shopName;
+    private List<ProductVariantValueDTO> variantValues;
+    public List<ProductVariantValueDTO> getVariantValues() {
+        return variantValues;
+    }
+
+    public void setVariantValues(List<ProductVariantValueDTO> variantValues) {
+        this.variantValues = variantValues;
+    }
 
     // Getters and Setters
     public Long getId() {
@@ -28,6 +40,14 @@ public class CartItemResponseDTO {
 
     public void setProductVariantId(Long productVariantId) {
         this.productVariantId = productVariantId;
+    }
+
+    public Long getProductId() {
+        return productId;
+    }
+
+    public void setProductId(Long productId) {
+        this.productId = productId;
     }
 
     public String getProductName() {
@@ -84,5 +104,21 @@ public class CartItemResponseDTO {
 
     public void setSubtotal(BigDecimal subtotal) {
         this.subtotal = subtotal;
+    }
+
+    public Long getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(Long shopId) {
+        this.shopId = shopId;
+    }
+
+    public String getShopName() {
+        return shopName;
+    }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName;
     }
 }

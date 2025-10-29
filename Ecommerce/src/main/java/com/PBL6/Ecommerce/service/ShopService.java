@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.service;
 
+/*
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +42,7 @@ public class ShopService {
         shop.setName(shopRegistrationDTO.getName());
         shop.setAddress(shopRegistrationDTO.getAddress());
         shop.setDescription(shopRegistrationDTO.getDescription());
-        shop.setStatus(Shop.ShopStatus.ACTIVE);
+        shop.setStatus(Shop.ShopStatus.PENDING); // Shop mới tạo sẽ ở trạng thái PENDING, chờ admin duyệt
         shop.setCreatedAt(LocalDateTime.now());
         
         return shopRepository.save(shop);
@@ -61,3 +62,4 @@ public class ShopService {
         return shopRepository.existsByOwner(user);
     }
 }
+*/

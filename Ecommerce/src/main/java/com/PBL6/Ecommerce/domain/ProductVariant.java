@@ -87,4 +87,9 @@ public class ProductVariant {
     public void setProductVariantValues(List<ProductVariantValue> productVariantValues) {
         this.productVariantValues = productVariantValues;
     }
+
+    // Convenience method for DTO mapping
+    public List<ProductVariantValue> getVariantValues() {
+        return getProductVariantValues();
+    }
 }

@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.controller;
 
+/*
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -100,3 +101,4 @@ public ResponseEntity<ResponseDTO<Shop>> registerShop(
         }
     }
 }
+*/

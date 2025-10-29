@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.controller;
 
+/*
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 
@@ -110,3 +111,4 @@ public class AdminShopController {
         }
     }
 }
+*/

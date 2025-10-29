@@ -54,10 +54,11 @@ public class Shop {
 
     // Enum trạng thái shop (admin workflow)
     public enum ShopStatus {
-        PENDING,
-        APPROVED,
-        REJECTED,
-        SUSPENDED
+        PENDING,    // Shop mới tạo, chờ admin duyệt
+        APPROVED,   // Admin đã duyệt, shop được hoạt động
+        ACTIVE,     // Shop đang hoạt động (deprecated, dùng APPROVED thay thế)
+        REJECTED,   // Admin từ chối
+        SUSPENDED   // Shop bị tạm ngưng
     }
 
     public boolean isVerified() {

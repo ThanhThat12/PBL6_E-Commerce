@@ -61,6 +61,7 @@ public class CartService {
                     CartItem item = new CartItem();
                     item.setCart(cart);
                     item.setProductVariant(productVariant);
+                    item.setProductId(productVariant.getProduct().getId());
                     item.setQuantity(0);
                     return item;
                 });
@@ -117,6 +118,54 @@ public class CartService {
 
         CartItem item = cartItemRepository.findByCartAndProductVariant(cart, productVariant)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không có trong giỏ hàng"));
+
+        cartItemRepository.delete(item);
+        
+        return cart;
+    }
+
+    /**
+     * Cập nhật số lượng theo cart item id
+     */
+    @Transactional
+    public Cart updateQuantityByCartItemId(User user, Long cartItemId, int quantity) {
+        if (quantity <= 0) {
+            throw new RuntimeException("Số lượng phải lớn hơn 0");
+        }
+
+        Cart cart = getCart(user);
+        CartItem item = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new RuntimeException("Cart item không tồn tại"));
+
+        // Verify cart belongs to user
+        if (!item.getCart().getId().equals(cart.getId())) {
+            throw new RuntimeException("Không có quyền truy cập cart item này");
+        }
+
+        // Kiểm tra tồn kho
+        if (item.getProductVariant().getStock() < quantity) {
+            throw new RuntimeException("Số lượng vượt quá tồn kho. Tồn kho hiện tại: " + item.getProductVariant().getStock());
+        }
+
+        item.setQuantity(quantity);
+        cartItemRepository.save(item);
+        
+        return cart;
+    }
+
+    /**
+     * Xóa cart item theo id
+     */
+    @Transactional
+    public Cart removeFromCartByCartItemId(User user, Long cartItemId) {
+        Cart cart = getCart(user);
+        CartItem item = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new RuntimeException("Cart item không tồn tại"));
+
+        // Verify cart belongs to user
+        if (!item.getCart().getId().equals(cart.getId())) {
+            throw new RuntimeException("Không có quyền truy cập cart item này");
+        }
 
         cartItemRepository.delete(item);
         

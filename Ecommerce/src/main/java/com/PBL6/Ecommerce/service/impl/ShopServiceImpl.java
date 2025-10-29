@@ -1,3 +1,4 @@
+/*
 package com.PBL6.Ecommerce.service.impl;
 
 import org.springframework.stereotype.Service;
@@ -150,3 +151,4 @@ public class ShopServiceImpl implements ShopService {
         return shop;
     }
 }
+*/
