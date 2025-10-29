@@ -1,76 +1,68 @@
 package com.PBL6.Ecommerce.controller;
 
-import com.PBL6.Ecommerce.domain.User;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.PBL6.Ecommerce.domain.dto.AddCartItemDTO;
 import com.PBL6.Ecommerce.domain.dto.CartDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateCartItemDTO;
-import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.service.CartService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/cart")
 public class CartController {
 
     private final CartService cartService;
-    private final UserRepository userRepository;
 
-    public CartController(CartService cartService, UserRepository userRepository) {
+    public CartController(CartService cartService) {
         this.cartService = cartService;
-        this.userRepository = userRepository;
-    }
-
-    private User resolveCurrentUser(Authentication authentication) {
-        String principal = authentication.getName();
-        Optional<User> userOpt = Optional.empty();
-        if (principal != null && principal.matches("^\\d+$")) {
-            try {
-                Long id = Long.parseLong(principal);
-                userOpt = userRepository.findById(id);
-            } catch (NumberFormatException ignored) {}
-        }
-        if (userOpt.isEmpty()) userOpt = userRepository.findOneByUsername(principal);
-        if (userOpt.isEmpty()) userOpt = userRepository.findOneByEmail(principal);
-        return userOpt.orElseThrow(() -> new RuntimeException("User not found"));
     }
 
     @GetMapping
     public ResponseEntity<ResponseDTO<CartDTO>> getCart(Authentication authentication) {
-        User user = resolveCurrentUser(authentication);
-        CartDTO dto = cartService.getCartDtoForUser(user);
-        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Cart retrieved", dto));
+        CartDTO dto = cartService.getCartDtoForUser(authentication);
+        return ResponseDTO.success(dto, "Cart retrieved");
     }
 
     @PostMapping("/items")
-    public ResponseEntity<ResponseDTO<CartDTO>> addItem(Authentication authentication, @RequestBody AddCartItemDTO body) {
-        User user = resolveCurrentUser(authentication);
-        CartDTO dto = cartService.addItem(user, body.getProductId(), body.getQuantity());
-        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Item added", dto));
+    public ResponseEntity<ResponseDTO<CartDTO>> addItem(
+            Authentication authentication, 
+            @Valid @RequestBody AddCartItemDTO body) {
+        CartDTO dto = cartService.addItem(authentication, body.getProductId(), body.getQuantity());
+        return ResponseDTO.success(dto, "Item added");
     }
 
     @PutMapping("/items/{itemId}")
-    public ResponseEntity<ResponseDTO<CartDTO>> updateItem(Authentication authentication, @PathVariable Long itemId, @RequestBody UpdateCartItemDTO body) {
-        User user = resolveCurrentUser(authentication);
-        CartDTO dto = cartService.updateItem(user, itemId, body.getQuantity());
-        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Item updated", dto));
+    public ResponseEntity<ResponseDTO<CartDTO>> updateItem(
+            Authentication authentication, 
+            @PathVariable Long itemId, 
+            @Valid @RequestBody UpdateCartItemDTO body) {
+        CartDTO dto = cartService.updateItem(authentication, itemId, body.getQuantity());
+        return ResponseDTO.success(dto, "Item updated");
     }
 
     @DeleteMapping("/items/{itemId}")
-    public ResponseEntity<ResponseDTO<CartDTO>> removeItem(Authentication authentication, @PathVariable Long itemId) {
-        User user = resolveCurrentUser(authentication);
-        CartDTO dto = cartService.removeItem(user, itemId);
-        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Item removed", dto));
+    public ResponseEntity<ResponseDTO<CartDTO>> removeItem(
+            Authentication authentication, 
+            @PathVariable Long itemId) {
+        CartDTO dto = cartService.removeItem(authentication, itemId);
+        return ResponseDTO.success(dto, "Item removed");
     }
 
     @DeleteMapping
     public ResponseEntity<ResponseDTO<CartDTO>> clearCart(Authentication authentication) {
-        User user = resolveCurrentUser(authentication);
-        CartDTO dto = cartService.clearCart(user);
-        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Cart cleared", dto));
+        CartDTO dto = cartService.clearCart(authentication);
+        return ResponseDTO.success(dto, "Cart cleared");
     }
 }

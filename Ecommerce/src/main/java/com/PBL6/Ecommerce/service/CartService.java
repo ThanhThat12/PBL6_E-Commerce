@@ -1,6 +1,14 @@
 // ...existing code...
 package com.PBL6.Ecommerce.service;
 
+import java.math.BigDecimal;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.PBL6.Ecommerce.domain.Cart;
 import com.PBL6.Ecommerce.domain.CartItem;
 import com.PBL6.Ecommerce.domain.Product;
@@ -8,17 +16,12 @@ import com.PBL6.Ecommerce.domain.ProductVariant;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.dto.CartDTO;
 import com.PBL6.Ecommerce.domain.dto.CartItemDTO;
+import com.PBL6.Ecommerce.exception.CartItemNotFoundException;
+import com.PBL6.Ecommerce.exception.ProductNotFoundException;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ProductVariantRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -28,18 +31,18 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
-    private final UserRepository userRepository;
+    private final UserService userService;
 
     public CartService(CartRepository cartRepository,
                        CartItemRepository cartItemRepository,
                        ProductRepository productRepository,
                        ProductVariantRepository productVariantRepository,
-                       UserRepository userRepository) {
+                       UserService userService) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.productRepository = productRepository;
         this.productVariantRepository = productVariantRepository;
-        this.userRepository = userRepository;
+        this.userService = userService;
     }
 
     public Cart getOrCreateCartForUser(User user) {
@@ -59,9 +62,13 @@ public class CartService {
     public CartDTO addItem(User user, Long variantId, int quantity) {
         if (quantity <= 0) throw new IllegalArgumentException("Quantity must be > 0");
         ProductVariant variant = productVariantRepository.findById(variantId)
-                .orElseThrow(() -> new RuntimeException("Product variant not found"));
-        if (!Boolean.TRUE.equals(variant.getProduct().getIsActive())) throw new RuntimeException("Product is not active");
-        if (variant.getStock() < quantity) throw new RuntimeException("Not enough stock");
+                .orElseThrow(() -> new ProductNotFoundException("Product variant not found with ID: " + variantId));
+        if (!Boolean.TRUE.equals(variant.getProduct().getIsActive())) {
+            throw new IllegalStateException("Product is not active");
+        }
+        if (variant.getStock() < quantity) {
+            throw new IllegalArgumentException("Not enough stock. Available: " + variant.getStock());
+        }
 
         Cart cart = getOrCreateCartForUser(user);
         Optional<CartItem> opt = cartItemRepository.findByCartAndProductVariant(cart, variant);
@@ -69,7 +76,9 @@ public class CartService {
         if (opt.isPresent()) {
             item = opt.get();
             int newQty = item.getQuantity() + quantity;
-            if (variant.getStock() < newQty) throw new RuntimeException("Not enough stock");
+            if (variant.getStock() < newQty) {
+                throw new IllegalArgumentException("Not enough stock. Available: " + variant.getStock() + ", requested: " + newQty);
+            }
             item.setQuantity(newQty);
         } else {
             item = new CartItem();
@@ -88,9 +97,11 @@ public class CartService {
         CartItem item = cart.getItems().stream()
                 .filter(ci -> ci.getId() != null && ci.getId().equals(itemId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Cart item not found"));
+                .orElseThrow(() -> new CartItemNotFoundException("Cart item not found with ID: " + itemId));
         ProductVariant variant = item.getProductVariant();
-        if (variant.getStock() < quantity) throw new RuntimeException("Not enough stock");
+        if (variant.getStock() < quantity) {
+            throw new IllegalArgumentException("Not enough stock. Available: " + variant.getStock());
+        }
         item.setQuantity(quantity);
         cartRepository.save(cart);
         return toDto(cart);
@@ -101,7 +112,7 @@ public class CartService {
         CartItem item = cart.getItems().stream()
                 .filter(ci -> ci.getId() != null && ci.getId().equals(itemId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Cart item not found"));
+                .orElseThrow(() -> new CartItemNotFoundException("Cart item not found with ID: " + itemId));
         cart.getItems().remove(item);
         cartItemRepository.delete(item);
         cartRepository.save(cart);
@@ -119,15 +130,92 @@ public class CartService {
         var items = cart.getItems().stream().map(ci -> {
             ProductVariant variant = ci.getProductVariant();
             Product p = variant.getProduct();
+            
+            // Calculate unit price
             BigDecimal unit = variant.getPrice() != null ? variant.getPrice() :
                              (p.getBasePrice() != null ? p.getBasePrice() : BigDecimal.ZERO);
+            
+            // Calculate subtotal
             BigDecimal sub = unit.multiply(BigDecimal.valueOf(ci.getQuantity()));
-            return new CartItemDTO(ci.getId(), variant.getId(), p.getName(), unit, ci.getQuantity(), sub);
+            
+            // Get variant attributes
+            java.util.List<com.PBL6.Ecommerce.domain.dto.AttributeDTO> attributes = new java.util.ArrayList<>();
+            if (variant.getProductVariantValues() != null && !variant.getProductVariantValues().isEmpty()) {
+                attributes = variant.getProductVariantValues().stream()
+                        .map(pvv -> {
+                            com.PBL6.Ecommerce.domain.dto.AttributeDTO attr = new com.PBL6.Ecommerce.domain.dto.AttributeDTO();
+                            if (pvv.getProductAttribute() != null) {
+                                attr.setName(pvv.getProductAttribute().getName() + ": " + pvv.getValue());
+                            } else {
+                                attr.setName(pvv.getValue());
+                            }
+                            return attr;
+                        })
+                        .collect(Collectors.toList());
+            }
+            
+            // Build full CartItemDTO with all information
+            return new CartItemDTO(
+                ci.getId(),                    // Cart item ID
+                variant.getId(),               // Variant ID
+                p.getId(),                     // Product ID
+                p.getName(),                   // Product name
+                p.getMainImage(),              // Product image URL
+                variant.getSku(),              // SKU
+                attributes,                    // Variant attributes (Size: L, Color: Red)
+                unit,                          // Unit price
+                ci.getQuantity(),              // Quantity
+                variant.getStock(),            // Stock available
+                sub                            // Subtotal
+            );
         }).collect(Collectors.toList());
+        
         BigDecimal total = items.stream()
                 .map(CartItemDTO::getSubTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return new CartDTO(cart.getId(), items, total);
+    }
+    
+    // ===== Authentication-based methods =====
+    
+    /**
+     * Get cart for authenticated user
+     */
+    public CartDTO getCartDtoForUser(Authentication authentication) {
+        User user = userService.resolveCurrentUser(authentication);
+        return getCartDtoForUser(user);
+    }
+    
+    /**
+     * Add item to cart for authenticated user
+     */
+    public CartDTO addItem(Authentication authentication, Long variantId, int quantity) {
+        User user = userService.resolveCurrentUser(authentication);
+        return addItem(user, variantId, quantity);
+    }
+    
+    /**
+     * Update cart item for authenticated user
+     */
+    public CartDTO updateItem(Authentication authentication, Long itemId, int quantity) {
+        User user = userService.resolveCurrentUser(authentication);
+        return updateItem(user, itemId, quantity);
+    }
+    
+    /**
+     * Remove cart item for authenticated user
+     */
+    public CartDTO removeItem(Authentication authentication, Long itemId) {
+        User user = userService.resolveCurrentUser(authentication);
+        return removeItem(user, itemId);
+    }
+    
+    /**
+     * Clear cart for authenticated user
+     */
+    public CartDTO clearCart(Authentication authentication) {
+        User user = userService.resolveCurrentUser(authentication);
+        return clearCart(user);
     }
     
 }

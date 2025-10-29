@@ -1,29 +1,39 @@
 package com.PBL6.Ecommerce.controller;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.PBL6.Ecommerce.domain.Address;
 import com.PBL6.Ecommerce.domain.dto.AddressRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.AddressResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.service.AddressService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import com.PBL6.Ecommerce.service.UserService;
 
-import java.net.URI;
-import java.util.List;
-import java.util.stream.Collectors;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/me/addresses")
 public class AddressController {
 
-    private final AddressService svc;
+    private final AddressService addressService;
+    private final UserService userService;
 
-    public AddressController(AddressService svc) {
-        this.svc = svc;
+    public AddressController(AddressService addressService, UserService userService) {
+        this.addressService = addressService;
+        this.userService = userService;
     }
 
     private AddressResponseDTO toDto(Address a) {
@@ -41,91 +51,49 @@ public class AddressController {
         return d;
     }
 
-    private Long extractUserId(Jwt jwt) {
-        if (jwt == null) return null;
-        String sub = jwt.getSubject();
-        if (sub == null) return null;
-        try { return Long.parseLong(sub); } catch (NumberFormatException ex) { return null; }
-    }
-
     @GetMapping
     public ResponseEntity<ResponseDTO<List<AddressResponseDTO>>> list(@AuthenticationPrincipal Jwt jwt) {
-        Long userId = extractUserId(jwt);
-        if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ResponseDTO<>(401, "UNAUTHORIZED", "Invalid token subject", null));
-
-        List<Address> list = svc.listByUser(userId);
+        Long userId = userService.extractUserIdFromJwt(jwt);
+        List<Address> list = addressService.listByUser(userId);
         List<AddressResponseDTO> dtoList = list.stream().map(this::toDto).collect(Collectors.toList());
-        return ResponseEntity.ok(new ResponseDTO<>(200, null, "OK", dtoList));
+        return ResponseDTO.success(dtoList, "Lấy danh sách địa chỉ thành công");
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ResponseDTO<AddressResponseDTO>> get(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
-        Long userId = extractUserId(jwt);
-        if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ResponseDTO<>(401, "UNAUTHORIZED", "Invalid token subject", null));
-
-        return svc.getByIdAndUser(id, userId)
-                .map(a -> ResponseEntity.ok(new ResponseDTO<>(200, null, "OK", toDto(a))))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new ResponseDTO<>(404, "NOT_FOUND", "Address not found", null)));
+        Long userId = userService.extractUserIdFromJwt(jwt);
+        Address address = addressService.getByIdAndUser(id, userId);
+        return ResponseDTO.success(toDto(address), "Lấy thông tin địa chỉ thành công");
     }
 
     @PostMapping
-    public ResponseEntity<ResponseDTO<AddressResponseDTO>> create(@AuthenticationPrincipal Jwt jwt, @RequestBody AddressRequestDTO req) {
-        Long userId = extractUserId(jwt);
-        if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ResponseDTO<>(401, "UNAUTHORIZED", "Invalid token subject", null));
-
-        return svc.createForUser(userId, req)
-                .map(a -> {
-                    URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                            .path("/{id}")
-                            .buildAndExpand(a.getId())
-                            .toUri();
-                    ResponseDTO<AddressResponseDTO> dto = new ResponseDTO<>(201, null, "Created", toDto(a));
-                    return ResponseEntity.created(location).body(dto);
-                })
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new ResponseDTO<>(404, "NOT_FOUND", "User not found", null)));
+    public ResponseEntity<ResponseDTO<AddressResponseDTO>> create(@AuthenticationPrincipal Jwt jwt, 
+                                                                   @Valid @RequestBody AddressRequestDTO req) {
+        Long userId = userService.extractUserIdFromJwt(jwt);
+        Address address = addressService.createForUser(userId, req);
+        return ResponseDTO.created(toDto(address), "Tạo địa chỉ thành công");
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ResponseDTO<AddressResponseDTO>> update(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id, @RequestBody AddressRequestDTO req) {
-        Long userId = extractUserId(jwt);
-        if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ResponseDTO<>(401, "UNAUTHORIZED", "Invalid token subject", null));
-
-        return svc.updateForUser(userId, id, req)
-                .map(a -> ResponseEntity.ok(new ResponseDTO<>(200, null, "Updated", toDto(a))))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new ResponseDTO<>(404, "NOT_FOUND", "Address not found", null)));
+    public ResponseEntity<ResponseDTO<AddressResponseDTO>> update(@AuthenticationPrincipal Jwt jwt, 
+                                                                   @PathVariable Long id, 
+                                                                   @Valid @RequestBody AddressRequestDTO req) {
+        Long userId = userService.extractUserIdFromJwt(jwt);
+        Address address = addressService.updateForUser(userId, id, req);
+        return ResponseDTO.success(toDto(address), "Cập nhật địa chỉ thành công");
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseDTO<Void>> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
-        Long userId = extractUserId(jwt);
-        if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ResponseDTO<>(401, "UNAUTHORIZED", "Invalid token subject", null));
-
-        boolean ok = svc.deleteForUser(userId, id);
-        if (ok) {
-            return ResponseEntity.ok(new ResponseDTO<>(200, null, "Deleted", null));
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ResponseDTO<>(404, "NOT_FOUND", "Address not found", null));
-        }
+        Long userId = userService.extractUserIdFromJwt(jwt);
+        addressService.deleteForUser(userId, id);
+        return ResponseDTO.success(null, "Xóa địa chỉ thành công");
     }
 
     @PostMapping("/{id}/primary")
     public ResponseEntity<ResponseDTO<AddressResponseDTO>> markPrimary(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
-        Long userId = extractUserId(jwt);
-        if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ResponseDTO<>(401, "UNAUTHORIZED", "Invalid token subject", null));
-
-        return svc.markPrimary(userId, id)
-                .map(a -> ResponseEntity.ok(new ResponseDTO<>(200, null, "Marked primary", toDto(a))))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new ResponseDTO<>(404, "NOT_FOUND", "Address not found", null)));
+        Long userId = userService.extractUserIdFromJwt(jwt);
+        Address address = addressService.markPrimary(userId, id);
+        return ResponseDTO.success(toDto(address), "Đánh dấu địa chỉ chính thành công");
     }
 }

@@ -1,14 +1,16 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Shop;
+import java.math.BigDecimal;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
-import java.util.List;
+import com.PBL6.Ecommerce.domain.Order;
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.User;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
@@ -18,6 +20,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     // Lấy tất cả đơn hàng theo shop_id
     List<Order> findByShopId(Long shopId);
+    
+    // Lấy tất cả đơn hàng theo user (buyer)
+    List<Order> findByUser(User user);
+    
+    // Lấy đơn hàng theo user ID
+    List<Order> findByUserId(Long userId);
     
     // Custom query để lấy các trường cụ thể
     @Query("SELECT o FROM Order o WHERE o.shop.id = :shopId ORDER BY o.createdAt DESC")

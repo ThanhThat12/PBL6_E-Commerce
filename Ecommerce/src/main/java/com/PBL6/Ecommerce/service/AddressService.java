@@ -1,16 +1,19 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Address;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.dto.AddressRequestDTO;
-import com.PBL6.Ecommerce.repository.AddressRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import com.PBL6.Ecommerce.domain.Address;
+import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.dto.AddressRequestDTO;
+import com.PBL6.Ecommerce.exception.AddressNotFoundException;
+import com.PBL6.Ecommerce.exception.UnauthorizedAddressAccessException;
+import com.PBL6.Ecommerce.exception.UserNotFoundException;
+import com.PBL6.Ecommerce.repository.AddressRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
 
 @Service
 public class AddressService {
@@ -31,8 +34,15 @@ public class AddressService {
         return addressRepository.findByUserId(userId);
     }
 
-    public Optional<Address> getByIdAndUser(Long id, Long userId) {
-        return addressRepository.findByIdAndUserId(id, userId);
+    public Address getByIdAndUser(Long id, Long userId) {
+        Address address = addressRepository.findById(id)
+                .orElseThrow(() -> new AddressNotFoundException(id));
+        
+        if (!address.getUser().getId().equals(userId)) {
+            throw new UnauthorizedAddressAccessException(id);
+        }
+        
+        return address;
     }
 
     private void resolveNamesIfNeeded(AddressRequestDTO req) {
@@ -69,63 +79,93 @@ public class AddressService {
     }
 
     @Transactional
-    public Optional<Address> createForUser(Long userId, AddressRequestDTO req) {
-        return userRepository.findById(userId).map(user -> {
-            resolveNamesIfNeeded(req);
-
-            if (req.primaryAddress) {
-                addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
-                        .ifPresent(prev -> { prev.setPrimaryAddress(false); addressRepository.save(prev); });
-            }
-
-            Address a = new Address();
-            a.setUser(user);
-            a.setLabel(req.label);
-            a.setFullAddress(req.fullAddress);
-            a.setProvinceId(req.provinceId);
-            a.setDistrictId(req.districtId);
-            a.setWardCode(req.wardCode);
-            a.setContactPhone(req.contactPhone);
-            a.setPrimaryAddress(req.primaryAddress);
-            return addressRepository.save(a);
-        });
-    }
-
-    @Transactional
-    public Optional<Address> updateForUser(Long userId, Long addressId, AddressRequestDTO req) {
+    public Address createForUser(Long userId, AddressRequestDTO req) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng với ID: " + userId));
+        
         resolveNamesIfNeeded(req);
 
-        return addressRepository.findByIdAndUserId(addressId, userId).map(a -> {
-            if (req.primaryAddress && !a.isPrimaryAddress()) {
-                addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
-                        .ifPresent(prev -> { if (!prev.getId().equals(a.getId())) { prev.setPrimaryAddress(false); addressRepository.save(prev); } });
-            }
-            if (req.label != null) a.setLabel(req.label);
-            if (req.fullAddress != null) a.setFullAddress(req.fullAddress);
-            if (req.provinceId != null) a.setProvinceId(req.provinceId);
-            if (req.districtId != null) a.setDistrictId(req.districtId);
-            if (req.wardCode != null) a.setWardCode(req.wardCode);
-            if (req.contactPhone != null) a.setContactPhone(req.contactPhone);
-            a.setPrimaryAddress(req.primaryAddress);
-            return addressRepository.save(a);
-        });
-    }
-
-    @Transactional
-    public boolean deleteForUser(Long userId, Long addressId) {
-        return addressRepository.findByIdAndUserId(addressId, userId).map(a -> {
-            addressRepository.delete(a);
-            return true;
-        }).orElse(false);
-    }
-
-    @Transactional
-    public Optional<Address> markPrimary(Long userId, Long addressId) {
-        return addressRepository.findByIdAndUserId(addressId, userId).map(a -> {
+        if (req.primaryAddress) {
             addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
-                    .ifPresent(prev -> { if (!prev.getId().equals(a.getId())) { prev.setPrimaryAddress(false); addressRepository.save(prev); } });
-            a.setPrimaryAddress(true);
-            return addressRepository.save(a);
-        });
+                    .ifPresent(prev -> {
+                        prev.setPrimaryAddress(false);
+                        addressRepository.save(prev);
+                    });
+        }
+
+        Address a = new Address();
+        a.setUser(user);
+        a.setLabel(req.label);
+        a.setFullAddress(req.fullAddress);
+        a.setProvinceId(req.provinceId);
+        a.setDistrictId(req.districtId);
+        a.setWardCode(req.wardCode);
+        a.setContactPhone(req.contactPhone);
+        a.setPrimaryAddress(req.primaryAddress);
+        return addressRepository.save(a);
+    }
+
+    @Transactional
+    public Address updateForUser(Long userId, Long addressId, AddressRequestDTO req) {
+        resolveNamesIfNeeded(req);
+
+        Address a = addressRepository.findById(addressId)
+                .orElseThrow(() -> new AddressNotFoundException(addressId));
+        
+        if (!a.getUser().getId().equals(userId)) {
+            throw new UnauthorizedAddressAccessException(addressId);
+        }
+
+        if (req.primaryAddress && !a.isPrimaryAddress()) {
+            addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
+                    .ifPresent(prev -> {
+                        if (!prev.getId().equals(a.getId())) {
+                            prev.setPrimaryAddress(false);
+                            addressRepository.save(prev);
+                        }
+                    });
+        }
+        
+        if (req.label != null) a.setLabel(req.label);
+        if (req.fullAddress != null) a.setFullAddress(req.fullAddress);
+        if (req.provinceId != null) a.setProvinceId(req.provinceId);
+        if (req.districtId != null) a.setDistrictId(req.districtId);
+        if (req.wardCode != null) a.setWardCode(req.wardCode);
+        if (req.contactPhone != null) a.setContactPhone(req.contactPhone);
+        a.setPrimaryAddress(req.primaryAddress);
+        return addressRepository.save(a);
+    }
+
+    @Transactional
+    public void deleteForUser(Long userId, Long addressId) {
+        Address a = addressRepository.findById(addressId)
+                .orElseThrow(() -> new AddressNotFoundException(addressId));
+        
+        if (!a.getUser().getId().equals(userId)) {
+            throw new UnauthorizedAddressAccessException(addressId);
+        }
+        
+        addressRepository.delete(a);
+    }
+
+    @Transactional
+    public Address markPrimary(Long userId, Long addressId) {
+        Address a = addressRepository.findById(addressId)
+                .orElseThrow(() -> new AddressNotFoundException(addressId));
+        
+        if (!a.getUser().getId().equals(userId)) {
+            throw new UnauthorizedAddressAccessException(addressId);
+        }
+
+        addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
+                .ifPresent(prev -> {
+                    if (!prev.getId().equals(a.getId())) {
+                        prev.setPrimaryAddress(false);
+                        addressRepository.save(prev);
+                    }
+                });
+        
+        a.setPrimaryAddress(true);
+        return addressRepository.save(a);
     }
 }
