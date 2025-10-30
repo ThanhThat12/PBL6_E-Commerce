@@ -100,9 +100,48 @@ public class AddressService {
         a.setProvinceId(req.provinceId);
         a.setDistrictId(req.districtId);
         a.setWardCode(req.wardCode);
+        
+        // Resolve and store location names
+        resolveAndSetLocationNames(a);
+        
         a.setContactPhone(req.contactPhone);
         a.setPrimaryAddress(req.primaryAddress);
         return addressRepository.save(a);
+    }
+
+    private void resolveAndSetLocationNames(Address address) {
+        // Resolve province name
+        if (address.getProvinceId() != null) {
+            try {
+                var provinces = ghnMaster.getProvinces();
+                provinces.stream()
+                    .filter(p -> address.getProvinceId().equals(p.get("ProvinceID")))
+                    .findFirst()
+                    .ifPresent(p -> address.setProvinceName((String) p.get("ProvinceName")));
+            } catch (Exception ignored) {}
+        }
+        
+        // Resolve district name
+        if (address.getDistrictId() != null && address.getProvinceId() != null) {
+            try {
+                var districts = ghnMaster.getDistricts(address.getProvinceId());
+                districts.stream()
+                    .filter(d -> address.getDistrictId().equals(d.get("DistrictID")))
+                    .findFirst()
+                    .ifPresent(d -> address.setDistrictName((String) d.get("DistrictName")));
+            } catch (Exception ignored) {}
+        }
+        
+        // Resolve ward name
+        if (address.getWardCode() != null && address.getDistrictId() != null) {
+            try {
+                var wards = ghnMaster.getWards(address.getDistrictId());
+                wards.stream()
+                    .filter(w -> address.getWardCode().equals(w.get("WardCode")))
+                    .findFirst()
+                    .ifPresent(w -> address.setWardName((String) w.get("WardName")));
+            } catch (Exception ignored) {}
+        }
     }
 
     @Transactional
@@ -131,6 +170,10 @@ public class AddressService {
         if (req.provinceId != null) a.setProvinceId(req.provinceId);
         if (req.districtId != null) a.setDistrictId(req.districtId);
         if (req.wardCode != null) a.setWardCode(req.wardCode);
+        
+        // Resolve and update location names if IDs changed
+        resolveAndSetLocationNames(a);
+        
         if (req.contactPhone != null) a.setContactPhone(req.contactPhone);
         a.setPrimaryAddress(req.primaryAddress);
         return addressRepository.save(a);

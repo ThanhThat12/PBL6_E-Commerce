@@ -45,6 +45,12 @@ public class AddressController {
         d.setProvinceId(a.getProvinceId());
         d.setDistrictId(a.getDistrictId());
         d.setWardCode(a.getWardCode());
+        
+        // Use stored names from entity
+        d.setProvinceName(a.getProvinceName());
+        d.setDistrictName(a.getDistrictName());
+        d.setWardName(a.getWardName());
+        
         d.setContactPhone(a.getContactPhone());
         d.setPrimaryAddress(a.isPrimaryAddress());
         d.setCreatedAt(a.getCreatedAt());
