@@ -39,13 +39,28 @@ public class BuyerOrderController {
     /**
      * API tạo đơn hàng mới (Buyer/User)
      * POST /api/orders
-     * Tạo đơn hàng từ giỏ hàng hoặc mua ngay
+     * 
+     * Request body (userId được tự động lấy từ JWT token):
+     * {
+     *   "items": [
+     *     {"variantId": 1, "quantity": 2}
+     *   ],
+     *   "toName": "Nguyễn Văn A",
+     *   "toPhone": "0912345678",
+     *   "toDistrictId": "1",
+     *   "toWardCode": "1",
+     *   "toAddress": "123 Đường ABC"
+     * }
      */
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDTO<OrderResponseDTO>> createOrder(
             @Valid @RequestBody CreateOrderRequestDTO dto,
             Authentication authentication) {
+        // Lấy userId từ JWT token (authentication.getName() trả về userId)
+        Long userId = Long.parseLong(authentication.getName());
+        dto.setUserId(userId);
+        
         Order order = orderService.createOrder(dto);
         
         // Convert to response DTO

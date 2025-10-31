@@ -29,6 +29,7 @@ import com.PBL6.Ecommerce.exception.InvalidOtpException;
 import com.PBL6.Ecommerce.exception.InvalidProductDataException;
 import com.PBL6.Ecommerce.exception.InvalidRefreshTokenException;
 import com.PBL6.Ecommerce.exception.InvalidRoleException;
+import com.PBL6.Ecommerce.exception.MoMoPaymentException;
 import com.PBL6.Ecommerce.exception.OrderNotFoundException;
 import com.PBL6.Ecommerce.exception.OtpNotVerifiedException;
 import com.PBL6.Ecommerce.exception.PasswordMismatchException;
@@ -447,6 +448,20 @@ public class GlobalExceptionHandler {
             null
         );
         return ResponseEntity.badRequest().body(response);
+    }
+
+    // ============= Payment Exceptions (MoMo Integration) =============
+    
+    @ExceptionHandler(MoMoPaymentException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleMoMoPaymentException(MoMoPaymentException ex) {
+        log.error("MoMo payment error", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            502,
+            "PAYMENT_GATEWAY_ERROR",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(response);
     }
 
     @ExceptionHandler(Exception.class)

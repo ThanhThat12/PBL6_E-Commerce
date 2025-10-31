@@ -54,7 +54,11 @@ public class SecurityConfig {
                     "/api/ghn/master",
                     "/api/ghn/master/**",
                     "/api/users/*/addresses",
-                    "/api/users/*/addresses/**"
+                    "/api/users/*/addresses/**",
+                    // MoMo Payment callbacks - must be public for MoMo to call
+                    "/api/payment/momo/return",
+                    "/api/payment/momo/callback",
+                    "/api/payment/momo/test-callback"
                 ).permitAll()
 
                 // Allow unauthenticated GET for the products collection

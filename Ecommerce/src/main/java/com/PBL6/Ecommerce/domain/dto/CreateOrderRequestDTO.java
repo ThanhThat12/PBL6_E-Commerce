@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public class CreateOrderRequestDTO {
-    @NotNull
+    // userId is set automatically from JWT token, so no @NotNull validation needed
     private Long userId;
 
     // optional reference to existing order id in your system (used to link shipment)
@@ -15,15 +15,22 @@ public class CreateOrderRequestDTO {
     private List<Item> items;
 
     @NotBlank
-    private String toName;
-    @NotBlank
-    private String toPhone;
-    @NotBlank
     private String toDistrictId;
     @NotBlank
     private String toWardCode;
-    @NotBlank
-    private String toAddress;
+
+    @NotBlank(message = "Vui lòng nhập tên người nhận")
+    private String receiverName;
+
+    @NotBlank(message = "Vui lòng nhập điện thoại người nhận")
+    private String receiverPhone;
+
+    @NotBlank(message = "Vui lòng nhập địa chỉ người nhận")
+    private String receiverAddress;
+
+    private String province;
+    private String district;
+    private String ward;
 
     private Integer weightGrams = 1000;
     private BigDecimal codAmount;
@@ -43,16 +50,22 @@ public class CreateOrderRequestDTO {
     // getters / setters (only ones used)
     public Long getUserId(){return userId;}
     public void setUserId(Long u){this.userId=u;}
-    public String getToName(){return toName;}
-    public void setToName(String v){this.toName=v;}
-    public String getToPhone(){return toPhone;}
-    public void setToPhone(String v){this.toPhone=v;}
     public String getToDistrictId(){return toDistrictId;}
     public void setToDistrictId(String v){this.toDistrictId=v;}
     public String getToWardCode(){return toWardCode;}
     public void setToWardCode(String v){this.toWardCode=v;}
-    public String getToAddress(){return toAddress;}
-    public void setToAddress(String v){this.toAddress=v;}
+    public String getReceiverName(){return receiverName;}
+    public void setReceiverName(String v){this.receiverName=v;}
+    public String getReceiverPhone(){return receiverPhone;}
+    public void setReceiverPhone(String v){this.receiverPhone=v;}
+    public String getReceiverAddress(){return receiverAddress;}
+    public void setReceiverAddress(String v){this.receiverAddress=v;}
+    public String getProvince(){return province;}
+    public void setProvince(String v){this.province=v;}
+    public String getDistrict(){return district;}
+    public void setDistrict(String v){this.district=v;}
+    public String getWard(){return ward;}
+    public void setWard(String v){this.ward=v;}
     public Integer getWeightGrams(){return weightGrams;}
     public void setWeightGrams(Integer w){this.weightGrams=w;}
     public BigDecimal getCodAmount(){return codAmount;}

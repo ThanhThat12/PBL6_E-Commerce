@@ -29,6 +29,7 @@ import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ProductVariantRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
+
 @Service
 @Transactional
 public class OrderService {
@@ -84,13 +85,23 @@ public class OrderService {
 
             OrderItem oi = new OrderItem();
             oi.setVariant(v);
+            oi.setProductId(v.getProduct().getId());
+            oi.setVariantName(v.getSku() != null ? v.getSku() : v.getProduct().getName());
             oi.setPrice(unitPrice);
             oi.setQuantity(it.getQuantity());
             items.add(oi);
         }
 
+        // Get shop from first product variant's shop
+        Shop shop = null;
+        if (!items.isEmpty() && variantMap.size() > 0) {
+            ProductVariant firstVariant = variantMap.values().iterator().next();
+            shop = firstVariant.getProduct().getShop();
+        }
+
         Order order = new Order();
         order.setUser(user);
+        order.setShop(shop);
         order.setStatus(Order.OrderStatus.PENDING);
         order.setTotalAmount(total);
         // Order does not expose setItems(List<OrderItem>); associate items after saving the order.
@@ -102,11 +113,14 @@ public class OrderService {
 
         // prepare GHN payload
         Map<String,Object> ghnPayload = new HashMap<>();
-        ghnPayload.put("to_name", req.getToName());
-        ghnPayload.put("to_phone", req.getToPhone());
+        ghnPayload.put("to_name", req.getReceiverName());
+        ghnPayload.put("to_phone", req.getReceiverPhone());
         ghnPayload.put("to_district_id", Integer.parseInt(req.getToDistrictId()));
         ghnPayload.put("to_ward_code", req.getToWardCode());
-        ghnPayload.put("to_address", req.getToAddress());
+        ghnPayload.put("to_address", req.getReceiverAddress());
+        ghnPayload.put("province", req.getProvince());
+        ghnPayload.put("district", req.getDistrict());
+        ghnPayload.put("ward", req.getWard());
         ghnPayload.put("weight", req.getWeightGrams());
         ghnPayload.put("client_order_code", "ORDER_" + saved.getId());
         ghnPayload.put("cod_amount", req.getCodAmount() != null ? req.getCodAmount().intValue() : 0);
@@ -119,9 +133,13 @@ public class OrderService {
             return m;
         }).collect(Collectors.toList()));
 
-        // best-effort async call: create shipment after order commit (fire-and-forget)
+        // Create shipment and set shipment_id
         try {
-            ghnService.createShippingOrderAsync(saved.getId(), ghnPayload);
+            var shipment = ghnService.createShippingOrderAsync(saved.getId(), ghnPayload);
+            if (shipment != null) {
+                saved.setShipment(shipment);
+                orderRepository.save(saved);
+            }
         } catch (Exception ex) {
             // log only; order has been created
         }
