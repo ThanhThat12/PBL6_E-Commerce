@@ -558,7 +558,33 @@ CREATE TABLE `product_reviews` (
   CONSTRAINT `fk_review_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Product reviews';
 
-
+CREATE TABLE IF NOT EXISTS `payment_transactions` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `order_id` bigint(20) NOT NULL,
+  `request_id` varchar(50) NOT NULL UNIQUE COMMENT 'Unique request ID',
+  `order_id_momo` varchar(50) DEFAULT NULL COMMENT 'MoMo order ID',
+  `amount` decimal(19,2) NOT NULL COMMENT 'Payment amount',
+  `trans_id` varchar(50) DEFAULT NULL COMMENT 'MoMo transaction ID',
+  `status` varchar(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING, PROCESSING, SUCCESS, FAILED, CANCELLED, EXPIRED, REFUNDED',
+  `result_code` int(11) DEFAULT NULL COMMENT 'MoMo result code',
+  `message` text DEFAULT NULL COMMENT 'Response message',
+  `response_time` datetime DEFAULT NULL COMMENT 'Response timestamp',
+  `signature` varchar(500) DEFAULT NULL COMMENT 'MoMo signature',
+  `payment_method` varchar(50) DEFAULT 'MOMO' COMMENT 'Payment method',
+  `pay_type` varchar(50) DEFAULT NULL COMMENT 'Payment type',
+  `pay_url` text DEFAULT NULL COMMENT 'Payment URL',
+  `deep_link` text DEFAULT NULL COMMENT 'Deep link for mobile',
+  `qr_code_url` text DEFAULT NULL COMMENT 'QR code URL',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_request_id` (`request_id`),
+  KEY `idx_order` (`order_id`),
+  KEY `idx_trans_id` (`trans_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_order_momo` (`order_id_momo`),
+  CONSTRAINT `fk_payment_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='MoMo payment transactions';
 -- =====================================================
 -- TRIGGERS: AUTO-UPDATE RATING
 -- =====================================================
