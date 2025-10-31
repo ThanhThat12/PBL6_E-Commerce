@@ -71,7 +71,6 @@ public class CheckoutServiceImpl implements CheckoutService {
             transaction.setOrderIdMomo(momoOrderId); // Sử dụng momoOrderId duy nhất thay vì orderId
             transaction.setAmount(amount);
             transaction.setStatus(PaymentTransaction.PaymentStatus.PENDING);
-            transaction.setPaymentMethod("MOMO");
             
             // Save transaction
             transaction = paymentTransactionRepository.save(transaction);
@@ -92,17 +91,9 @@ public class CheckoutServiceImpl implements CheckoutService {
             transaction.setMessage(response.getMessage());
             transaction.setSignature(response.getSignature());
             
-            if (response.getResponseTime() != null) {
-                LocalDateTime responseTime = LocalDateTime.ofInstant(
-                    Instant.ofEpochMilli(response.getResponseTime()), 
-                    ZoneId.systemDefault()
-                );
-                transaction.setResponseTime(responseTime);
-            }
-            
             // Update status based on response
             if (response.isSuccess()) {
-                transaction.setStatus(PaymentTransaction.PaymentStatus.PROCESSING);
+                transaction.setStatus(PaymentTransaction.PaymentStatus.PENDING);
                 logger.info("Web Payment created successfully with momoOrderId: {}, user will be redirected to pay.momo.vn", momoOrderId);
             } else {
                 transaction.setStatus(PaymentTransaction.PaymentStatus.FAILED);
@@ -148,15 +139,6 @@ public class CheckoutServiceImpl implements CheckoutService {
             transaction.setTransId(String.valueOf(callback.getTransId()));
             transaction.setResultCode(callback.getResultCode());
             transaction.setMessage(callback.getMessage());
-            transaction.setPayType(callback.getPayType());
-            
-            if (callback.getResponseTime() != null) {
-                LocalDateTime responseTime = LocalDateTime.ofInstant(
-                    Instant.ofEpochMilli(callback.getResponseTime()), 
-                    ZoneId.systemDefault()
-                );
-                transaction.setResponseTime(responseTime);
-            }
             
             // Update payment status based on result code
             if (momoPaymentService.isPaymentSuccessful(callback)) {

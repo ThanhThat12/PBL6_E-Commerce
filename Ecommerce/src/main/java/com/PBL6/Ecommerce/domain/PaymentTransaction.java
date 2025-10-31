@@ -16,10 +16,10 @@ public class PaymentTransaction {
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
-    @Column(name = "request_id", nullable = false, unique = true, length = 255)
+    @Column(name = "request_id", nullable = false, unique = true, length = 100)
     private String requestId;
 
-    @Column(name = "order_id_momo", length = 255)
+    @Column(name = "order_id_momo", length = 50)
     private String orderIdMomo;
 
     @Column(name = "amount", nullable = false, precision = 19, scale = 2)
@@ -38,26 +38,11 @@ public class PaymentTransaction {
     @Column(name = "message", columnDefinition = "TEXT")
     private String message;
 
-    @Column(name = "response_time")
-    private LocalDateTime responseTime;
-
-    @Column(name = "signature", length = 500)
+    @Column(name = "signature", length = 255)
     private String signature;
-
-    @Column(name = "payment_method", length = 50)
-    private String paymentMethod = "MOMO";
-
-    @Column(name = "pay_type", length = 50)
-    private String payType;
 
     @Column(name = "pay_url", columnDefinition = "TEXT")
     private String payUrl;
-
-    @Column(name = "deep_link", columnDefinition = "TEXT")
-    private String deeplink;
-
-    @Column(name = "qr_code_url", columnDefinition = "TEXT")
-    private String qrCodeUrl;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -67,12 +52,8 @@ public class PaymentTransaction {
 
     public enum PaymentStatus {
         PENDING,      // Chờ thanh toán
-        PROCESSING,   // Đang xử lý
         SUCCESS,      // Thành công
-        FAILED,       // Thất bại
-        CANCELLED,    // Đã hủy
-        EXPIRED,      // Hết hạn
-        REFUNDED      // Đã hoàn tiền
+        FAILED        // Thất bại
     }
 
     // Constructors
@@ -159,14 +140,6 @@ public class PaymentTransaction {
         this.message = message;
     }
 
-    public LocalDateTime getResponseTime() {
-        return responseTime;
-    }
-
-    public void setResponseTime(LocalDateTime responseTime) {
-        this.responseTime = responseTime;
-    }
-
     public String getSignature() {
         return signature;
     }
@@ -175,44 +148,12 @@ public class PaymentTransaction {
         this.signature = signature;
     }
 
-    public String getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public void setPaymentMethod(String paymentMethod) {
-        this.paymentMethod = paymentMethod;
-    }
-
-    public String getPayType() {
-        return payType;
-    }
-
-    public void setPayType(String payType) {
-        this.payType = payType;
-    }
-
     public String getPayUrl() {
         return payUrl;
     }
 
     public void setPayUrl(String payUrl) {
         this.payUrl = payUrl;
-    }
-
-    public String getDeeplink() {
-        return deeplink;
-    }
-
-    public void setDeeplink(String deeplink) {
-        this.deeplink = deeplink;
-    }
-
-    public String getQrCodeUrl() {
-        return qrCodeUrl;
-    }
-
-    public void setQrCodeUrl(String qrCodeUrl) {
-        this.qrCodeUrl = qrCodeUrl;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -399,9 +399,7 @@ public class MoMoPaymentController {
             transaction.setTransId(request.getOrDefault("transId", System.currentTimeMillis()).toString());
             transaction.setResultCode(0);
             transaction.setMessage("TEST: Payment successful");
-            transaction.setPayType("qr");
             transaction.setStatus(PaymentTransaction.PaymentStatus.SUCCESS);
-            transaction.setResponseTime(java.time.LocalDateTime.now());
             
             paymentTransactionService.save(transaction);
             

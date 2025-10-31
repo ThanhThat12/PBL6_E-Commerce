@@ -113,12 +113,13 @@ public class PaymentTransactionService {
         
         int count = 0;
         for (PaymentTransaction transaction : expiredTransactions) {
-            transaction.setStatus(PaymentTransaction.PaymentStatus.EXPIRED);
+            transaction.setStatus(PaymentTransaction.PaymentStatus.FAILED);
+            transaction.setMessage("Transaction expired after " + timeoutMinutes + " minutes");
             paymentTransactionRepository.save(transaction);
             count++;
         }
         
-        logger.info("Marked {} pending transactions as expired", count);
+        logger.info("Marked {} pending transactions as expired/failed", count);
         return count;
     }
 
@@ -129,11 +130,8 @@ public class PaymentTransactionService {
         PaymentStatistics stats = new PaymentStatistics();
         
         stats.totalPending = paymentTransactionRepository.countByStatus(PaymentTransaction.PaymentStatus.PENDING);
-        stats.totalProcessing = paymentTransactionRepository.countByStatus(PaymentTransaction.PaymentStatus.PROCESSING);
         stats.totalSuccess = paymentTransactionRepository.countByStatus(PaymentTransaction.PaymentStatus.SUCCESS);
         stats.totalFailed = paymentTransactionRepository.countByStatus(PaymentTransaction.PaymentStatus.FAILED);
-        stats.totalCancelled = paymentTransactionRepository.countByStatus(PaymentTransaction.PaymentStatus.CANCELLED);
-        stats.totalExpired = paymentTransactionRepository.countByStatus(PaymentTransaction.PaymentStatus.EXPIRED);
         
         stats.totalSuccessAmount = paymentTransactionRepository.calculateTotalSuccessfulAmount();
         
@@ -145,22 +143,16 @@ public class PaymentTransactionService {
      */
     public static class PaymentStatistics {
         public Long totalPending;
-        public Long totalProcessing;
         public Long totalSuccess;
         public Long totalFailed;
-        public Long totalCancelled;
-        public Long totalExpired;
         public Long totalSuccessAmount;
 
         @Override
         public String toString() {
             return "PaymentStatistics{" +
                     "pending=" + totalPending +
-                    ", processing=" + totalProcessing +
                     ", success=" + totalSuccess +
                     ", failed=" + totalFailed +
-                    ", cancelled=" + totalCancelled +
-                    ", expired=" + totalExpired +
                     ", totalAmount=" + totalSuccessAmount +
                     '}';
         }
