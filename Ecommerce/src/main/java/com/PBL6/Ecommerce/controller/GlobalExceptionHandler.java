@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.exception.AddressNotFoundException;
+import com.PBL6.Ecommerce.exception.BadRequestException;
 import com.PBL6.Ecommerce.exception.CartItemNotFoundException;
 import com.PBL6.Ecommerce.exception.CategoryInUseException;
 import com.PBL6.Ecommerce.exception.CategoryNotFoundException;
@@ -23,12 +24,14 @@ import com.PBL6.Ecommerce.exception.DuplicatePhoneException;
 import com.PBL6.Ecommerce.exception.DuplicateSKUException;
 import com.PBL6.Ecommerce.exception.ExpiredOtpException;
 import com.PBL6.Ecommerce.exception.ExpiredRefreshTokenException;
+import com.PBL6.Ecommerce.exception.ForbiddenException;
 import com.PBL6.Ecommerce.exception.InvalidCredentialsException;
 import com.PBL6.Ecommerce.exception.InvalidOrderStatusException;
 import com.PBL6.Ecommerce.exception.InvalidOtpException;
 import com.PBL6.Ecommerce.exception.InvalidProductDataException;
 import com.PBL6.Ecommerce.exception.InvalidRefreshTokenException;
 import com.PBL6.Ecommerce.exception.InvalidRoleException;
+import com.PBL6.Ecommerce.exception.NotFoundException;
 import com.PBL6.Ecommerce.exception.OrderNotFoundException;
 import com.PBL6.Ecommerce.exception.OtpNotVerifiedException;
 import com.PBL6.Ecommerce.exception.PasswordMismatchException;
@@ -447,6 +450,42 @@ public class GlobalExceptionHandler {
             null
         );
         return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleNotFoundException(NotFoundException ex) {
+        log.error("Resource not found", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            404,
+            "NOT_FOUND",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleForbiddenException(ForbiddenException ex) {
+        log.error("Access forbidden", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            403,
+            "FORBIDDEN",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleBadRequestException(BadRequestException ex) {
+        log.error("Bad request", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            400,
+            "BAD_REQUEST",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(Exception.class)

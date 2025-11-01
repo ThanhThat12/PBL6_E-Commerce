@@ -73,6 +73,14 @@ public class SecurityConfig {
                 .requestMatchers("/api/categories/addCategory").hasRole("ADMIN")
                 .requestMatchers("/api/categories/**").permitAll()
 
+                // Review endpoints
+                .requestMatchers(HttpMethod.GET, "/api/products/*/reviews").permitAll() // Public: view reviews
+                .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").hasRole("BUYER") // Create review
+                .requestMatchers(HttpMethod.PUT, "/api/reviews/*").hasRole("BUYER") // Update review
+                .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasRole("BUYER") // Delete review
+                .requestMatchers(HttpMethod.GET, "/api/reviews/my").hasRole("BUYER") // My reviews
+                .requestMatchers("/api/seller/reviews/**").hasRole("SELLER") // Seller review management
+
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
