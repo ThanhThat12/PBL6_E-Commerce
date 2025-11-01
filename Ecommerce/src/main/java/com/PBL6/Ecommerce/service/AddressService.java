@@ -104,6 +104,7 @@ public class AddressService {
         // Resolve and store location names
         resolveAndSetLocationNames(a);
         
+    a.setContactName(req.contactName);
         a.setContactPhone(req.contactPhone);
         a.setPrimaryAddress(req.primaryAddress);
         return addressRepository.save(a);
@@ -174,7 +175,8 @@ public class AddressService {
         // Resolve and update location names if IDs changed
         resolveAndSetLocationNames(a);
         
-        if (req.contactPhone != null) a.setContactPhone(req.contactPhone);
+    if (req.contactName != null) a.setContactName(req.contactName);
+    if (req.contactPhone != null) a.setContactPhone(req.contactPhone);
         a.setPrimaryAddress(req.primaryAddress);
         return addressRepository.save(a);
     }
