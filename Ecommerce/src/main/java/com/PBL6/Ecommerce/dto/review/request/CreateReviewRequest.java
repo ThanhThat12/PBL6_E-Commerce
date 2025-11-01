@@ -1,4 +1,4 @@
-package com.PBL6.Ecommerce.dto.request;
+package com.PBL6.Ecommerce.dto.review.request;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package com.PBL6.Ecommerce.dto;
+package com.PBL6.Ecommerce.dto.review;
 
 import java.time.LocalDateTime;
 import java.util.List;

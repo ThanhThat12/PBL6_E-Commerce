@@ -2,7 +2,7 @@ package com.PBL6.Ecommerce.service.reviews;
 
 import com.PBL6.Ecommerce.domain.ProductReview;
 import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.dto.ProductReviewDTO;
+import com.PBL6.Ecommerce.dto.review.ProductReviewDTO;
 import com.PBL6.Ecommerce.exception.BadRequestException;
 import com.PBL6.Ecommerce.exception.ForbiddenException;
 import com.PBL6.Ecommerce.exception.NotFoundException;

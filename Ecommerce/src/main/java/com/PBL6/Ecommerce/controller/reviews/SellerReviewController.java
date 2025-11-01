@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.PBL6.Ecommerce.dto.ProductReviewDTO;
+import com.PBL6.Ecommerce.dto.review.ProductReviewDTO;
 import com.PBL6.Ecommerce.service.reviews.SellerReviewService;
 
 /**

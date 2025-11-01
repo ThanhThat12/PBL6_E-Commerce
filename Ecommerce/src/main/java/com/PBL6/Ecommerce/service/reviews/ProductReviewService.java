@@ -4,9 +4,9 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 
-import com.PBL6.Ecommerce.dto.ProductReviewDTO;
-import com.PBL6.Ecommerce.dto.request.CreateReviewRequest;
-import com.PBL6.Ecommerce.dto.request.UpdateReviewRequest;
+import com.PBL6.Ecommerce.dto.review.ProductReviewDTO;
+import com.PBL6.Ecommerce.dto.review.request.CreateReviewRequest;
+import com.PBL6.Ecommerce.dto.review.request.UpdateReviewRequest;
 
 /**
  * Service interface for Product Reviews

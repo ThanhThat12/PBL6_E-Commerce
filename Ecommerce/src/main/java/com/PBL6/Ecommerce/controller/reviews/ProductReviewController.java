@@ -17,9 +17,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.PBL6.Ecommerce.dto.ProductReviewDTO;
-import com.PBL6.Ecommerce.dto.request.CreateReviewRequest;
-import com.PBL6.Ecommerce.dto.request.UpdateReviewRequest;
+import com.PBL6.Ecommerce.dto.review.ProductReviewDTO;
+import com.PBL6.Ecommerce.dto.review.request.CreateReviewRequest;
+import com.PBL6.Ecommerce.dto.review.request.UpdateReviewRequest;
 import com.PBL6.Ecommerce.service.reviews.ProductReviewService;
 
 import jakarta.validation.Valid;

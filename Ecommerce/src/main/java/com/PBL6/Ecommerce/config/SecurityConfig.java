@@ -81,6 +81,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/reviews/my").hasRole("BUYER") // My reviews
                 .requestMatchers("/api/seller/reviews/**").hasRole("SELLER") // Seller review management
 
+                // Profile endpoints (Buyer/Seller)
+                .requestMatchers(HttpMethod.GET, "/api/profile").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.PUT, "/api/profile").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.POST, "/api/profile/**").hasAnyRole("BUYER", "SELLER")
+
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
