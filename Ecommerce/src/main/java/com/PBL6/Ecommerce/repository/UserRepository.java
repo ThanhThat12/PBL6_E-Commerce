@@ -1,13 +1,14 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Role;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
+import com.PBL6.Ecommerce.domain.Role;
+import com.PBL6.Ecommerce.domain.User;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
