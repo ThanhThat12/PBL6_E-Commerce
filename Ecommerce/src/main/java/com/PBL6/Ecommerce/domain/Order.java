@@ -18,6 +18,10 @@ import java.util.ArrayList;
 @Entity
 @Table(name = "orders")
 public class Order {
+    public enum PaymentStatus {
+        UNPAID,
+        PAID
+    }
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -30,6 +34,10 @@ public class Order {
     @JoinColumn(name = "shop_id")
     private Shop shop;
 
+    @ManyToOne
+    @JoinColumn(name = "shipment_id")
+    private Shipment shipment;
+
     public enum OrderStatus {
     PENDING,
     PROCESSING,
@@ -39,9 +47,16 @@ public class Order {
     @Enumerated(EnumType.STRING)
     private OrderStatus status = OrderStatus.PENDING;
 
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+
     private BigDecimal totalAmount;
 
     private String method; 
+    
+    private String momoTransId; // MoMo transaction ID
+    
+    private LocalDateTime paidAt; // Payment timestamp
 
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();
@@ -74,6 +89,14 @@ public class Order {
         this.shop = shop;
     }
 
+    public Shipment getShipment() {
+        return shipment;
+    }
+
+    public void setShipment(Shipment shipment) {
+        this.shipment = shipment;
+    }
+
     public OrderStatus getStatus() {
         return status;
     }
@@ -94,8 +117,32 @@ public class Order {
         return method;
     }
 
+    public PaymentStatus getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(PaymentStatus paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
     public void setMethod(String method) {
         this.method = method;
+    }
+    
+    public String getMomoTransId() {
+        return momoTransId;
+    }
+    
+    public void setMomoTransId(String momoTransId) {
+        this.momoTransId = momoTransId;
+    }
+    
+    public LocalDateTime getPaidAt() {
+        return paidAt;
+    }
+    
+    public void setPaidAt(LocalDateTime paidAt) {
+        this.paidAt = paidAt;
     }
 
     public LocalDateTime getCreatedAt() {

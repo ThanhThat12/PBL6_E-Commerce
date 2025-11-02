@@ -64,9 +64,24 @@ public class GhnService {
         try { body.put("shop_id", Long.parseLong(ghnShopId)); }
         catch (NumberFormatException ex) { body.put("shop_id", ghnShopId); }
     }
+    // Add sender's district and ward code (required by GHN)
+    if (!body.containsKey("from_district_id") && ghnFromDistrictId != null && !ghnFromDistrictId.isBlank()) {
+        try { body.put("from_district_id", Integer.parseInt(ghnFromDistrictId)); }
+        catch (NumberFormatException ex) { body.put("from_district_id", ghnFromDistrictId); }
+    }
+    if (!body.containsKey("from_ward_code") && ghnFromWardCode != null && !ghnFromWardCode.isBlank()) {
+        body.put("from_ward_code", ghnFromWardCode);
+    }
     // ensure required_note present (GHN requires this field)
     if (!body.containsKey("required_note")) {
         body.put("required_note", "KHONGCHOXEMHANG"); // hoặc giá trị phù hợp với dịch vụ của bạn
+    }
+    // Add default service_id and service_type_id for standard delivery
+    if (!body.containsKey("service_id")) {
+        body.put("service_id", 0); // 0 = standard service, GHN will auto-select
+    }
+    if (!body.containsKey("service_type_id")) {
+        body.put("service_type_id", 2); // 2 = same day delivery
     }
     // ensure payment_type_id present and valid
         if (!body.containsKey("payment_type_id")) {
@@ -95,8 +110,7 @@ public class GhnService {
         return resp.getBody();
     }
 
-    @Async
-    public void createShippingOrderAsync(Long orderId, Map<String,Object> payload) {
+    public Shipment createShippingOrderAsync(Long orderId, Map<String,Object> payload) {
         Map<String,Object> resp;
         try {
             resp = createShippingOrder(payload);
@@ -104,22 +118,61 @@ public class GhnService {
             // save failure info for later retry / troubleshooting
             Shipment fail = new Shipment();
             fail.setOrderId(orderId);
+            fail.setReceiverName((String) payload.get("to_name"));
+            fail.setReceiverPhone((String) payload.get("to_phone"));
+            fail.setReceiverAddress((String) payload.get("to_address"));
+            fail.setProvince((String) payload.get("province"));
+            fail.setDistrict((String) payload.get("district"));
+            fail.setWard((String) payload.get("ward"));
             fail.setStatus("GHN_ERROR");
             fail.setGhnPayload(toJson(Map.of("error", ex.getMessage(), "request", payload)));
-            shipmentRepository.save(fail);
-            return;
+            return shipmentRepository.save(fail);
         }
 
         Shipment s = new Shipment();
         s.setOrderId(orderId);
+        s.setReceiverName((String) payload.get("to_name"));
+        s.setReceiverPhone((String) payload.get("to_phone"));
+        s.setReceiverAddress((String) payload.get("to_address"));
+        s.setProvince((String) payload.get("province"));
+        s.setDistrict((String) payload.get("district"));
+        s.setWard((String) payload.get("ward"));
+        
+        // Generate custom GHN order code: GHN0001, GHN0002, etc.
+        long shipmentCount = shipmentRepository.count();
+        String customOrderCode = String.format("GHN%04d", shipmentCount + 1);
+        s.setGhnOrderCode(customOrderCode);
+        
+        // Extract data from GHN response
         Object data = resp.get("data");
         if (data instanceof Map) {
-            Object orderCode = ((Map<?,?>) data).get("order_code");
-            if (orderCode != null) s.setGhnOrderCode(String.valueOf(orderCode));
+            Map<String,Object> dataMap = (Map<String,Object>) data;
+            
+            // Set shipping fee from total_fee
+            Object totalFee = dataMap.get("total_fee");
+            if (totalFee instanceof Number) {
+                s.setShippingFee(java.math.BigDecimal.valueOf(((Number) totalFee).doubleValue()));
+            }
+            
+            // Set expected delivery time
+            Object expectedTime = dataMap.get("expected_delivery_time");
+            if (expectedTime instanceof String) {
+                try {
+                    s.setExpectedDelivery(java.time.LocalDateTime.parse((String) expectedTime, 
+                        java.time.format.DateTimeFormatter.ISO_DATE_TIME));
+                } catch (Exception ignored) {}
+            }
+            
+            // Set service type from trans_type
+            Object transType = dataMap.get("trans_type");
+            if (transType instanceof String) {
+                s.setServiceType((String) transType);
+            }
         }
+        
         s.setStatus("CREATED");
         s.setGhnPayload(toJson(resp));
-        shipmentRepository.save(s);
+        return shipmentRepository.save(s);
     }
 
     public String toJson(Object obj) {
