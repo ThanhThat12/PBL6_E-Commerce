@@ -34,4 +34,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // Thêm method đếm số lượng user theo role
     long countByRole(Role role);
+    
+    // Method để kiểm tra phone number đã được sử dụng bởi seller chưa
+    List<User> findByPhoneNumberAndRole(String phoneNumber, Role role);
 }

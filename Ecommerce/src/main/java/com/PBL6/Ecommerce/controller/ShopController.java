@@ -1,36 +1,30 @@
 package com.PBL6.Ecommerce.controller;
 
+import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
-import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.service.ShopService;
+import com.PBL6.Ecommerce.service.UserService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
-import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
-import com.PBL6.Ecommerce.service.ShopService;
-import com.PBL6.Ecommerce.service.UserService;
 
 @RestController
 @RequestMapping("/api")
 public class ShopController {
     
-    @Autowired
-    private ShopService shopService;
-     @Autowired
-    private UserService userService;
-    public ShopController(ShopService shopService) {
+    private final ShopService shopService;
+    private final UserService userService;
+    
+    public ShopController(ShopService shopService, UserService userService) {
         this.shopService = shopService;
+        this.userService = userService;
     }
 
     /**
@@ -155,31 +149,59 @@ public class ShopController {
             );
         }
     }
-    @PostMapping("/shops/register")
-public ResponseEntity<ResponseDTO<Shop>> registerShop(
-        @Valid @RequestBody ShopRegistrationDTO shopRegistrationDTO) {
-    try {
-        // Sử dụng getCurrentUser() có sẵn trong UserService
-        Long userId = userService.getCurrentUser().getId();
-        
-        Shop shop = shopService.registerShop(userId, shopRegistrationDTO);
-        ResponseDTO<Shop> response = new ResponseDTO<>(
-            HttpStatus.CREATED.value(),
-            null,
-            "Đăng ký shop thành công",
-            shop
-        );
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    } catch (Exception e) {
-        ResponseDTO<Shop> response = new ResponseDTO<>(
-            HttpStatus.BAD_REQUEST.value(),
-            e.getMessage(),
-            "Thất bại",
-            null
-        );
-        return ResponseEntity.badRequest().body(response);
+    /**
+     * Đăng ký seller (Shopee-style: Buyer upgrade to Seller)
+     * POST /api/seller/register
+     * 
+     * Requirements:
+     * - Must be BUYER role
+     * - Must not have existing shop
+     * - Auto-approved for simplicity (student project)
+     * 
+     * @param registrationDTO Shop registration data
+     * @return Shop creation response
+     */
+    @PostMapping("/seller/register")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ResponseDTO<com.PBL6.Ecommerce.dto.seller.SellerRegistrationResponseDTO>> registerAsSeller(
+            @Valid @RequestBody com.PBL6.Ecommerce.dto.seller.SellerRegistrationDTO registrationDTO) {
+        try {
+            // Get current authenticated user
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
+            
+            // Create shop and upgrade to seller (auto-approval)
+            Shop shop = shopService.createShopFromSellerRegistration(user, registrationDTO);
+            
+            // Build success response
+            com.PBL6.Ecommerce.dto.seller.SellerRegistrationResponseDTO response = 
+                com.PBL6.Ecommerce.dto.seller.SellerRegistrationResponseDTO.success(
+                    shop.getId(),
+                    shop.getName()
+                );
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                new ResponseDTO<>(201, null, "Đăng ký seller thành công! Role đã được nâng cấp.", response)
+            );
+            
+        } catch (RuntimeException e) {
+            // Handle business logic errors
+            String errorMessage = e.getMessage();
+            int statusCode;
+            
+            if (errorMessage.contains("Chỉ BUYER")) {
+                statusCode = 403; // Forbidden
+            } else if (errorMessage.contains("đã tồn tại") || errorMessage.contains("đã có shop")) {
+                statusCode = 409; // Conflict
+            } else {
+                statusCode = 400; // Bad Request
+            }
+            
+            return ResponseEntity.status(statusCode).body(
+                new ResponseDTO<>(statusCode, errorMessage, "Đăng ký seller thất bại", null)
+            );
+        }
     }
-}
     
     @GetMapping("/shops/user/{userId}")
     public ResponseEntity<ResponseDTO<Shop>> getShopByUserId(@PathVariable Long userId) {

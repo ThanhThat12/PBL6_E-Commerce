@@ -132,7 +132,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
 
         // 6. Check order contains this product
         boolean hasProduct = order.getOrderItems().stream()
-                .anyMatch(item -> item.getProduct().getId().equals(productId));
+                .anyMatch(item -> item.getProductId().equals(productId));
 
         if (!hasProduct) {
             throw new BadRequestException("Đơn hàng không chứa sản phẩm này");

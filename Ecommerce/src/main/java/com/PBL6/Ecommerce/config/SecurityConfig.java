@@ -90,6 +90,14 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/profile").hasAnyRole("BUYER", "SELLER")
                 .requestMatchers(HttpMethod.POST, "/api/profile/**").hasAnyRole("BUYER", "SELLER")
 
+                // Seller Registration (Buyer upgrade to Seller - Shopee style)
+                .requestMatchers(HttpMethod.POST, "/api/seller/register").hasRole("BUYER")
+
+                // Seller Shop Management
+                .requestMatchers(HttpMethod.GET, "/api/seller/shop").hasRole("SELLER")
+                .requestMatchers(HttpMethod.PUT, "/api/seller/shop").hasRole("SELLER")
+                .requestMatchers(HttpMethod.GET, "/api/seller/shop/analytics").hasRole("SELLER")
+
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
