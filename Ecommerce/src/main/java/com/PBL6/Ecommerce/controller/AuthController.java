@@ -11,8 +11,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.PBL6.Ecommerce.domain.dto.AdminLoginDTO;
 import com.PBL6.Ecommerce.domain.dto.LoginDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.exception.AdminAccessDeniedException;
 import com.PBL6.Ecommerce.exception.ExpiredRefreshTokenException;
 import com.PBL6.Ecommerce.exception.InvalidRefreshTokenException;
 import com.PBL6.Ecommerce.service.AuthService;
@@ -105,5 +107,60 @@ public class AuthController {
         }
         
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Logged out", null));
+    }
+
+    /**
+     * Admin login endpoint - separated for better security and future mobile app support
+     * Only users with ADMIN role can login through this endpoint
+     * 
+     * @param adminLoginDTO contains username and password
+     * @return JWT token and user info if successful
+     * @throws AdminAccessDeniedException if user is not ADMIN or account is not activated
+     */
+    @PostMapping("/auth/admin/login")
+    public ResponseEntity<ResponseDTO<Map<String, Object>>> adminLogin(@RequestBody AdminLoginDTO adminLoginDTO) {
+        log.info("Admin login attempt for username: {}", adminLoginDTO.getUsername());
+        
+        // Authenticate user
+        String token = authService.authenticate(
+            new LoginDTO() {{
+                setUsername(adminLoginDTO.getUsername());
+                setPassword(adminLoginDTO.getPassword());
+            }}
+        );
+        
+        // Get user info
+        com.PBL6.Ecommerce.domain.User user = userRepository
+            .findOneByUsername(adminLoginDTO.getUsername().toLowerCase())
+            .orElseThrow(() -> new AdminAccessDeniedException("User not found"));
+        
+        // ✅ CHECK: User MUST be ADMIN
+        if (!"ADMIN".equals(user.getRole().name())) {
+            log.warn("Non-admin user attempted to login through admin endpoint: {}", user.getUsername());
+            throw new AdminAccessDeniedException("Access denied. Only administrators can access this endpoint.");
+        }
+        
+        // ✅ CHECK: Account must be activated
+        if (!user.isActivated()) {
+            log.warn("Inactive admin account attempted to login: {}", user.getUsername());
+            throw new AdminAccessDeniedException("Your admin account is not activated. Please contact the system administrator.");
+        }
+        
+        // Create and persist refresh token
+        var refreshToken = refreshTokenService.createRefreshToken(user);
+        
+        // Prepare response data
+        Map<String, Object> data = new HashMap<>();
+        data.put("token", token);
+        data.put("refreshToken", refreshToken.getToken());
+        data.put("user", Map.of(
+            "id", user.getId(),
+            "username", user.getUsername(),
+            "email", user.getEmail(),
+            "role", user.getRole().name()
+        ));
+        
+        log.info("Admin login successful for: {}", user.getUsername());
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Admin login successful", data));
     }
 }

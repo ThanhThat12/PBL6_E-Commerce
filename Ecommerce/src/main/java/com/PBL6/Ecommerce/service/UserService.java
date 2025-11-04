@@ -14,23 +14,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.PBL6.Ecommerce.domain.Address;
 import com.PBL6.Ecommerce.domain.Cart;
 import com.PBL6.Ecommerce.domain.Role;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.Verification;
-import com.PBL6.Ecommerce.domain.dto.AdminUserDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.ChangePasswordDTO;
 import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
-import com.PBL6.Ecommerce.domain.dto.ListAdminUserDTO;
-import com.PBL6.Ecommerce.domain.dto.ListCustomerUserDTO;
-import com.PBL6.Ecommerce.domain.dto.ListSellerUserDTO;
 import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
 import com.PBL6.Ecommerce.domain.dto.UserListDTO;
 import com.PBL6.Ecommerce.domain.dto.UserProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminUserDetailDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.ListAdminUserDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.ListCustomerUserDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.ListSellerUserDTO;
 import com.PBL6.Ecommerce.exception.DuplicateEmailException;
 import com.PBL6.Ecommerce.exception.DuplicatePhoneException;
 import com.PBL6.Ecommerce.exception.ExpiredOtpException;
@@ -42,6 +43,7 @@ import com.PBL6.Ecommerce.exception.UnauthenticatedException;
 import com.PBL6.Ecommerce.exception.UnauthorizedUserActionException;
 import com.PBL6.Ecommerce.exception.UserHasReferencesException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
+import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
@@ -62,6 +64,7 @@ public class UserService {
     private final CartItemRepository cartItemRepository;
     private final ShopRepository shopRepository;
     private final ProductRepository productRepository;
+    private final AddressRepository addressRepository;
 
     public UserService(UserRepository userRepository,
                        VerificationRepository verificationRepository,
@@ -71,7 +74,8 @@ public class UserService {
                        CartRepository cartRepository,
                        CartItemRepository cartItemRepository,
                        ShopRepository shopRepository,
-                       ProductRepository productRepository) {
+                       ProductRepository productRepository,
+                       AddressRepository addressRepository) {
         this.userRepository = userRepository;
         this.verificationRepository = verificationRepository;
         this.passwordEncoder = passwordEncoder;
@@ -81,6 +85,7 @@ public class UserService {
         this.cartItemRepository = cartItemRepository;
         this.shopRepository = shopRepository;
         this.productRepository = productRepository;
+        this.addressRepository = addressRepository;
     }
 
     /**
@@ -561,19 +566,30 @@ public class UserService {
     public List<AdminUserDetailDTO> getCustomerUserDetails() {
         List<User> users = userRepository.findByRole(Role.BUYER);
         return users.stream()
-                .map(user -> new AdminUserDetailDTO(
-                    user.getId(),
-                    user.getUsername(),
-                    user.getEmail(),
-                    user.getPhoneNumber(),
-                    user.getRole().name(),
-                    user.isActivated(),
-                    null,  // createdAt
-                    0,     // totalOrders
-                    0.0,   // totalSpent
-                    null,  // lastOrderDate
-                    0      // cartItemsCount
-                ))
+                .map(user -> {
+                    // Lấy địa chỉ chính của customer
+                    Optional<Address> primaryAddress = addressRepository.findByUserIdAndPrimaryAddressTrue(user.getId());
+                    
+                    return new AdminUserDetailDTO(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getEmail(),
+                        user.getPhoneNumber(),
+                        user.getRole().name(),
+                        user.isActivated(),
+                        null,  // createdAt
+                        0,     // totalOrders
+                        0.0,   // totalSpent
+                        null,  // lastOrderDate
+                        0,     // cartItemsCount
+                        primaryAddress.map(Address::getLabel).orElse(null),
+                        primaryAddress.map(Address::getFullAddress).orElse(null),
+                        primaryAddress.map(Address::getProvinceName).orElse(null),
+                        primaryAddress.map(Address::getDistrictName).orElse(null),
+                        primaryAddress.map(Address::getWardName).orElse(null),
+                        primaryAddress.map(Address::getContactPhone).orElse(null)
+                    );
+                })
                 .collect(Collectors.toList());
     }
 
@@ -605,6 +621,9 @@ public class UserService {
                 null, null, null, 0, 0, 0.0
             );
         } else {
+            // BUYER/CUSTOMER - lấy địa chỉ chính
+            Optional<Address> primaryAddress = addressRepository.findByUserIdAndPrimaryAddressTrue(user.getId());
+            
             return new AdminUserDetailDTO(
                 user.getId(),
                 user.getUsername(),
@@ -612,8 +631,17 @@ public class UserService {
                 user.getPhoneNumber(),
                 user.getRole().name(),
                 user.isActivated(),
-                null,
-                0, 0.0, null, 0
+                null,  // createdAt
+                0,     // totalOrders
+                0.0,   // totalSpent
+                null,  // lastOrderDate
+                0,     // cartItemsCount
+                primaryAddress.map(Address::getLabel).orElse(null),
+                primaryAddress.map(Address::getFullAddress).orElse(null),
+                primaryAddress.map(Address::getProvinceName).orElse(null),
+                primaryAddress.map(Address::getDistrictName).orElse(null),
+                primaryAddress.map(Address::getWardName).orElse(null),
+                primaryAddress.map(Address::getContactPhone).orElse(null)
             );
         }
     }

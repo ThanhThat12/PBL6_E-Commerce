@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.PBL6.Ecommerce.domain.dto.AdminUserDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
 import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
@@ -21,6 +20,7 @@ import com.PBL6.Ecommerce.domain.dto.UpdateUserRoleDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateUserStatusDTO;
 import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminUserDetailDTO;
 import com.PBL6.Ecommerce.service.UserService;
 
 @RestController
