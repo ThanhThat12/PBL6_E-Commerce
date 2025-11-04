@@ -1,4 +1,3 @@
-// ...existing code...
 package com.PBL6.Ecommerce.controller;
 
 import org.slf4j.Logger;
@@ -39,6 +38,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<Object> handleSecurityException(SecurityException ex) {
+        log.warn("Security violation", ex);
+        Map<String,Object> body = new HashMap<>();
+        body.put("status", 403);
+        body.put("error", "FORBIDDEN");
+        body.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Object> handleConflict(IllegalStateException ex) {
         log.warn("Conflict", ex);
@@ -47,6 +56,16 @@ public class GlobalExceptionHandler {
         body.put("error", "CONFLICT");
         body.put("message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Object> handleRuntimeException(RuntimeException ex) {
+        log.error("Runtime exception", ex);
+        Map<String,Object> body = new HashMap<>();
+        body.put("status", 500);
+        body.put("error", "INTERNAL_SERVER_ERROR");
+        body.put("message", ex.getMessage() != null ? ex.getMessage() : "Runtime error");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
     @ExceptionHandler(Exception.class)
@@ -59,4 +78,3 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 }
-// ...existing code...

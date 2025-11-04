@@ -21,7 +21,7 @@ public class Shipment {
     private String status;
 
     @Lob
-    @Column(name = "ghn_payload", columnDefinition = "TEXT")
+    @Column(name = "ghn_payload", columnDefinition = "TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
     private String ghnPayload;
 
     private LocalDateTime createdAt;
