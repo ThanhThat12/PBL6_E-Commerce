@@ -14,7 +14,11 @@ import com.PBL6.Ecommerce.domain.User;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    
+
+    // Find unpaid MoMo orders older than a given time (e.g., 5 minutes)
+    @Query("SELECT o FROM Order o WHERE o.method = 'MOMO' AND o.paymentStatus = 'UNPAID' AND o.createdAt < :cutoff")
+    List<Order> findUnpaidMomoOrdersBefore(@Param("cutoff") java.time.LocalDateTime cutoff);
+
     // Lấy tất cả đơn hàng theo shop
     List<Order> findByShop(Shop shop);
     

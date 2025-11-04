@@ -101,7 +101,18 @@ public class AddressService {
         a.setDistrictId(req.districtId);
         a.setWardCode(req.wardCode);
         
-        // Resolve and store location names
+        // Set names from request if provided, otherwise resolve from GHN
+        if (req.provinceName != null && !req.provinceName.isBlank()) {
+            a.setProvinceName(req.provinceName);
+        }
+        if (req.districtName != null && !req.districtName.isBlank()) {
+            a.setDistrictName(req.districtName);
+        }
+        if (req.wardName != null && !req.wardName.isBlank()) {
+            a.setWardName(req.wardName);
+        }
+        
+        // Resolve and store location names from GHN if not provided
         resolveAndSetLocationNames(a);
         
     a.setContactName(req.contactName);
@@ -111,8 +122,9 @@ public class AddressService {
     }
 
     private void resolveAndSetLocationNames(Address address) {
-        // Resolve province name
-        if (address.getProvinceId() != null) {
+        // Resolve province name only if not already set
+        if ((address.getProvinceName() == null || address.getProvinceName().isBlank()) 
+            && address.getProvinceId() != null) {
             try {
                 var provinces = ghnMaster.getProvinces();
                 provinces.stream()
@@ -122,8 +134,9 @@ public class AddressService {
             } catch (Exception ignored) {}
         }
         
-        // Resolve district name
-        if (address.getDistrictId() != null && address.getProvinceId() != null) {
+        // Resolve district name only if not already set
+        if ((address.getDistrictName() == null || address.getDistrictName().isBlank())
+            && address.getDistrictId() != null && address.getProvinceId() != null) {
             try {
                 var districts = ghnMaster.getDistricts(address.getProvinceId());
                 districts.stream()
@@ -133,8 +146,9 @@ public class AddressService {
             } catch (Exception ignored) {}
         }
         
-        // Resolve ward name
-        if (address.getWardCode() != null && address.getDistrictId() != null) {
+        // Resolve ward name only if not already set
+        if ((address.getWardName() == null || address.getWardName().isBlank())
+            && address.getWardCode() != null && address.getDistrictId() != null) {
             try {
                 var wards = ghnMaster.getWards(address.getDistrictId());
                 wards.stream()
@@ -171,6 +185,17 @@ public class AddressService {
         if (req.provinceId != null) a.setProvinceId(req.provinceId);
         if (req.districtId != null) a.setDistrictId(req.districtId);
         if (req.wardCode != null) a.setWardCode(req.wardCode);
+        
+        // Set names from request if provided
+        if (req.provinceName != null && !req.provinceName.isBlank()) {
+            a.setProvinceName(req.provinceName);
+        }
+        if (req.districtName != null && !req.districtName.isBlank()) {
+            a.setDistrictName(req.districtName);
+        }
+        if (req.wardName != null && !req.wardName.isBlank()) {
+            a.setWardName(req.wardName);
+        }
         
         // Resolve and update location names if IDs changed
         resolveAndSetLocationNames(a);
