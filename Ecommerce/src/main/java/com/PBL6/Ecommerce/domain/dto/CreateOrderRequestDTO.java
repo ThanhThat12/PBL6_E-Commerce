@@ -40,6 +40,8 @@ public class CreateOrderRequestDTO {
     private BigDecimal voucherDiscount;
     private String voucherCode;
 
+    private String method;
+
     public static class Item {
         @NotNull
         private Long variantId;
@@ -51,6 +53,9 @@ public class CreateOrderRequestDTO {
         public Integer getQuantity(){return quantity;}
         public void setQuantity(Integer q){this.quantity=q;}
     }
+
+    public String getMethod() { return method; }
+    public void setMethod(String method) { this.method = method; }
 
     // getters / setters (only ones used)
     public Long getUserId(){return userId;}

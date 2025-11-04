@@ -113,13 +113,19 @@ public class OrderService {
             shop = firstVariant.getProduct().getShop();
         }
 
-        Order order = new Order();
-        order.setUser(user);
-        order.setShop(shop);
-        order.setStatus(Order.OrderStatus.PENDING);
-        order.setTotalAmount(finalTotal); // Use finalTotal (subtotal + shipping - voucher)
-        // Order does not expose setItems(List<OrderItem>); associate items after saving the order.
-        // order.setItems(items);
+    Order order = new Order();
+    order.setUser(user);
+    order.setShop(shop);
+    order.setStatus(Order.OrderStatus.PENDING);
+    order.setTotalAmount(finalTotal); // Use finalTotal (subtotal + shipping - voucher)
+    // Set payment method from request (fix missing method field)
+        // Bắt buộc frontend phải truyền method (COD, MOMO, BANK_TRANSFER...)
+        if (req.getMethod() == null || req.getMethod().isBlank()) {
+            throw new IllegalArgumentException("Phải chọn phương thức thanh toán (method)!");
+        }
+        order.setMethod(req.getMethod());
+    // Order does not expose setItems(List<OrderItem>); associate items after saving the order.
+    // order.setItems(items);
 
         Order saved = orderRepository.save(order);
         for (OrderItem oi : items) oi.setOrder(saved);
@@ -248,8 +254,14 @@ public class OrderService {
         // Lấy tất cả orders của user này
         List<Order> orders = orderRepository.findByUser(buyer);
 
-        // Convert sang DTO
+        // Chỉ hiển thị:
+        // - Đơn COD
+        // - Đơn MOMO đã thanh toán (paymentStatus = PAID)
         return orders.stream()
+            .filter(o ->
+                "COD".equalsIgnoreCase(o.getMethod()) ||
+                ("MOMO".equalsIgnoreCase(o.getMethod()) && o.getPaymentStatus() == Order.PaymentStatus.PAID)
+            )
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
@@ -267,8 +279,14 @@ public class OrderService {
         // Lấy tất cả orders của user này
         List<Order> orders = orderRepository.findByUser(buyer);
 
-        // Convert sang DTO
+        // Chỉ hiển thị:
+        // - Đơn COD
+        // - Đơn MOMO đã thanh toán (paymentStatus = PAID)
         return orders.stream()
+            .filter(o ->
+                "COD".equalsIgnoreCase(o.getMethod()) ||
+                ("MOMO".equalsIgnoreCase(o.getMethod()) && o.getPaymentStatus() == Order.PaymentStatus.PAID)
+            )
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
