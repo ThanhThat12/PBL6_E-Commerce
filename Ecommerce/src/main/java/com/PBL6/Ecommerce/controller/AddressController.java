@@ -51,6 +51,7 @@ public class AddressController {
         d.setDistrictName(a.getDistrictName());
         d.setWardName(a.getWardName());
         
+    d.setContactName(a.getContactName());
         d.setContactPhone(a.getContactPhone());
         d.setPrimaryAddress(a.isPrimaryAddress());
         d.setCreatedAt(a.getCreatedAt());

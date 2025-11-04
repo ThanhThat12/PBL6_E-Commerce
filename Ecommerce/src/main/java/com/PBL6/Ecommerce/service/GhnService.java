@@ -138,6 +138,16 @@ public class GhnService {
         s.setDistrict((String) payload.get("district"));
         s.setWard((String) payload.get("ward"));
         
+        // Use shipping fee from request payload (calculated by frontend)
+        Object payloadShippingFee = payload.get("shipping_fee");
+        if (payloadShippingFee != null) {
+            if (payloadShippingFee instanceof java.math.BigDecimal) {
+                s.setShippingFee((java.math.BigDecimal) payloadShippingFee);
+            } else if (payloadShippingFee instanceof Number) {
+                s.setShippingFee(java.math.BigDecimal.valueOf(((Number) payloadShippingFee).doubleValue()));
+            }
+        }
+        
         // Generate custom GHN order code: GHN0001, GHN0002, etc.
         long shipmentCount = shipmentRepository.count();
         String customOrderCode = String.format("GHN%04d", shipmentCount + 1);
@@ -148,10 +158,12 @@ public class GhnService {
         if (data instanceof Map) {
             Map<String,Object> dataMap = (Map<String,Object>) data;
             
-            // Set shipping fee from total_fee
-            Object totalFee = dataMap.get("total_fee");
-            if (totalFee instanceof Number) {
-                s.setShippingFee(java.math.BigDecimal.valueOf(((Number) totalFee).doubleValue()));
+            // Only use GHN shipping fee if not already set from request payload
+            if (s.getShippingFee() == null) {
+                Object totalFee = dataMap.get("total_fee");
+                if (totalFee instanceof Number) {
+                    s.setShippingFee(java.math.BigDecimal.valueOf(((Number) totalFee).doubleValue()));
+                }
             }
             
             // Set expected delivery time

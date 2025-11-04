@@ -23,6 +23,10 @@ public class AddressRequestDTO {
     public String districtName;
     public String wardName;
 
+    // optional recipient name to display with this address
+    @Size(max = 100, message = "Tên người nhận không được quá 100 ký tự")
+    public String contactName;
+
     @NotBlank(message = "Số điện thoại liên hệ không được để trống")
     @Pattern(regexp = "^(0|\\+84)[0-9]{9,10}$", message = "Số điện thoại không hợp lệ")
     public String contactPhone;
@@ -76,6 +80,8 @@ public class AddressRequestDTO {
     public void setWardName(String wardName) {
         this.wardName = wardName;
     }
+    public String getContactName() { return contactName; }
+    public void setContactName(String contactName) { this.contactName = contactName; }
     public String getContactPhone() {
         return contactPhone;
     }

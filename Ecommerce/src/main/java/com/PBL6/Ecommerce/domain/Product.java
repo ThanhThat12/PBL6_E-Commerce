@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.domain;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,6 +47,9 @@ public class Product {
 
     @Column(name = "main_image", length = 500)
     private String mainImage;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductVariant> productVariants = new ArrayList<>();
@@ -149,6 +153,14 @@ public class Product {
 
     public void setMainImage(String mainImage) {
         this.mainImage = mainImage;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public List<ProductVariant> getProductVariants() {
