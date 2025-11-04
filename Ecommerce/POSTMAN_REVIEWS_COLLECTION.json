@@ -1,0 +1,132 @@
+{
+  "info": {
+    "name": "Product Reviews API - Test Collection",
+    "description": "Postman collection for testing Product Reviews endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET Reviews",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/products/1/reviews?page=0&size=10&sortBy=newest",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "products", "1", "reviews"],
+          "query": [
+            {"key": "page", "value": "0"},
+            {"key": "size", "value": "10"},
+            {"key": "sortBy", "value": "newest"}
+          ]
+        },
+        "description": "Get all reviews for product ID 1 with pagination"
+      }
+    },
+    {
+      "name": "GET Reviews - Filter by Rating",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/products/1/reviews?page=0&size=10&rating=5&sortBy=highest",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "products", "1", "reviews"],
+          "query": [
+            {"key": "page", "value": "0"},
+            {"key": "size", "value": "10"},
+            {"key": "rating", "value": "5"},
+            {"key": "sortBy", "value": "highest"}
+          ]
+        },
+        "description": "Get 5-star reviews only"
+      }
+    },
+    {
+      "name": "CREATE Review",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer YOUR_TOKEN_HERE"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": 123,\n  \"rating\": 5,\n  \"comment\": \"Excellent product! Highly recommended!\",\n  \"images\": []\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/products/1/reviews",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "products", "1", "reviews"]
+        },
+        "description": "Create a new review for product ID 1"
+      }
+    },
+    {
+      "name": "UPDATE Review",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {"key": "Authorization", "value": "Bearer YOUR_TOKEN_HERE"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Updated: After 1 week, still working great\",\n  \"images\": []\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/reviews/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "reviews", "1"]
+        },
+        "description": "Update review ID 1 (within 7 days)"
+      }
+    },
+    {
+      "name": "DELETE Review",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {"key": "Authorization", "value": "Bearer YOUR_TOKEN_HERE"}
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/reviews/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "reviews", "1"]
+        },
+        "description": "Delete review ID 1"
+      }
+    },
+    {
+      "name": "GET My Reviews",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer YOUR_TOKEN_HERE"}
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/my-reviews?page=0&size=10",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "my-reviews"],
+          "query": [
+            {"key": "page", "value": "0"},
+            {"key": "size", "value": "10"}
+          ]
+        },
+        "description": "Get all reviews written by current user"
+      }
+    }
+  ]
+}

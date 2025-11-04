@@ -6,22 +6,32 @@ import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 import java.util.List;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 public class ProductCreateDTO {
-    @NotNull(message = "Category ID không được để trống")
+
+    @NotNull(message = "Category ID is required")
     private Long categoryId;
     
-    private Long shopId; // Optional cho seller
+    private Long shopId; // Optional - will be set from authentication for sellers
     
-    @NotBlank(message = "Tên sản phẩm không được để trống")
+    @NotBlank(message = "Product name is required")
+    @Size(min = 3, max = 200, message = "Product name must be between 3 and 200 characters")
     private String name;
     
+    @Size(max = 2000, message = "Description cannot exceed 2000 characters")
     private String description;
     
-    @NotNull(message = "Giá không được để trống")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Giá phải lớn hơn 0")
+    @NotNull(message = "Base price is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Base price must be greater than 0")
+
     private BigDecimal basePrice;
     
     private Boolean isActive = true;
+    
     private String mainImage;
     private List<ProductVariantDTO> variants;
     private List<String> imageUrls;

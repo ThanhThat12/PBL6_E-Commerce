@@ -1,0 +1,781 @@
+{
+	"info": {
+		"_postman_id": "review-api-collection-2025",
+		"name": "Product Reviews API - CRUD",
+		"description": "Complete CRUD operations for Product Review Module\n\nFeatures:\n- Customer: Create, Read, Update, Delete reviews\n- Seller: Add response to reviews, view shop reviews & stats\n- Authentication: JWT Bearer Token\n- Test Data: User lmao (BUYER), Test Sports Shop\n\nCreated: 2025-10-31",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080/api",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "product_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "order_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "review_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "shop_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "0. Authentication",
+			"item": [
+				{
+					"name": "Login as Buyer (lmao)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"jwt_token\", jsonData.accessToken);",
+									"    pm.environment.set(\"jwt_token\", jsonData.accessToken);",
+									"    console.log(\"JWT Token saved:\", jsonData.accessToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"lmao\",\n  \"password\": \"lmao123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as BUYER user to get JWT token.\n\nCredentials:\n- Username: lmao\n- Password: lmao123\n- Role: BUYER\n\nThe JWT token will be automatically saved to collection variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Login as Seller (seller1)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"jwt_token\", jsonData.accessToken);",
+									"    pm.environment.set(\"jwt_token\", jsonData.accessToken);",
+									"    console.log(\"Seller JWT Token saved:\", jsonData.accessToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"seller1\",\n  \"password\": \"seller123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as SELLER user to test seller response features.\n\nCredentials:\n- Username: seller1\n- Password: seller123\n- Role: SELLER"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints to get JWT token"
+		},
+		{
+			"name": "1. Customer - Read Reviews",
+			"item": [
+				{
+					"name": "Get Product Reviews (Public)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/products/{{product_id}}/reviews?page=0&size=10&sort=createdAt,desc&rating=5",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"{{product_id}}",
+								"reviews"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0",
+									"description": "Page number (0-based)"
+								},
+								{
+									"key": "size",
+									"value": "10",
+									"description": "Items per page"
+								},
+								{
+									"key": "sort",
+									"value": "createdAt,desc",
+									"description": "Sort by: createdAt, rating, updatedAt"
+								},
+								{
+									"key": "rating",
+									"value": "5",
+									"description": "Filter by rating (1-5)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get all reviews for a specific product.\n\n**Public endpoint** - No authentication required.\n\n**Query Parameters:**\n- `page`: Page number (default: 0)\n- `size`: Items per page (default: 10)\n- `sort`: Sort field and direction (createdAt,desc / rating,asc)\n- `rating`: Filter by rating 1-5 (optional)\n\n**Response:**\n- Paginated list of reviews\n- Each review includes: id, rating, comment, images, user info, seller response\n- Total pages, total elements"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Reviews",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/my-reviews?page=0&size=10&sort=createdAt,desc",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"my-reviews"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "sort",
+									"value": "createdAt,desc"
+								}
+							]
+						},
+						"description": "Get all reviews created by the authenticated user.\n\n**Authentication:** Required (JWT Bearer Token)\n\n**Query Parameters:**\n- `page`: Page number (default: 0)\n- `size`: Items per page (default: 10)\n- `sort`: Sort field and direction\n\n**Response:**\n- List of user's reviews\n- Includes product info, order info, seller responses"
+					},
+					"response": []
+				}
+			],
+			"description": "Customer endpoints to read reviews"
+		},
+		{
+			"name": "2. Customer - Create Review",
+			"item": [
+				{
+					"name": "Create Review - 5 Stars",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"review_id\", jsonData.data.id);",
+									"    console.log(\"Review ID saved:\", jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orderId\": {{order_id}},\n  \"rating\": 5,\n  \"comment\": \"Bóng rổ chất lượng tuyệt vời! Độ bám tốt, phù hợp cho tập luyện và thi đấu. Giao hàng nhanh, đóng gói cẩn thận. Rất hài lòng với sản phẩm này!\",\n  \"images\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/products/{{product_id}}/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"{{product_id}}",
+								"reviews"
+							]
+						},
+						"description": "Create a new review for a product.\n\n**Authentication:** Required (JWT Bearer Token)\n\n**Validation Rules:**\n- Order must belong to user\n- Order status must be COMPLETED\n- Product must exist in order\n- User can only review once per product\n- Review must be within 7 days of order completion\n- Rating: 1-5 stars (required)\n- Comment: max 1000 characters (optional)\n- Images: JSON array of URLs (optional)\n\n**Response:**\n- 201 Created: Review created successfully\n- Review ID will be saved to collection variables"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Review - 4 Stars with Images",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orderId\": {{order_id}},\n  \"rating\": 4,\n  \"comment\": \"Sản phẩm tốt, đúng mô tả. Chất liệu da tốt, độ nảy vừa phải. Trừ 1 sao vì hơi đắt so với mặt bằng chung.\",\n  \"images\": [\n    \"https://example.com/basketball-front.jpg\",\n    \"https://example.com/basketball-side.jpg\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/products/{{product_id}}/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"{{product_id}}",
+								"reviews"
+							]
+						},
+						"description": "Create review with image attachments.\n\n**Images:**\n- JSON array of image URLs\n- Stored as TEXT in database\n- Serialized/deserialized with Jackson"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Review - 3 Stars (Medium)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orderId\": {{order_id}},\n  \"rating\": 3,\n  \"comment\": \"Sản phẩm tạm ổn, giá hơi cao. Chất lượng trung bình, không xuất sắc như mong đợi.\",\n  \"images\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/products/{{product_id}}/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"{{product_id}}",
+								"reviews"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Customer endpoints to create reviews"
+		},
+		{
+			"name": "3. Customer - Update Review",
+			"item": [
+				{
+					"name": "Update Review - Change Rating & Comment",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rating\": 4,\n  \"comment\": \"[CẬP NHẬT] Sau 1 tuần sử dụng, bóng vẫn giữ được chất lượng tốt. Độ bám tay không bị giảm. Đáng mua!\",\n  \"images\": [\n    \"https://example.com/basketball-after-1-week.jpg\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/reviews/{{review_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"{{review_id}}"
+							]
+						},
+						"description": "Update an existing review.\n\n**Authentication:** Required (JWT Bearer Token)\n\n**Validation Rules:**\n- Review must belong to user\n- Rating: 1-5 stars (required)\n- Comment: max 1000 characters (optional)\n- Images: JSON array of URLs (optional)\n\n**Response:**\n- 200 OK: Review updated successfully\n- Product rating will be auto-recalculated by trigger"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Review - Add Images",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rating\": 5,\n  \"comment\": \"Sản phẩm xuất sắc! Thêm ảnh chụp sau khi sử dụng.\",\n  \"images\": [\n    \"https://example.com/basketball-in-use-1.jpg\",\n    \"https://example.com/basketball-in-use-2.jpg\",\n    \"https://example.com/basketball-detail.jpg\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/reviews/{{review_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"{{review_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Customer endpoints to update reviews"
+		},
+		{
+			"name": "4. Customer - Delete Review",
+			"item": [
+				{
+					"name": "Delete Review",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/reviews/{{review_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"{{review_id}}"
+							]
+						},
+						"description": "Delete a review.\n\n**Authentication:** Required (JWT Bearer Token)\n\n**Validation Rules:**\n- Review must belong to user\n- Only the review owner can delete\n\n**Response:**\n- 204 No Content: Review deleted successfully\n- Product rating will be auto-recalculated by trigger"
+					},
+					"response": []
+				}
+			],
+			"description": "Customer endpoints to delete reviews"
+		},
+		{
+			"name": "5. Seller - Manage Reviews",
+			"item": [
+				{
+					"name": "Get Shop Reviews",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/seller/shops/{{shop_id}}/reviews?page=0&size=10&sort=createdAt,desc&rating=5",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"seller",
+								"shops",
+								"{{shop_id}}",
+								"reviews"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "sort",
+									"value": "createdAt,desc"
+								},
+								{
+									"key": "rating",
+									"value": "5",
+									"description": "Filter by rating (1-5)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get all reviews for seller's shop.\n\n**Authentication:** Required (JWT Bearer Token - SELLER role)\n\n**Validation:**\n- User must be the shop owner\n\n**Query Parameters:**\n- `page`: Page number (default: 0)\n- `size`: Items per page (default: 10)\n- `sort`: Sort field and direction\n- `rating`: Filter by rating (optional)\n\n**Response:**\n- Paginated list of reviews for all products in shop\n- Includes: product info, customer info, ratings, comments"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Shop Review Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/seller/shops/{{shop_id}}/reviews/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"seller",
+								"shops",
+								"{{shop_id}}",
+								"reviews",
+								"stats"
+							]
+						},
+						"description": "Get review statistics for seller's shop.\n\n**Authentication:** Required (JWT Bearer Token - SELLER role)\n\n**Validation:**\n- User must be the shop owner\n\n**Response Statistics:**\n- `totalReviews`: Total number of reviews\n- `averageRating`: Average rating (0-5)\n- `ratingDistribution`: Count for each rating (1-5 stars)\n  - `oneStar`: Count of 1-star reviews\n  - `twoStars`: Count of 2-star reviews\n  - `threeStars`: Count of 3-star reviews\n  - `fourStars`: Count of 4-star reviews\n  - `fiveStars`: Count of 5-star reviews"
+					},
+					"response": []
+				},
+				{
+					"name": "Add Seller Response to Review",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sellerResponse\": \"Cảm ơn bạn đã mua hàng và đánh giá! Shop rất vui khi sản phẩm đáp ứng được mong đợi của bạn. Chúc bạn tập luyện hiệu quả! 🏀\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/seller/reviews/{{review_id}}/response",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"seller",
+								"reviews",
+								"{{review_id}}",
+								"response"
+							]
+						},
+						"description": "Add or update seller's response to a review.\n\n**Authentication:** Required (JWT Bearer Token - SELLER role)\n\n**Validation Rules:**\n- Review must exist\n- Product must belong to seller's shop\n- Only shop owner can respond\n- Response: max 500 characters\n\n**Response:**\n- 200 OK: Response added/updated successfully\n- Includes: updated review with seller response and response date"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Seller Response",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sellerResponse\": \"[CẬP NHẬT] Cảm ơn bạn rất nhiều! Shop đã ghi nhận góp ý của bạn. Nếu có bất kỳ vấn đề gì, hãy liên hệ shop để được hỗ trợ tốt nhất nhé! 💪\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/seller/reviews/{{review_id}}/response",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"seller",
+								"reviews",
+								"{{review_id}}",
+								"response"
+							]
+						},
+						"description": "Update existing seller response.\n\nSame endpoint as adding response - will overwrite previous response."
+					},
+					"response": []
+				}
+			],
+			"description": "Seller endpoints to manage and respond to reviews"
+		},
+		{
+			"name": "6. Error Cases",
+			"item": [
+				{
+					"name": "Create Review - Unauthorized (No Token)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orderId\": {{order_id}},\n  \"rating\": 5,\n  \"comment\": \"Test unauthorized\",\n  \"images\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/products/{{product_id}}/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"{{product_id}}",
+								"reviews"
+							]
+						},
+						"description": "Test error: 401 Unauthorized\n\nExpected response: Authentication required"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Review - Invalid Rating",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orderId\": {{order_id}},\n  \"rating\": 6,\n  \"comment\": \"Invalid rating test\",\n  \"images\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/products/{{product_id}}/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"{{product_id}}",
+								"reviews"
+							]
+						},
+						"description": "Test error: 400 Bad Request\n\nExpected: Rating must be between 1 and 5"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Review - Duplicate Review",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orderId\": {{order_id}},\n  \"rating\": 5,\n  \"comment\": \"Duplicate review test\",\n  \"images\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/products/{{product_id}}/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"{{product_id}}",
+								"reviews"
+							]
+						},
+						"description": "Test error: 400 Bad Request\n\nExpected: User has already reviewed this product"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Review - Not Owner",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rating\": 1,\n  \"comment\": \"Trying to update someone else's review\",\n  \"images\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/reviews/99999",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"99999"
+							]
+						},
+						"description": "Test error: 403 Forbidden\n\nExpected: Not authorized to update this review"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Review - Review Not Found",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/reviews/99999",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"99999"
+							]
+						},
+						"description": "Test error: 404 Not Found\n\nExpected: Review not found"
+					},
+					"response": []
+				}
+			],
+			"description": "Test error cases and validation"
+		}
+	]
+}

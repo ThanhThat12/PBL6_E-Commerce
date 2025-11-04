@@ -25,20 +25,41 @@ import com.PBL6.Ecommerce.repository.OrderRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.PBL6.Ecommerce.domain.dto.ChangePasswordDTO;
+import com.PBL6.Ecommerce.domain.dto.UpdateProfileDTO;
+import com.PBL6.Ecommerce.domain.dto.UserProfileDTO;
+import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
+import com.PBL6.Ecommerce.exception.DuplicateEmailException;
+import com.PBL6.Ecommerce.exception.DuplicatePhoneException;
+import com.PBL6.Ecommerce.exception.ExpiredOtpException;
+import com.PBL6.Ecommerce.exception.InvalidOtpException;
+import com.PBL6.Ecommerce.exception.InvalidRoleException;
+import com.PBL6.Ecommerce.exception.OtpNotVerifiedException;
+import com.PBL6.Ecommerce.exception.PasswordMismatchException;
+import com.PBL6.Ecommerce.exception.UnauthenticatedException;
+import com.PBL6.Ecommerce.exception.UnauthorizedUserActionException;
+import com.PBL6.Ecommerce.exception.UserHasReferencesException;
+import com.PBL6.Ecommerce.exception.UserNotFoundException;
+
+
 @Service
 public class UserService {
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
+    
     private final UserRepository userRepository;
     private final VerificationRepository verificationRepository;
     private final PasswordEncoder passwordEncoder;
@@ -72,17 +93,73 @@ public class UserService {
         this.orderRepository = orderRepository;
     }
 
+    /**
+     * Resolve current user from Authentication object
+     * Supports ID, username, and email as principal
+     */
+    public User resolveCurrentUser(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            throw new UserNotFoundException("Authentication is required");
+        }
+        
+        String principal = authentication.getName();
+        Optional<User> userOpt = Optional.empty();
+        
+        // Try to parse as ID first
+        if (principal.matches("^\\d+$")) {
+            try {
+                Long id = Long.parseLong(principal);
+                userOpt = userRepository.findById(id);
+            } catch (NumberFormatException ignored) {
+                // Not a valid ID, try other methods
+            }
+        }
+        
+        // Try username
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findOneByUsername(principal);
+        }
+        
+        // Try email
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findOneByEmail(principal);
+        }
+        
+        return userOpt.orElseThrow(() -> 
+            new UserNotFoundException("User not found with principal: " + principal)
+        );
+    }
+
+    /**
+     * Extract user ID from JWT token subject
+     */
+    public Long extractUserIdFromJwt(org.springframework.security.oauth2.jwt.Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null) {
+            throw new UserNotFoundException("Invalid JWT token");
+        }
+        
+        try {
+            return Long.parseLong(jwt.getSubject());
+        } catch (NumberFormatException e) {
+            throw new UserNotFoundException("Invalid user ID in JWT token: " + jwt.getSubject());
+        }
+    }
+
     public String checkContact(CheckContactDTO dto) {
         String contact = dto.getContact();
+        
+        log.debug("Checking contact availability: {}", contact);
 
         // 1. Kiểm tra tồn tại
         if (contact.contains("@")) {
             if (userRepository.existsByEmail(contact)) {
-                throw new RuntimeException("Email đã tồn tại");
+                log.warn("Email already exists: {}", contact);
+                throw new DuplicateEmailException("Email already exists");
             }
         } else {
             if (userRepository.existsByPhoneNumber(contact)) {
-                throw new RuntimeException("Số điện thoại đã tồn tại");
+                log.warn("Phone number already exists: {}", contact);
+                throw new DuplicatePhoneException("Phone number already exists");
             }
         }
 
@@ -101,46 +178,58 @@ public class UserService {
         // 3. Gửi OTP
         if (contact.contains("@")) {
             emailService.sendOtp(contact, otp);
+            log.info("OTP sent to email: {}", contact);
         } else {
             smsService.sendOtp(contact, otp);
+            log.info("OTP sent to phone: {}", contact);
         }
 
         return "OTP đã được gửi tới " + contact;
     }
 
     public String verifyOtp(VerifyOtpDTO dto) {
+        log.debug("Verifying OTP for contact: {}", dto.getContact());
+        
         Optional<Verification> verificationOpt =
                 verificationRepository.findTopByContactOrderByCreatedAtDesc(dto.getContact());
 
         if (verificationOpt.isEmpty()) {
-            throw new RuntimeException("Không tìm thấy OTP");
+            log.warn("No OTP found for contact: {}", dto.getContact());
+            throw new InvalidOtpException("OTP not found");
         }
 
         Verification verification = verificationOpt.get();
         if (!verification.getOtp().equals(dto.getOtp())) {
-            throw new RuntimeException("OTP không đúng");
+            log.warn("Invalid OTP for contact: {}", dto.getContact());
+            throw new InvalidOtpException("Invalid OTP code");
         }
         if (verification.getExpiryTime().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("OTP đã hết hạn");
+            log.warn("Expired OTP for contact: {}", dto.getContact());
+            throw new ExpiredOtpException("OTP has expired");
         }
 
         verification.setVerified(true);
         verificationRepository.save(verification);
 
+        log.info("OTP verified successfully for: {}", dto.getContact());
         return "Xác thực thành công";
     }
 
     public String register(RegisterDTO dto) {
+        log.debug("Registering new user with username: {}", dto.getUsername());
+        
         Verification verification = verificationRepository
                 .findTopByContactOrderByCreatedAtDesc(dto.getContact())
-                .orElseThrow(() -> new RuntimeException("Chưa xác thực OTP"));
+                .orElseThrow(() -> new OtpNotVerifiedException("OTP verification required"));
 
         if (!verification.isVerified()) {
-            throw new RuntimeException("Bạn chưa xác thực OTP");
+            log.warn("Registration failed - OTP not verified for: {}", dto.getContact());
+            throw new OtpNotVerifiedException("OTP not verified");
         }
 
         if (!dto.getPassword().equals(dto.getConfirmPassword())) {
-            throw new RuntimeException("Mật khẩu không khớp");
+            log.warn("Registration failed - password mismatch for: {}", dto.getUsername());
+            throw new PasswordMismatchException("Password and confirm password do not match");
         }
 
         User user = new User();
@@ -158,6 +247,7 @@ public class UserService {
 
         userRepository.save(user);
 
+        log.info("User registered successfully: {}", dto.getUsername());
         return "Đăng ký thành công";
     }
     // cập nhật mật khẩu cho email hoặc phone
@@ -179,18 +269,176 @@ public class UserService {
     public UserInfoDTO getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("Chưa đăng nhập");
+            log.warn("Unauthenticated access attempt");
+            throw new UnauthenticatedException("Authentication required");
         }
 
         String principal = authentication.getName();
+        Optional<User> userOpt = Optional.empty();
 
-        Optional<User> userOpt = userRepository.findOneByUsername(principal);
+        // Nếu principal là numeric -> tìm theo id (TokenProvider đặt sub = userId)
+        if (principal != null && principal.matches("^\\d+$")) {
+            try {
+                Long id = Long.parseLong(principal);
+                userOpt = userRepository.findById(id);
+            } catch (NumberFormatException ignored) { }
+        }
+
+        // Nếu chưa tìm theo id thì thử username -> email
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findOneByUsername(principal);
+        }
         if (userOpt.isEmpty()) {
             userOpt = userRepository.findOneByEmail(principal);
         }
-        User user = userOpt.orElseThrow(() -> new RuntimeException("User not found"));
+
+        User user = userOpt.orElseThrow(() -> {
+            log.warn("User not found for principal: {}", principal);
+            return new UserNotFoundException("User not found");
+        });
 
         return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name());
+    }
+
+    /**
+     * Get full user profile with all fields including metadata
+     */
+    public UserProfileDTO getUserProfile() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("Unauthenticated access attempt");
+            throw new UnauthenticatedException("Authentication required");
+        }
+
+        User user = resolveCurrentUser(authentication);
+        
+        return new UserProfileDTO(
+            user.getId(),
+            user.getUsername(),
+            user.getEmail(),
+            user.getPhoneNumber(),
+            user.getFullName(),
+            user.getRole().name(),
+            user.getAvatarUrl(),
+            user.isActivated(),
+            user.getCreatedAt(),
+            user.getUpdatedAt()
+        );
+    }
+
+    /**
+     * Update user profile information
+     */
+    @Transactional
+    public UserProfileDTO updateProfile(UpdateProfileDTO dto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthenticatedException("Authentication required");
+        }
+
+        User user = resolveCurrentUser(authentication);
+
+        // Check if username is being changed and already exists
+        if (dto.getUsername() != null && !dto.getUsername().equals(user.getUsername())) {
+            if (userRepository.findOneByUsername(dto.getUsername()).isPresent()) {
+                throw new RuntimeException("Username already exists");
+            }
+            user.setUsername(dto.getUsername());
+        }
+
+        // Check if email is being changed and already exists
+        if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {
+            if (userRepository.findOneByEmail(dto.getEmail()).isPresent()) {
+                throw new DuplicateEmailException("Email already exists");
+            }
+            user.setEmail(dto.getEmail());
+        }
+
+        // Check if phone is being changed and already exists
+        if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().equals(user.getPhoneNumber())) {
+            if (userRepository.findOneByPhoneNumber(dto.getPhoneNumber()).isPresent()) {
+                throw new DuplicatePhoneException("Phone number already exists");
+            }
+            user.setPhoneNumber(dto.getPhoneNumber());
+        }
+
+        // Update fullName if provided
+        if (dto.getFullName() != null) {
+            user.setFullName(dto.getFullName());
+        }
+
+        User updatedUser = userRepository.save(user);
+        log.info("Profile updated for user: {}", updatedUser.getUsername());
+
+        return new UserProfileDTO(
+            updatedUser.getId(),
+            updatedUser.getUsername(),
+            updatedUser.getEmail(),
+            updatedUser.getPhoneNumber(),
+            updatedUser.getFullName(),
+            updatedUser.getRole().name(),
+            updatedUser.getAvatarUrl(),
+            updatedUser.isActivated(),
+            updatedUser.getCreatedAt(),
+            updatedUser.getUpdatedAt()
+        );
+    }
+
+    /**
+     * Change user password
+     */
+    @Transactional
+    public void changePassword(ChangePasswordDTO dto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthenticatedException("Authentication required");
+        }
+
+        User user = resolveCurrentUser(authentication);
+
+        // Verify old password
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new PasswordMismatchException("Old password is incorrect");
+        }
+
+        // Verify new password matches confirmation
+        if (!dto.getNewPassword().equals(dto.getConfirmPassword())) {
+            throw new PasswordMismatchException("New password and confirmation do not match");
+        }
+
+        // Update password
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        userRepository.save(user);
+        log.info("Password changed for user: {}", user.getUsername());
+    }
+
+    /**
+     * Update user avatar URL
+     */
+    @Transactional
+    public UserProfileDTO updateAvatar(String avatarUrl) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthenticatedException("Authentication required");
+        }
+
+        User user = resolveCurrentUser(authentication);
+        user.setAvatarUrl(avatarUrl);
+        User updatedUser = userRepository.save(user);
+        log.info("Avatar updated for user: {}", updatedUser.getUsername());
+
+        return new UserProfileDTO(
+            updatedUser.getId(),
+            updatedUser.getUsername(),
+            updatedUser.getEmail(),
+            updatedUser.getPhoneNumber(),
+            updatedUser.getFullName(),
+            updatedUser.getRole().name(),
+            updatedUser.getAvatarUrl(),
+            updatedUser.isActivated(),
+            updatedUser.getCreatedAt(),
+            updatedUser.getUpdatedAt()
+        );
     }
 
     public List<UserListDTO> getAllUsers() {
@@ -206,11 +454,14 @@ public class UserService {
     }
 
     public List<UserInfoDTO> getUsersByRole(String roleName) {
+        log.debug("Getting users by role: {}", roleName);
+        
         Role role;
         try {
             role = Role.valueOf(roleName);
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Role không hợp lệ: " + roleName);
+            log.warn("Invalid role requested: {}", roleName);
+            throw new InvalidRoleException("Invalid role: " + roleName);
         }
         
         List<User> users = userRepository.findByRole(role);
@@ -383,27 +634,36 @@ public class UserService {
     //***ADMIN CẬP NHẬT ROLE VÀ TRẠNG THÁI USER***
 
     public UserInfoDTO updateUserRole(Long userId, String newRole) {
-    // Tìm user
-    User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User không tồn tại"));
-    
-    // Validate role
-    Role role;
-    try {
-        role = Role.valueOf(newRole.toUpperCase());
-    } catch (IllegalArgumentException e) {
-        throw new RuntimeException("Role không hợp lệ. Chỉ chấp nhận: ADMIN, SELLER, BUYER");
-    }
-    
-    // Không cho phép thay đổi role của chính mình
-    String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-    if (user.getUsername().equals(currentUsername)) {
-        throw new RuntimeException("Không thể thay đổi role của chính mình");
-    }
+        log.debug("Updating role for user ID: {} to role: {}", userId, newRole);
+        
+        // Tìm user
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.warn("User not found with ID: {}", userId);
+                    return new UserNotFoundException("User not found");
+                });
+        
+        // Validate role
+        Role role;
+        try {
+            role = Role.valueOf(newRole.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid role requested: {}", newRole);
+            throw new InvalidRoleException("Invalid role. Only ADMIN, SELLER, BUYER are accepted");
+        }
+        
+        // Không cho phép thay đổi role của chính mình
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (user.getUsername().equals(currentUsername)) {
+            log.warn("User attempted to change their own role: {}", currentUsername);
+            throw new UnauthorizedUserActionException("Cannot change your own role");
+        }
     
     // Cập nhật role
     user.setRole(role);
     userRepository.save(user);
+    
+    log.info("User role updated successfully - User ID: {}, New Role: {}", userId, role);
     
     // Trả về UserInfoDTO
     return new UserInfoDTO(
@@ -415,19 +675,27 @@ public class UserService {
     }
 
     public UserInfoDTO updateUserStatus(Long userId, boolean activated) {
+        log.debug("Updating status for user ID: {} to: {}", userId, activated);
+        
         // Tìm user
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+                .orElseThrow(() -> {
+                    log.warn("User not found with ID: {}", userId);
+                    return new UserNotFoundException("User not found");
+                });
         
         // Không cho phép vô hiệu hóa chính mình
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         if (user.getUsername().equals(currentUsername)) {
-            throw new RuntimeException("Không thể thay đổi trạng thái của chính mình");
+            log.warn("User attempted to change their own status: {}", currentUsername);
+            throw new UnauthorizedUserActionException("Cannot change your own status");
         }
         
         // Cập nhật trạng thái
         user.setActivated(activated);
         userRepository.save(user);
+        
+        log.info("User status updated successfully - User ID: {}, Activated: {}", userId, activated);
         
         // Trả về UserInfoDTO
         return new UserInfoDTO(
@@ -448,21 +716,28 @@ public class UserService {
      */
     @Transactional
     public void deleteUser(Long userId) {
+        log.debug("Deleting user with ID: {}", userId);
+        
         // 1. Tìm user
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+                .orElseThrow(() -> {
+                    log.warn("User not found with ID: {}", userId);
+                    return new UserNotFoundException("User not found");
+                });
         
         // 2. Không cho phép xóa chính mình
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         if (user.getUsername().equals(currentUsername)) {
-            throw new RuntimeException("Không thể xóa tài khoản của chính mình");
+            log.warn("User attempted to delete their own account: {}", currentUsername);
+            throw new UnauthorizedUserActionException("Cannot delete your own account");
         }
         
         // 3. Kiểm tra xem có phải admin cuối cùng không
         if (user.getRole() == Role.ADMIN) {
             long adminCount = userRepository.countByRole(Role.ADMIN);
             if (adminCount <= 1) {
-                throw new RuntimeException("Không thể xóa admin cuối cùng trong hệ thống");
+                log.warn("Attempted to delete the last admin in the system");
+                throw new UserHasReferencesException("Cannot delete the last admin in the system");
             }
         }
         
@@ -488,6 +763,8 @@ public class UserService {
         
         // 6. Xóa user
         userRepository.delete(user);
+        
+        log.info("User deleted successfully - User ID: {}, Username: {}", userId, user.getUsername());
     }
     
     /**

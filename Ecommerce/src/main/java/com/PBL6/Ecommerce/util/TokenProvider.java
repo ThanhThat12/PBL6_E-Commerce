@@ -2,73 +2,116 @@ package com.PBL6.Ecommerce.util;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
 
 @Component
 public class TokenProvider {
 
-    private final String jwtSecret = "my-secret-key-which-should-be-long"; // đọc từ config
-    private final long jwtExpirationMs = 86400000;
- 
-    private final Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+    @Value("${jwt.secret}")
+    private String jwtSecret;
 
-    public String createToken(String username, String role) {
+    @Value("${jwt.expiration-ms}")
+    private long jwtExpirationMs;
+
+    private Key signingKey() {
+        return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Tạo access token với sub=username (chuẩn OAuth2/JWT)
+     * userId, email, roles là các claim bổ sung
+     */
+    public String createToken(Long userId, String username, String email, List<String> roles) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
-        
-        System.out.println("🔍 DEBUG - TokenProvider creating token:");
-        System.out.println("🔍 DEBUG - Username: " + username);
-        System.out.println("🔍 DEBUG - Role: " + role);
-        System.out.println("🔍 DEBUG - Issued at: " + now + " (" + now.getTime() + ")");
-        System.out.println("🔍 DEBUG - Expires at: " + expiryDate + " (" + expiryDate.getTime() + ")");
-        
-        return Jwts.builder()
-                .setSubject(username)
-                .claim("authorities", role)
+        Date exp = new Date(now.getTime() + jwtExpirationMs);
+
+        JwtBuilder b = Jwts.builder()
                 .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
+                .setExpiration(exp)
+                .signWith(signingKey(), SignatureAlgorithm.HS256);
+
+        // THAY ĐỔI: ưu tiên username cho sub
+        if (username != null) {
+            b.setSubject(username);
+        } else if (userId != null) {
+            b.setSubject(String.valueOf(userId)); // fallback nếu không có username
+        }
+
+        // Các claim bổ sung
+        if (userId != null) b.claim("userId", userId);
+        if (username != null) b.claim("username", username);
+        if (email != null) b.claim("email", email);
+        if (roles != null && !roles.isEmpty()) b.claim("roles", roles);
+
+        return b.compact();
     }
 
     public boolean validateJwt(String authToken) {
         try {
-            Claims claims = Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(authToken).getBody();
-            Date expiration = claims.getExpiration();
-            Date now = new Date();
-            
-            System.out.println("🔍 DEBUG - Token validation:");
-            System.out.println("🔍 DEBUG - Current time: " + now + " (" + now.getTime() + ")");
-            System.out.println("🔍 DEBUG - Token expires: " + expiration + " (" + expiration.getTime() + ")");
-            System.out.println("🔍 DEBUG - Is expired: " + expiration.before(now));
-            
+            Jwts.parserBuilder().setSigningKey(signingKey()).build().parseClaimsJws(authToken);
             return true;
         } catch (JwtException e) {
-            System.err.println("❌ DEBUG - Token validation failed: " + e.getMessage());
             return false;
         }
     }
 
-    // 🆕 Alias method for JwtAuthenticationFilter
-    public boolean validateToken(String authToken) {
-        return validateJwt(authToken);
+    public Claims getAllClaims(String token) {
+        return Jwts.parserBuilder().setSigningKey(signingKey()).build().parseClaimsJws(token).getBody();
     }
 
+    /**
+     * Lấy userId từ claim "userId" (không phải sub nữa)
+     */
+    public Long getUserIdFromJwt(String token) {
+        Claims claims = getAllClaims(token);
+        Object userIdObj = claims.get("userId");
+        if (userIdObj == null) return null;
+        
+        // Xử lý cả Integer và Long
+        if (userIdObj instanceof Number) {
+            return ((Number) userIdObj).longValue();
+        }
+        
+        // Fallback: thử parse sub (cho token cũ)
+        String sub = claims.getSubject();
+        if (sub != null) {
+            try {
+                return Long.parseLong(sub);
+            } catch (NumberFormatException ignored) {}
+        }
+        
+        return null;
+    }
+
+    /**
+     * Lấy username từ sub (hoặc claim "username" nếu sub là userId)
+     */
     public String getUsernameFromJwt(String token) {
-        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().getSubject();
+        Claims claims = getAllClaims(token);
+        
+        // Ưu tiên lấy từ sub
+        String sub = claims.getSubject();
+        if (sub != null && !sub.matches("\\d+")) { // nếu sub không phải số
+            return sub;
+        }
+        
+        // Fallback: lấy từ claim "username"
+        Object usernameObj = claims.get("username");
+        return usernameObj != null ? String.valueOf(usernameObj) : sub;
     }
 
-    // 🆕 Alias method for JwtAuthenticationFilter
-    public String getUsernameFromToken(String token) {
-        return getUsernameFromJwt(token);
-    }
-
-    // 🆕 Get role from token
-    public String getRoleFromToken(String token) {
-        Claims claims = Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
-        return claims.get("authorities", String.class);
+    @SuppressWarnings("unchecked")
+    public List<String> getRolesFromJwt(String token) {
+        Claims claims = getAllClaims(token);
+        Object r = claims.get("roles");
+        if (r instanceof List) return (List<String>) r;
+        if (r instanceof String) return List.of(String.valueOf(r));
+        return List.of();
     }
 }

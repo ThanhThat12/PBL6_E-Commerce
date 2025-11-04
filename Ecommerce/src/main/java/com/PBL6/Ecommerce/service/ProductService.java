@@ -1,8 +1,13 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.*;
-import com.PBL6.Ecommerce.domain.dto.*;
-import com.PBL6.Ecommerce.repository.*;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,15 +17,46 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import com.PBL6.Ecommerce.domain.Category;
+import com.PBL6.Ecommerce.domain.Product;
+import com.PBL6.Ecommerce.domain.ProductAttribute;
+import com.PBL6.Ecommerce.domain.ProductImage;
+import com.PBL6.Ecommerce.domain.ProductVariant;
+import com.PBL6.Ecommerce.domain.ProductVariantValue;
+import com.PBL6.Ecommerce.domain.Role;
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.dto.AttributeDTO;
+import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
+import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
+import com.PBL6.Ecommerce.domain.dto.ProductDTO;
+import com.PBL6.Ecommerce.domain.dto.ProductImageDTO;
+import com.PBL6.Ecommerce.domain.dto.ProductVariantDTO;
+import com.PBL6.Ecommerce.domain.dto.ProductVariantValueDTO;
+import com.PBL6.Ecommerce.exception.CategoryNotFoundException;
+import com.PBL6.Ecommerce.exception.DuplicateSKUException;
+import com.PBL6.Ecommerce.exception.InvalidProductDataException;
+import com.PBL6.Ecommerce.exception.ProductHasReferencesException;
+import com.PBL6.Ecommerce.exception.ProductNotFoundException;
+import com.PBL6.Ecommerce.exception.ShopNotFoundException;
+import com.PBL6.Ecommerce.exception.UnauthorizedProductAccessException;
+import com.PBL6.Ecommerce.exception.UserNotFoundException;
+import com.PBL6.Ecommerce.repository.CartItemRepository;
+import com.PBL6.Ecommerce.repository.CategoryRepository;
+import com.PBL6.Ecommerce.repository.OrderItemRepository;
+import com.PBL6.Ecommerce.repository.ProductAttributeRepository;
+import com.PBL6.Ecommerce.repository.ProductImageRepository;
+import com.PBL6.Ecommerce.repository.ProductRepository;
+import com.PBL6.Ecommerce.repository.ProductVariantRepository;
+import com.PBL6.Ecommerce.repository.ProductVariantValueRepository;
+import com.PBL6.Ecommerce.repository.ShopRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
 
 @Service
 @Transactional
 public class ProductService {
+    
+    private static final Logger log = LoggerFactory.getLogger(ProductService.class);
     
     @Autowired
     private ProductRepository productRepository;
@@ -42,6 +78,12 @@ public class ProductService {
     
     @Autowired
     private ProductImageRepository productImageRepository;
+    
+    @Autowired
+    private CartItemRepository cartItemRepository;
+    
+    @Autowired
+    private OrderItemRepository orderItemRepository;
 
     @Autowired
 private ProductVariantValueRepository productVariantValueRepository;
@@ -59,9 +101,10 @@ private ProductVariantValueRepository productVariantValueRepository;
     @Transactional(readOnly = true)
     public ProductDTO getProductById(Long id) {
         Product product = productRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + id));
+            .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
         return convertToProductDTO(product);
     }
+
 // Thay thế method createProduct (dòng 61-104)
 public ProductDTO createProduct(ProductCreateDTO request, Authentication authentication) {
     System.out.println("🔍 DEBUG - Starting createProduct");
@@ -85,6 +128,7 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     if (isAdmin(authentication)) {
         if (request.getShopId() == null) {
             throw new RuntimeException("Admin phải chỉ định Shop ID");
+
         }
         shop = shopRepository.findById(request.getShopId())
             .orElseThrow(() -> new RuntimeException("Không tìm thấy cửa hàng với ID: " + request.getShopId()));
@@ -175,36 +219,34 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     public Page<ProductDTO> getAllProductsForManagement(Pageable pageable, Authentication authentication) {
         User currentUser = getCurrentUser(authentication);
         
-        // DEBUG LOG
-        System.out.println("🔍 DEBUG - Current user: " + currentUser.getUsername() + ", Role: " + currentUser.getRole());
+        log.debug("Get products for management - User: {}, Role: {}", currentUser.getUsername(), currentUser.getRole());
         
         if (currentUser.getRole() == Role.ADMIN) {
-            System.out.println("🔍 DEBUG - User is ADMIN, getting all products");
+            log.debug("User is ADMIN, getting all products");
             Page<Product> products = productRepository.findAll(pageable);
             return products.map(this::convertToProductDTO);
         } 
         else if (currentUser.getRole() == Role.SELLER) {
-            System.out.println("🔍 DEBUG - User is SELLER, finding shop by owner_id...");
+            log.debug("User is SELLER, finding shop by owner_id");
             
-            // *** SỬA ĐÂY: Dùng shopRepository.findByOwnerId thay vì currentUser.getShop() ***
             Optional<Shop> shopOpt = shopRepository.findByOwnerId(currentUser.getId());
             
             if (shopOpt.isEmpty()) {
-                System.out.println("❌ DEBUG - Seller chưa có shop với owner_id = " + currentUser.getId());
-                throw new RuntimeException("Seller chưa có cửa hàng");
+                log.warn("Seller has no shop - owner_id: {}", currentUser.getId());
+                throw new ShopNotFoundException("Seller chưa có cửa hàng");
             }
             
             Shop shop = shopOpt.get();
-            System.out.println("✅ DEBUG - Shop found: " + shop.getName() + ", ID: " + shop.getId());
+            log.debug("Shop found: {}, ID: {}", shop.getName(), shop.getId());
             
             Page<Product> products = productRepository.findByShopId(shop.getId(), pageable);
-            System.out.println("✅ DEBUG - Found " + products.getTotalElements() + " products for shop");
+            log.debug("Found {} products for shop", products.getTotalElements());
             
             return products.map(this::convertToProductDTO);
         } 
         else {
-            System.out.println("❌ DEBUG - User role không hợp lệ: " + currentUser.getRole());
-            throw new RuntimeException("Không có quyền truy cập");
+            log.error("Invalid user role: {}", currentUser.getRole());
+            throw new UnauthorizedProductAccessException("Không có quyền truy cập");
         }
     }
     
@@ -241,6 +283,7 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
                 .collect(Collectors.toList());
     }
     
+
    
     // Xóa sản phẩm với kiểm tra quyền
      public void deleteProduct(Long productId, Authentication authentication) {
@@ -288,6 +331,7 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         }
         
         System.out.println("✅ DEBUG - Product deleted successfully");
+
     }
     
     // Lấy sản phẩm của seller hiện tại
@@ -295,10 +339,9 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     public Page<ProductDTO> getSellerProducts(Pageable pageable, Authentication authentication) {
         User currentUser = getCurrentUser(authentication);
         
-        // SỬA ĐÂY
         Optional<Shop> shopOpt = shopRepository.findByOwnerId(currentUser.getId());
         if (shopOpt.isEmpty()) {
-            throw new RuntimeException("Seller chưa có cửa hàng");
+            throw new ShopNotFoundException("Seller chưa có cửa hàng");
         }
         
         Shop shop = shopOpt.get();
@@ -311,10 +354,9 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     public List<ProductDTO> getSellerProductsList(Authentication authentication) {
         User currentUser = getCurrentUser(authentication);
         
-        // SỬA ĐÂY
         Optional<Shop> shopOpt = shopRepository.findByOwnerId(currentUser.getId());
         if (shopOpt.isEmpty()) {
-            throw new RuntimeException("Seller chưa có cửa hàng");
+            throw new ShopNotFoundException("Seller chưa có cửa hàng");
         }
         
         Shop shop = shopOpt.get();
@@ -329,14 +371,14 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     @PreAuthorize("hasRole('ADMIN')")
     public ProductDTO toggleProductStatus(Long id, Authentication authentication) {
         Product product = productRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + id));
+            .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
         
         product.setIsActive(!product.getIsActive());
         product = productRepository.save(product);
         
         return convertToProductDTO(product);
     }
-   
+
     
     // Kiểm tra quyền sở hữu sản phẩm (để dùng trong @PreAuthorize)
     public boolean isProductOwner(Long productId, String username) {
@@ -344,32 +386,28 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
             Product product = productRepository.findById(productId).orElse(null);
             if (product == null) return false;
             
-            // SỬA: TÌM BẰNG USERNAME THAY VÌ EMAIL
             User user = userRepository.findByUsername(username).orElse(null);
             if (user == null) return false;
             
-            // SỬA ĐÂY: Dùng shopRepository.findByOwnerId
             Optional<Shop> shopOpt = shopRepository.findByOwnerId(user.getId());
             if (shopOpt.isEmpty()) return false;
             
             Shop userShop = shopOpt.get();
             return product.getShop().getId().equals(userShop.getId());
         } catch (Exception e) {
-            System.out.println("❌ DEBUG - Error in isProductOwner: " + e.getMessage());
+            log.error("Error checking product ownership", e);
             return false;
         }
     }
     
     // Helper methods
     private User getCurrentUser(Authentication authentication) {
-        String username = authentication.getName();  // ← ĐÂY LÀ USERNAME
+        String username = authentication.getName();
         
-        // DEBUG LOG
-        System.out.println("🔍 DEBUG - Looking for user with username: " + username);
+        log.debug("Looking for user with username: {}", username);
         
-        // SỬA: TÌM BẰNG USERNAME THAY VÌ EMAIL
         return userRepository.findByUsername(username)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với username: " + username));
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng với username: " + username));
     }
     
     private boolean isAdmin(Authentication authentication) {
@@ -388,7 +426,6 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         if (isSeller(authentication)) {
             User currentUser = getCurrentUser(authentication);
             
-            // SỬA ĐÂY
             Optional<Shop> shopOpt = shopRepository.findByOwnerId(currentUser.getId());
             if (shopOpt.isEmpty()) {
                 return false;
@@ -408,7 +445,7 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         for (ProductVariantDTO variantDTO : variantDTOs) {
             // Kiểm tra SKU đã tồn tại
             if (productVariantRepository.existsBySku(variantDTO.getSku())) {
-                throw new RuntimeException("SKU đã tồn tại: " + variantDTO.getSku());
+                throw new DuplicateSKUException("SKU đã tồn tại: " + variantDTO.getSku());
             }
             
             ProductVariant variant = new ProductVariant();
@@ -437,7 +474,7 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         
         for (ProductVariantValueDTO valueDTO : valuesDTOs) {
             ProductAttribute attribute = productAttributeRepository.findById(valueDTO.getProductAttributeId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy thuộc tính với ID: " + valueDTO.getProductAttributeId()));
+                .orElseThrow(() -> new InvalidProductDataException("Không tìm thấy thuộc tính với ID: " + valueDTO.getProductAttributeId()));
             
             ProductVariantValue value = new ProductVariantValue();
             value.setVariant(variant);
