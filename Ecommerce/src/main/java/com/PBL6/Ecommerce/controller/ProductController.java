@@ -25,6 +25,8 @@ public class ProductController {
     @Autowired
     private ProductService productService;
 
+
+
     // Lấy tất cả sản phẩm công khai (không phân trang)
     @GetMapping("/all")
     public ResponseEntity<ResponseDTO<List<ProductDTO>>> getAllProducts() {
@@ -225,18 +227,18 @@ public class ProductController {
     
  
     // Xóa sản phẩm - Admin hoặc seller sở hữu sản phẩm
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('SELLER') and @productService.isProductOwner(#id, authentication.name))")
-    public ResponseEntity<ResponseDTO<Void>> deleteProduct(
+     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<String>> deleteProduct(
             @PathVariable Long id,
             Authentication authentication) {
         try {
             productService.deleteProduct(id, authentication);
-            ResponseDTO<Void> response = new ResponseDTO<>(200, null, "Xóa sản phẩm thành công", null);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(new ResponseDTO<>(200, null, "Xóa sản phẩm thành công", "Product deleted"));
         } catch (Exception e) {
-            ResponseDTO<Void> response = new ResponseDTO<>(400, "BAD_REQUEST", "Lỗi khi xóa sản phẩm: " + e.getMessage(), null);
-            return ResponseEntity.badRequest().body(response);
+            return ResponseEntity.badRequest().body(
+                new ResponseDTO<>(400, "BAD_REQUEST", "Lỗi khi xóa sản phẩm: " + e.getMessage(), null)
+            );
         }
     }
     
@@ -277,7 +279,7 @@ public class ProductController {
         }
     }
     
-    // Thay đổi trạng thái sản phẩm - Admin hoặc seller sở hữu
+    // Thay đổi trạng thái sản phẩm - Admin 
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseDTO<ProductDTO>> toggleProductStatus(
@@ -292,4 +294,52 @@ public class ProductController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+    
+ // Lấy tất cả sản phẩm của shop của user hiện tại (có phân trang)
+    @GetMapping("/my-shop/all")
+    @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getMyShopProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir,
+            @RequestParam(required = false) Boolean isActive,
+            Authentication authentication) {
+        try {
+            Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+                Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+            Pageable pageable = PageRequest.of(page, size, sort);
+            
+            Page<ProductDTO> products = productService.getMyShopProducts(authentication, isActive, pageable);
+            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(200, null, "Lấy sản phẩm của shop thành công", products);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(400, "BAD_REQUEST", "Lỗi khi lấy sản phẩm: " + e.getMessage(), null);
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    // 🆕 Lấy sản phẩm đã duyệt của shop của user hiện tại (có phân trang)
+    @GetMapping("/my-shop/approved")
+    @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getMyShopApprovedProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir,
+            Authentication authentication) {
+        try {
+            Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+                Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+            Pageable pageable = PageRequest.of(page, size, sort);
+            
+            Page<ProductDTO> products = productService.getMyShopApprovedProducts(authentication, pageable);
+            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(200, null, "Lấy sản phẩm đã duyệt của shop thành công", products);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(400, "BAD_REQUEST", "Lỗi khi lấy sản phẩm đã duyệt: " + e.getMessage(), null);
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+    
 }

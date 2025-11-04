@@ -44,6 +44,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // Tìm theo shop (không phân trang)
     List<Product> findByShopId(Long shopId);
     
+    
     // Tìm sản phẩm đang hoạt động
     Page<Product> findByIsActiveTrue(Pageable pageable);
 
@@ -52,6 +53,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     
     // 🆕 Đếm sản phẩm chờ duyệt
     long countByIsActiveFalse();
+
+    
     
     // Tìm theo khoảng giá
     @Query("SELECT p FROM Product p WHERE p.basePrice BETWEEN :minPrice AND :maxPrice")
@@ -90,4 +93,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 🆕 Đếm sản phẩm của seller theo trạng thái
     @Query("SELECT COUNT(p) FROM Product p WHERE p.shop.owner.id = :sellerId AND p.isActive = :isActive")
     long countBySellerIdAndIsActive(@Param("sellerId") Long sellerId, @Param("isActive") Boolean isActive);
+
+     // Tìm sản phẩm theo shop ID và trạng thái
+    Page<Product> findByShopIdAndIsActive(Long shopId, Boolean isActive, Pageable pageable);
+    List<Product> findByShopIdAndIsActive(Long shopId, Boolean isActive);
+    
 }
