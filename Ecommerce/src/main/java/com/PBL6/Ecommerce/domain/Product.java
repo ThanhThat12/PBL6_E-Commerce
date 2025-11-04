@@ -57,6 +57,38 @@ public class Product {
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> productImages = new ArrayList<>();
 
+     // 🆕 Helper methods để quản lý images
+    public void addProductImage(ProductImage image) {
+        productImages.add(image);
+        image.setProduct(this);
+    }
+
+    public void removeProductImage(ProductImage image) {
+        productImages.remove(image);
+        image.setProduct(null);
+    }
+
+    // 🆕 Helper methods để quản lý variants
+    public void addVariant(ProductVariant variant) {
+        productVariants.add(variant);
+        variant.setProduct(this);
+    }
+
+    public void removeVariant(ProductVariant variant) {
+        productVariants.remove(variant);
+        variant.setProduct(null);
+    }
+
+    // 🆕 Helper method để clear và set lại variants
+    public void setVariants(List<ProductVariant> variants) {
+        this.productVariants.clear();
+        if (variants != null) {
+            for (ProductVariant variant : variants) {
+                addVariant(variant);
+            }
+        }
+    }
+
     // Getters and Setters
     public Long getId() {
         return id;

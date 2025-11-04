@@ -1,5 +1,8 @@
 package com.PBL6.Ecommerce.domain.dto;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -9,6 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public class ProductCreateDTO {
+
     @NotNull(message = "Category ID is required")
     private Long categoryId;
     
@@ -23,6 +27,7 @@ public class ProductCreateDTO {
     
     @NotNull(message = "Base price is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Base price must be greater than 0")
+
     private BigDecimal basePrice;
     
     private Boolean isActive = true;
@@ -30,7 +35,7 @@ public class ProductCreateDTO {
     private String mainImage;
     private List<ProductVariantDTO> variants;
     private List<String> imageUrls;
-
+    
     // Getters and Setters
     public Long getCategoryId() { return categoryId; }
     public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }

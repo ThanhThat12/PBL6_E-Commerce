@@ -1,27 +1,39 @@
 package com.PBL6.Ecommerce.service;
 
-import java.util.List;
-
+import com.PBL6.Ecommerce.repository.CategoryRepository;
+import com.PBL6.Ecommerce.repository.ProductRepository;
+import com.PBL6.Ecommerce.repository.ShopRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
+import com.PBL6.Ecommerce.domain.dto.ProductDTO;
+import com.PBL6.Ecommerce.domain.Category;
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.Product;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.PBL6.Ecommerce.domain.Category;
-import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
+import java.util.List;
+import java.util.stream.Collectors;
 import com.PBL6.Ecommerce.exception.CategoryInUseException;
 import com.PBL6.Ecommerce.exception.CategoryNotFoundException;
 import com.PBL6.Ecommerce.exception.DuplicateCategoryException;
-import com.PBL6.Ecommerce.repository.CategoryRepository;
-import com.PBL6.Ecommerce.repository.ProductRepository;
+
 
 @Service
 public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final ShopRepository shopRepository;
+    private final UserRepository userRepository;
 
     public CategoryService(CategoryRepository categoryRepository,
-            ProductRepository productRepository) {
+            ProductRepository productRepository,
+            ShopRepository shopRepository,
+                          UserRepository userRepository) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
+        this.shopRepository = shopRepository;
+        this.userRepository = userRepository;
     }
 
     public List<CategoryDTO> getAllCategories() {
@@ -66,5 +78,79 @@ public class CategoryService {
                 
         // Xóa category
         categoryRepository.delete(category);
+    }
+
+     /**
+     * 🛍️ Lấy tất cả categories mà shop có sản phẩm
+     */
+    @Transactional(readOnly = true)
+    public List<CategoryDTO> getCategoriesByShop(String username) {
+        // Tìm seller
+        User seller = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy seller"));
+        
+        // Tìm shop của seller
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+        
+        // Lấy tất cả categories có sản phẩm trong shop này
+        List<Category> categories = categoryRepository.findCategoriesByShopId(shop.getId());
+        
+        return categories.stream()
+                .map(category -> new CategoryDTO(category.getId(), category.getName()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 🛍️ Lấy sản phẩm theo category và shop
+     */
+    @Transactional(readOnly = true)
+    public List<ProductDTO> getProductsByCategoryAndShop(Long categoryId, String username) {
+        // Tìm seller
+        User seller = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy seller"));
+        
+        // Tìm shop của seller
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+        
+        // Kiểm tra category tồn tại
+        categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục"));
+        
+        // Lấy sản phẩm theo category và shop
+        List<Product> products = productRepository.findByCategoryIdAndShopId(categoryId, shop.getId());
+        
+        return products.stream()
+                .map(this::convertToProductDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Convert Product entity to ProductDTO
+     */
+    private ProductDTO convertToProductDTO(Product product) {
+        ProductDTO dto = new ProductDTO();
+        dto.setId(product.getId());
+        dto.setName(product.getName());
+        dto.setDescription(product.getDescription());
+        dto.setBasePrice(product.getBasePrice());
+        dto.setIsActive(product.getIsActive());
+        dto.setMainImage(product.getMainImage());
+        
+        // Set category information
+        if (product.getCategory() != null) {
+            CategoryDTO categoryDTO = new CategoryDTO();
+            categoryDTO.setId(product.getCategory().getId());
+            categoryDTO.setName(product.getCategory().getName());
+            dto.setCategory(categoryDTO);
+        }
+        
+        // Set shop information
+        if (product.getShop() != null) {
+            dto.setShopName(product.getShop().getName());
+        }
+        
+        return dto;
     }
 }

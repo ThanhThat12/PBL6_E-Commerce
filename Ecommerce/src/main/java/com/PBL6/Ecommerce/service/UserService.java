@@ -1,5 +1,30 @@
 package com.PBL6.Ecommerce.service;
 
+import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.Verification;
+import com.PBL6.Ecommerce.domain.Role;
+import com.PBL6.Ecommerce.domain.Cart;
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.dto.ListAdminUserDTO;
+import com.PBL6.Ecommerce.domain.dto.AdminUserDetailDTO;
+import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
+import com.PBL6.Ecommerce.domain.dto.ListCustomerUserDTO;
+import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
+import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
+import com.PBL6.Ecommerce.domain.dto.ListSellerUserDTO;
+import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
+import com.PBL6.Ecommerce.domain.dto.UserListDTO;
+import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
+import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.repository.VerificationRepository;
+import com.PBL6.Ecommerce.repository.CartRepository;
+import com.PBL6.Ecommerce.repository.CartItemRepository;
+import com.PBL6.Ecommerce.repository.ShopRepository;
+import com.PBL6.Ecommerce.repository.ProductRepository;
+import com.PBL6.Ecommerce.repository.OrderRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -14,21 +39,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.Cart;
-import com.PBL6.Ecommerce.domain.Role;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Verification;
-import com.PBL6.Ecommerce.domain.dto.AdminUserDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.ChangePasswordDTO;
-import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
-import com.PBL6.Ecommerce.domain.dto.ListAdminUserDTO;
-import com.PBL6.Ecommerce.domain.dto.ListCustomerUserDTO;
-import com.PBL6.Ecommerce.domain.dto.ListSellerUserDTO;
-import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateProfileDTO;
-import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
-import com.PBL6.Ecommerce.domain.dto.UserListDTO;
 import com.PBL6.Ecommerce.domain.dto.UserProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
 import com.PBL6.Ecommerce.exception.DuplicateEmailException;
@@ -42,12 +54,7 @@ import com.PBL6.Ecommerce.exception.UnauthenticatedException;
 import com.PBL6.Ecommerce.exception.UnauthorizedUserActionException;
 import com.PBL6.Ecommerce.exception.UserHasReferencesException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
-import com.PBL6.Ecommerce.repository.CartItemRepository;
-import com.PBL6.Ecommerce.repository.CartRepository;
-import com.PBL6.Ecommerce.repository.ProductRepository;
-import com.PBL6.Ecommerce.repository.ShopRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.repository.VerificationRepository;
+
 
 @Service
 public class UserService {
@@ -62,6 +69,7 @@ public class UserService {
     private final CartItemRepository cartItemRepository;
     private final ShopRepository shopRepository;
     private final ProductRepository productRepository;
+    private final OrderRepository orderRepository;
 
     public UserService(UserRepository userRepository,
                        VerificationRepository verificationRepository,
@@ -71,7 +79,8 @@ public class UserService {
                        CartRepository cartRepository,
                        CartItemRepository cartItemRepository,
                        ShopRepository shopRepository,
-                       ProductRepository productRepository) {
+                       ProductRepository productRepository,
+                       OrderRepository orderRepository) {
         this.userRepository = userRepository;
         this.verificationRepository = verificationRepository;
         this.passwordEncoder = passwordEncoder;
@@ -81,6 +90,7 @@ public class UserService {
         this.cartItemRepository = cartItemRepository;
         this.shopRepository = shopRepository;
         this.productRepository = productRepository;
+        this.orderRepository = orderRepository;
     }
 
     /**
@@ -806,6 +816,92 @@ public class UserService {
         }
     }
 
+    // ================================
+    // TOP BUYERS METHODS
+    // ================================
+
+    /**
+     * Lấy danh sách tất cả top buyers (cho ADMIN)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getAllTopBuyers() {
+        return orderRepository.findTopBuyers();
+    }
+
+    /**
+     * Lấy danh sách top buyers với phân trang (cho ADMIN)
+     */
+    @Transactional(readOnly = true)
+    public Page<TopBuyerDTO> getAllTopBuyers(Pageable pageable) {
+        return orderRepository.findTopBuyers(pageable);
+    }
+
+    /**
+     * Lấy top N buyers (cho ADMIN)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getTopBuyers(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return orderRepository.findTopBuyersWithLimit(pageable);
+    }
+
+    /**
+     * Lấy top buyers theo shop cụ thể (cho SELLER)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getTopBuyersByShop(String username) {
+        // Tìm user theo username
+        User seller = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy seller"));
+        
+        // Tìm shop của seller
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+        
+        return orderRepository.findTopBuyersByShop(shop.getId());
+    }
+
+    /**
+     * Lấy top buyers theo shop ID cụ thể (cho ADMIN)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getTopBuyersByShopId(Long shopId) {
+        // Kiểm tra shop có tồn tại không
+        shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy shop với ID: " + shopId));
+        
+        return orderRepository.findTopBuyersByShop(shopId);
+    }
+
+    /**
+     * Lấy top buyers theo shop ID với giới hạn số lượng (cho ADMIN)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getTopBuyersByShopIdWithLimit(Long shopId, int limit) {
+        // Kiểm tra shop có tồn tại không
+        shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy shop với ID: " + shopId));
+        
+        Pageable pageable = PageRequest.of(0, limit);
+        return orderRepository.findTopBuyersByShopWithLimit(shopId, pageable);
+    }
+
+    /**
+     * Lấy top buyers của shop với giới hạn số lượng (cho SELLER)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getTopBuyersByShopWithLimit(String username, int limit) {
+        // Tìm user theo username
+        User seller = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy seller"));
+        
+        // Tìm shop của seller
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+        
+        Pageable pageable = PageRequest.of(0, limit);
+        return orderRepository.findTopBuyersByShopWithLimit(shop.getId(), pageable);
+    }
 
     
 }

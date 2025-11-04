@@ -39,11 +39,11 @@ public class Order {
     private Shipment shipment;
 
     public enum OrderStatus {
-    PENDING,
-    PROCESSING,
-    COMPLETED,
-    CANCELLED
-}
+        PENDING,
+        PROCESSING,
+        COMPLETED,
+        CANCELLED
+    }
     @Enumerated(EnumType.STRING)
     private OrderStatus status = OrderStatus.PENDING;
 
@@ -52,10 +52,10 @@ public class Order {
 
     private BigDecimal totalAmount;
 
-    private String method; 
-    
+    private String method;
+
     private String momoTransId; // MoMo transaction ID
-    
+
     private LocalDateTime paidAt; // Payment timestamp
 
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -128,19 +128,19 @@ public class Order {
     public void setMethod(String method) {
         this.method = method;
     }
-    
+
     public String getMomoTransId() {
         return momoTransId;
     }
-    
+
     public void setMomoTransId(String momoTransId) {
         this.momoTransId = momoTransId;
     }
-    
+
     public LocalDateTime getPaidAt() {
         return paidAt;
     }
-    
+
     public void setPaidAt(LocalDateTime paidAt) {
         this.paidAt = paidAt;
     }

@@ -58,6 +58,24 @@ public class AddressController {
         return d;
     }
 
+
+    private Long extractUserId(Jwt jwt) {
+    if (jwt == null) return null;
+    
+    // Lấy userId từ claim "userId" thay vì "sub"
+    Object userIdClaim = jwt.getClaim("userId");
+    if (userIdClaim == null) return null;
+    
+    try {
+        if (userIdClaim instanceof Number) {
+            return ((Number) userIdClaim).longValue();
+        }
+        return Long.parseLong(userIdClaim.toString());
+    } catch (NumberFormatException ex) {
+        return null;
+    }
+}
+
     @GetMapping
     public ResponseEntity<ResponseDTO<List<AddressResponseDTO>>> list(@AuthenticationPrincipal Jwt jwt) {
         Long userId = userService.extractUserIdFromJwt(jwt);
