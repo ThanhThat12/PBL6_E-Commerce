@@ -15,6 +15,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findOneByEmail(String email);
     Optional<User> findOneByPhoneNumber(String phoneNumber);
     Optional<User> findOneByFacebookId(String facebookId);
+    Optional<User> findOneByGoogleId(String googleId);
     
     // Thêm method findByEmail (không có One) để tương thích với ProductService
     Optional<User> findByEmail(String email);

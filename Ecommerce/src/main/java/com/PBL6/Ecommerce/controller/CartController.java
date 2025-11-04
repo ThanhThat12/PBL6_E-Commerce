@@ -1,68 +1,76 @@
-// package com.PBL6.Ecommerce.controller;
+package com.PBL6.Ecommerce.controller;
 
-// import com.PBL6.Ecommerce.domain.dto.CartItemDTO;
-// import com.PBL6.Ecommerce.domain.User;
-// import com.PBL6.Ecommerce.domain.Cart;
-// import com.PBL6.Ecommerce.service.CartService;
-// import com.PBL6.Ecommerce.repository.UserRepository;
-// import org.springframework.beans.factory.annotation.Autowired;
-// import org.springframework.http.ResponseEntity;
-// import org.springframework.web.bind.annotation.*;
-// import org.springframework.security.core.annotation.AuthenticationPrincipal;
-// import org.springframework.security.oauth2.jwt.Jwt;
+import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.dto.AddCartItemDTO;
+import com.PBL6.Ecommerce.domain.dto.CartDTO;
+import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.UpdateCartItemDTO;
+import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.service.CartService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
-// @RestController
-// @RequestMapping("/api/carts")
-// public class CartController {
-//     private final CartService cartService;
-//     private final UserRepository userRepository;
+import java.util.Optional;
 
-//     @Autowired
-//     public CartController(CartService cartService, UserRepository userRepository) {
-//         this.cartService = cartService;
-//         this.userRepository = userRepository;
-//     }
+@RestController
+@RequestMapping("/api/cart")
+public class CartController {
 
-//     @PostMapping
-//     public ResponseEntity<?> addToCart(@RequestBody CartItemDTO cartItem, @AuthenticationPrincipal Jwt jwt) {
-//         System.out.println("addToCart called with productId=" + cartItem.getProductId() + ", quantity=" + cartItem.getQuantity());
-//         String username = jwt.getSubject();
-//         System.out.println("Username from JWT: " + username);
-//         User user = userRepository.findOneByUsername(username).orElse(null);
-//         if (user == null) {
-//             System.out.println("User not found in DB");
-//             return ResponseEntity.badRequest().body("User not found");
-//         }
-//         try {
-//             cartService.addToCart(user, cartItem.getProductId(), cartItem.getQuantity());
-//             return ResponseEntity.ok("Added to cart successfully");
-//         } catch (Exception e) {
-//             e.printStackTrace();
-//             return ResponseEntity.badRequest().body(e.getMessage());
-//         }
-//     }
+    private final CartService cartService;
+    private final UserRepository userRepository;
 
-//     @GetMapping
-//     public ResponseEntity<?> getCart(@AuthenticationPrincipal Jwt jwt) {
-//         String username = jwt.getSubject();
-//         User user = userRepository.findOneByUsername(username).orElse(null);
-//         if (user == null) return ResponseEntity.badRequest().body("User not found");
-//         Cart cart = cartService.getCart(user);
-//         System.out.println("[getCart] User: " + username + ", Cart Items: " + cart.getItems());
-//         // Convert CartItem entity to CartItemDTO for JSON serialization
-//         java.util.List<CartItemDTO> itemDTOs = new java.util.ArrayList<>();
-//         if (cart != null && cart.getItems() != null) {
-//             for (var item : cart.getItems()) {
-//                 CartItemDTO dto = new CartItemDTO();
-//                 dto.setId(item.getId());
-//                 dto.setProductId(item.getProduct().getId());
-//                 dto.setProductName(item.getProduct().getName());
-//                 dto.setProductImage(item.getProduct().getImage());
-//                 dto.setProductPrice(item.getProduct().getPrice());
-//                 dto.setQuantity(item.getQuantity());
-//                 itemDTOs.add(dto);
-//             }
-//         }
-//         return ResponseEntity.ok(itemDTOs);
-//     }
-// }
+    public CartController(CartService cartService, UserRepository userRepository) {
+        this.cartService = cartService;
+        this.userRepository = userRepository;
+    }
+
+    private User resolveCurrentUser(Authentication authentication) {
+        String principal = authentication.getName();
+        Optional<User> userOpt = Optional.empty();
+        if (principal != null && principal.matches("^\\d+$")) {
+            try {
+                Long id = Long.parseLong(principal);
+                userOpt = userRepository.findById(id);
+            } catch (NumberFormatException ignored) {}
+        }
+        if (userOpt.isEmpty()) userOpt = userRepository.findOneByUsername(principal);
+        if (userOpt.isEmpty()) userOpt = userRepository.findOneByEmail(principal);
+        return userOpt.orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    @GetMapping
+    public ResponseEntity<ResponseDTO<CartDTO>> getCart(Authentication authentication) {
+        User user = resolveCurrentUser(authentication);
+        CartDTO dto = cartService.getCartDtoForUser(user);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Cart retrieved", dto));
+    }
+
+    @PostMapping("/items")
+    public ResponseEntity<ResponseDTO<CartDTO>> addItem(Authentication authentication, @RequestBody AddCartItemDTO body) {
+        User user = resolveCurrentUser(authentication);
+        CartDTO dto = cartService.addItem(user, body.getProductId(), body.getQuantity());
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Item added", dto));
+    }
+
+    @PutMapping("/items/{itemId}")
+    public ResponseEntity<ResponseDTO<CartDTO>> updateItem(Authentication authentication, @PathVariable Long itemId, @RequestBody UpdateCartItemDTO body) {
+        User user = resolveCurrentUser(authentication);
+        CartDTO dto = cartService.updateItem(user, itemId, body.getQuantity());
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Item updated", dto));
+    }
+
+    @DeleteMapping("/items/{itemId}")
+    public ResponseEntity<ResponseDTO<CartDTO>> removeItem(Authentication authentication, @PathVariable Long itemId) {
+        User user = resolveCurrentUser(authentication);
+        CartDTO dto = cartService.removeItem(user, itemId);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Item removed", dto));
+    }
+
+    @DeleteMapping
+    public ResponseEntity<ResponseDTO<CartDTO>> clearCart(Authentication authentication) {
+        User user = resolveCurrentUser(authentication);
+        CartDTO dto = cartService.clearCart(user);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Cart cleared", dto));
+    }
+}
