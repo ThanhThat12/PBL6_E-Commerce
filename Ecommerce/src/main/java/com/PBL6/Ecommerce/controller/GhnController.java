@@ -61,11 +61,11 @@ public class GhnController {
 public ResponseEntity<?> createOrderWithGhn(@Valid @RequestBody CreateOrderRequestDTO req) {
     // build mutable payload and include required_note
     Map<String,Object> payload = new HashMap<>();
-    payload.put("to_name", req.getToName());
-    payload.put("to_phone", req.getToPhone());
+    payload.put("to_name", req.getReceiverName());
+    payload.put("to_phone", req.getReceiverPhone());
     payload.put("to_district_id", Integer.parseInt(req.getToDistrictId()));
     payload.put("to_ward_code", req.getToWardCode());
-    payload.put("to_address", req.getToAddress());
+    payload.put("to_address", req.getReceiverAddress());
     payload.put("weight", req.getWeightGrams());
     payload.put("client_order_code", "ORDER_" + (req.getOrderReference() != null ? req.getOrderReference() : "TEMP"));
     payload.put("required_note", "KHONGCHOXEMHANG"); // bắt buộc bởi GHN -> thay theo yêu cầu nếu cần

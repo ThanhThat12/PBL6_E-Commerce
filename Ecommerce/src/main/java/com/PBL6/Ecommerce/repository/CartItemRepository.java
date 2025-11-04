@@ -1,9 +1,7 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.Cart;
-import com.PBL6.Ecommerce.domain.CartItem;
-import com.PBL6.Ecommerce.domain.Product;
-import com.PBL6.Ecommerce.domain.ProductVariant;
+import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -11,8 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
+import com.PBL6.Ecommerce.domain.Cart;
+import com.PBL6.Ecommerce.domain.CartItem;
+import com.PBL6.Ecommerce.domain.ProductVariant;
 
 @Repository
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
@@ -25,6 +24,11 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
 
     // ✅ Tìm CartItem theo cartId và productVariantId
     Optional<CartItem> findByCartIdAndProductVariantId(Long cartId, Long productVariantId);
+    
+    // ✅ Đếm số CartItem theo productId
+    @Query("SELECT COUNT(ci) FROM CartItem ci WHERE ci.productVariant.product.id = :productId")
+    long countByProductVariant_ProductId(@Param("productId") Long productId);
+    
     // ✅ Xóa tất cả items trong 1 cart
     @Modifying
     @Query("DELETE FROM CartItem ci WHERE ci.cart.id = :cartId")

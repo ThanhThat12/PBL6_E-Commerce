@@ -1,28 +1,37 @@
 package com.PBL6.Ecommerce.service;
 
+
 import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.OrderItem;
-import com.PBL6.Ecommerce.domain.ProductVariant;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.dto.OrderDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
-import com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO;
 import com.PBL6.Ecommerce.repository.OrderRepository;
-import com.PBL6.Ecommerce.repository.OrderItemRepository;
-import com.PBL6.Ecommerce.repository.ProductRepository;
-import com.PBL6.Ecommerce.repository.ProductVariantRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import com.PBL6.Ecommerce.domain.OrderItem;
+import com.PBL6.Ecommerce.domain.ProductVariant;
+import com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO;
+import com.PBL6.Ecommerce.exception.InvalidOrderStatusException;
+import com.PBL6.Ecommerce.exception.OrderNotFoundException;
+import com.PBL6.Ecommerce.exception.ShopNotFoundException;
+import com.PBL6.Ecommerce.exception.UnauthorizedOrderAccessException;
+import com.PBL6.Ecommerce.exception.UserNotFoundException;
+import com.PBL6.Ecommerce.repository.OrderItemRepository;
+import com.PBL6.Ecommerce.repository.ProductRepository;
+import com.PBL6.Ecommerce.repository.ProductVariantRepository;
+
+
 @Service
 @Transactional
 public class OrderService {
@@ -78,13 +87,23 @@ public class OrderService {
 
             OrderItem oi = new OrderItem();
             oi.setVariant(v);
+            oi.setProductId(v.getProduct().getId());
+            oi.setVariantName(v.getSku() != null ? v.getSku() : v.getProduct().getName());
             oi.setPrice(unitPrice);
             oi.setQuantity(it.getQuantity());
             items.add(oi);
         }
 
+        // Get shop from first product variant's shop
+        Shop shop = null;
+        if (!items.isEmpty() && variantMap.size() > 0) {
+            ProductVariant firstVariant = variantMap.values().iterator().next();
+            shop = firstVariant.getProduct().getShop();
+        }
+
         Order order = new Order();
         order.setUser(user);
+        order.setShop(shop);
         order.setStatus(Order.OrderStatus.PENDING);
         order.setTotalAmount(total);
         // Order does not expose setItems(List<OrderItem>); associate items after saving the order.
@@ -96,11 +115,14 @@ public class OrderService {
 
         // prepare GHN payload
         Map<String,Object> ghnPayload = new HashMap<>();
-        ghnPayload.put("to_name", req.getToName());
-        ghnPayload.put("to_phone", req.getToPhone());
+        ghnPayload.put("to_name", req.getReceiverName());
+        ghnPayload.put("to_phone", req.getReceiverPhone());
         ghnPayload.put("to_district_id", Integer.parseInt(req.getToDistrictId()));
         ghnPayload.put("to_ward_code", req.getToWardCode());
-        ghnPayload.put("to_address", req.getToAddress());
+        ghnPayload.put("to_address", req.getReceiverAddress());
+        ghnPayload.put("province", req.getProvince());
+        ghnPayload.put("district", req.getDistrict());
+        ghnPayload.put("ward", req.getWard());
         ghnPayload.put("weight", req.getWeightGrams());
         ghnPayload.put("client_order_code", "ORDER_" + saved.getId());
         ghnPayload.put("cod_amount", req.getCodAmount() != null ? req.getCodAmount().intValue() : 0);
@@ -113,9 +135,13 @@ public class OrderService {
             return m;
         }).collect(Collectors.toList()));
 
-        // best-effort async call: create shipment after order commit (fire-and-forget)
+        // Create shipment and set shipment_id
         try {
-            ghnService.createShippingOrderAsync(saved.getId(), ghnPayload);
+            var shipment = ghnService.createShippingOrderAsync(saved.getId(), ghnPayload);
+            if (shipment != null) {
+                saved.setShipment(shipment);
+                orderRepository.save(saved);
+            }
         } catch (Exception ex) {
             // log only; order has been created
         }
@@ -131,16 +157,16 @@ public class OrderService {
     public List<OrderDTO> getSellerOrders(String username) {
         // Lấy thông tin user
         User seller = userRepository.findOneByUsername(username)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
 
         // Kiểm tra user có phải seller không
         if (seller.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
-            throw new RuntimeException("Người dùng không phải là seller");
+            throw new UnauthorizedOrderAccessException("Người dùng không phải là seller");
         }
 
         // Lấy shop của seller
         Shop shop = shopRepository.findByOwner(seller)
-            .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+            .orElseThrow(() -> new ShopNotFoundException(seller.getId()));
 
         // Lấy tất cả orders của shop này
         List<Order> orders = orderRepository.findOrdersByShopId(shop.getId());
@@ -160,24 +186,24 @@ public class OrderService {
     public OrderDetailDTO getOrderDetail(Long orderId, String username) {
         // Tìm user theo username
         User user = userRepository.findOneByUsername(username)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
 
         // Kiểm tra role SELLER
         if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
-            throw new RuntimeException("Người dùng không phải là seller");
+            throw new UnauthorizedOrderAccessException("Người dùng không phải là seller");
         }
 
         // Tìm shop của seller
         Shop shop = shopRepository.findByOwnerId(user.getId())
-            .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+            .orElseThrow(() -> new ShopNotFoundException(user.getId()));
 
         // Tìm order theo ID
         Order order = orderRepository.findById(orderId)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         // Verify order thuộc shop của seller
         if (!order.getShop().getId().equals(shop.getId())) {
-            throw new RuntimeException("Bạn không có quyền xem đơn hàng này");
+            throw new UnauthorizedOrderAccessException(orderId);
         }
 
         // Convert sang DTO
@@ -197,6 +223,100 @@ public class OrderService {
     }
 
     /**
+     * Lấy danh sách đơn hàng của buyer theo username
+     * @param username - Username của buyer
+     * @return List<OrderDTO> - Danh sách đơn hàng
+     */
+    public List<OrderDTO> getBuyerOrders(String username) {
+        // Lấy thông tin user
+        User buyer = userRepository.findOneByUsername(username)
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
+
+        // Lấy tất cả orders của user này
+        List<Order> orders = orderRepository.findByUser(buyer);
+
+        // Convert sang DTO
+        return orders.stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Lấy chi tiết đơn hàng của buyer theo ID
+     * @param orderId - ID của đơn hàng
+     * @param username - Username của buyer (để verify quyền)
+     * @return OrderDetailDTO - Chi tiết đơn hàng
+     */
+    public OrderDetailDTO getBuyerOrderDetail(Long orderId, String username) {
+        // Tìm user theo username
+        User user = userRepository.findOneByUsername(username)
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
+
+        // Tìm order theo ID
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        // Verify order thuộc user
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new UnauthorizedOrderAccessException(orderId);
+        }
+
+        // Convert sang DTO
+        return convertToDetailDTO(order);
+    }
+
+    /**
+     * Lấy tất cả đơn hàng (Admin only)
+     * @return List<OrderDTO> - Danh sách tất cả đơn hàng
+     */
+    public List<OrderDTO> getAllOrders() {
+        List<Order> orders = orderRepository.findAll();
+        return orders.stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Lấy chi tiết đơn hàng (Admin only - không cần verify ownership)
+     * @param orderId - ID của đơn hàng
+     * @return OrderDetailDTO - Chi tiết đơn hàng
+     */
+    public OrderDetailDTO getAdminOrderDetail(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+        return convertToDetailDTO(order);
+    }
+
+    /**
+     * Cập nhật trạng thái đơn hàng (Admin only - không cần verify ownership)
+     * @param orderId - ID của đơn hàng
+     * @param newStatus - Trạng thái mới
+     * @return OrderDetailDTO - Thông tin đơn hàng sau khi cập nhật
+     */
+    public OrderDetailDTO updateOrderStatusByAdmin(Long orderId, String newStatus) {
+        // Tìm order theo ID
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        // Validate và convert status string sang enum
+        Order.OrderStatus orderStatus;
+        try {
+            orderStatus = Order.OrderStatus.valueOf(newStatus.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new InvalidOrderStatusException(newStatus);
+        }
+
+        // Cập nhật status
+        order.setStatus(orderStatus);
+        
+        // Lưu vào database
+        Order updatedOrder = orderRepository.save(order);
+
+        // Convert sang DTO và trả về
+        return convertToDetailDTO(updatedOrder);
+    }
+
+    /**
      * Cập nhật trạng thái đơn hàng
      * @param orderId - ID của đơn hàng
      * @param newStatus - Trạng thái mới (PENDING, PROCESSING, COMPLETED, CANCELLED)
@@ -206,24 +326,24 @@ public class OrderService {
     public OrderDetailDTO updateOrderStatus(Long orderId, String newStatus, String username) {
         // Tìm user theo username
         User user = userRepository.findOneByUsername(username)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
 
         // Kiểm tra role SELLER
         if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
-            throw new RuntimeException("Người dùng không phải là seller");
+            throw new UnauthorizedOrderAccessException("Người dùng không phải là seller");
         }
 
         // Tìm shop của seller
         Shop shop = shopRepository.findByOwner(user)
-            .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+            .orElseThrow(() -> new ShopNotFoundException(user.getId()));
 
         // Tìm order theo ID
         Order order = orderRepository.findById(orderId)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId));
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         // Verify order thuộc shop của seller
         if (!order.getShop().getId().equals(shop.getId())) {
-            throw new RuntimeException("Bạn không có quyền cập nhật đơn hàng này");
+            throw new UnauthorizedOrderAccessException(orderId);
         }
 
         // Validate và convert status string sang enum
@@ -231,7 +351,7 @@ public class OrderService {
         try {
             orderStatus = Order.OrderStatus.valueOf(newStatus.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Trạng thái không hợp lệ. Chỉ chấp nhận: PENDING, PROCESSING, COMPLETED, CANCELLED");
+            throw new InvalidOrderStatusException(newStatus);
         }
 
         // Cập nhật status
@@ -275,5 +395,6 @@ public class OrderService {
         dto.setUserId(order.getUser() != null ? order.getUser().getId() : null);
         return dto;
     }
+     
 }
 

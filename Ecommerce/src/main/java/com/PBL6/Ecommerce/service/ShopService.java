@@ -1,30 +1,24 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.dto.ShopDTO;
-import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
-import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
-import com.PBL6.Ecommerce.domain.dto.MonthlyRevenueDTO;
-import com.PBL6.Ecommerce.repository.ShopRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.repository.OrderRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.dto.MonthlyRevenueDTO;
+import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
+import com.PBL6.Ecommerce.domain.dto.ShopDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
+import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
+import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
-import java.time.LocalDateTime;
 
 @Service
 public class ShopService {
@@ -233,5 +227,63 @@ public class ShopService {
             .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
         
         return shopRepository.existsByOwner(user);
+    }
+    
+    /**
+     * Check if phone number already registered by another seller
+     * Uses User entity to check phone uniqueness among SELLER role users
+     * @param phone - Phone number to check
+     * @return true if phone exists for another seller, false otherwise
+     */
+    public boolean existsByPhone(String phone) {
+        // Check if any SELLER user has this phone number
+        List<User> sellersWithPhone = userRepository.findByPhoneNumberAndRole(phone, com.PBL6.Ecommerce.domain.Role.SELLER);
+        return !sellersWithPhone.isEmpty(); 
+    }
+    
+    /**
+     * Create shop from seller registration (Shopee-style upgrade)
+     * @param user - User upgrading to seller
+     * @param registrationDTO - Shop registration data
+     * @return Created shop
+     */
+    @Transactional
+    public Shop createShopFromSellerRegistration(User user, com.PBL6.Ecommerce.dto.seller.SellerRegistrationDTO registrationDTO) {
+        // Validate user is BUYER
+        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.BUYER) {
+            throw new RuntimeException("Chỉ BUYER mới có thể đăng ký seller");
+        }
+        
+        // Validate no existing shop
+        if (shopRepository.existsByOwner(user)) {
+            throw new RuntimeException("User đã có shop");
+        }
+        
+        // Validate phone uniqueness among sellers
+        if (existsByPhone(registrationDTO.getShopPhone())) {
+            throw new RuntimeException("Số điện thoại đã được sử dụng bởi seller khác");
+        }
+        
+        // Validate shop name uniqueness
+        if (shopRepository.existsByName(registrationDTO.getShopName())) {
+            throw new RuntimeException("Tên shop đã tồn tại");
+        }
+        
+        // Create shop
+        Shop shop = new Shop();
+        shop.setOwner(user);
+        shop.setName(registrationDTO.getShopName());
+        shop.setAddress(registrationDTO.getShopAddress());
+        shop.setDescription(registrationDTO.getShopDescription());
+        shop.setStatus(Shop.ShopStatus.ACTIVE);
+        shop.setCreatedAt(LocalDateTime.now());
+        
+        Shop savedShop = shopRepository.save(shop);
+        
+        // Update user role to SELLER (auto-approval)
+        user.setRole(com.PBL6.Ecommerce.domain.Role.SELLER);
+        userRepository.save(user);
+        
+        return savedShop;
     }
 }

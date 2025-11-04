@@ -28,6 +28,16 @@ public class ProductVariantValue {
     @Column(nullable = false, length = 255)
     private String value;
 
+
+     // Constructors
+    public ProductVariantValue() {}
+
+    public ProductVariantValue(ProductVariant variant, ProductAttribute productAttribute, String value) {
+        this.variant = variant;
+        this.productAttribute = productAttribute;
+        this.value = value;
+    }
+    
     // Getters and Setters
     public Long getId() {
         return id;

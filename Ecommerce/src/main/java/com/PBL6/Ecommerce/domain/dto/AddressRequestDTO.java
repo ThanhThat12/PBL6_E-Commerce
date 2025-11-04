@@ -1,7 +1,16 @@
 package com.PBL6.Ecommerce.domain.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
 public class AddressRequestDTO {
+    @NotBlank(message = "Label không được để trống")
+    @Size(max = 100, message = "Label không được vượt quá 100 ký tự")
     public String label;
+    
+    @NotBlank(message = "Địa chỉ đầy đủ không được để trống")
+    @Size(max = 500, message = "Địa chỉ không được vượt quá 500 ký tự")
     public String fullAddress;
 
     // prefer sending these ids/codes if available
@@ -14,7 +23,10 @@ public class AddressRequestDTO {
     public String districtName;
     public String wardName;
 
+    @NotBlank(message = "Số điện thoại liên hệ không được để trống")
+    @Pattern(regexp = "^(0|\\+84)[0-9]{9,10}$", message = "Số điện thoại không hợp lệ")
     public String contactPhone;
+    
     public boolean primaryAddress; // true nếu muốn đánh dấu primary
     public String getLabel() {
         return label;

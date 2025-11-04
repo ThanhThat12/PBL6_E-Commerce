@@ -1,6 +1,8 @@
 // ...existing code...
 package com.PBL6.Ecommerce.config;
 
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 
 import java.nio.charset.StandardCharsets;
@@ -10,20 +12,28 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.http.HttpMethod; // <-- added import
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+
+
 
 @Configuration
 public class SecurityConfig {
     @Value("${jwt.secret}")
     private String jwtSecret;
+
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -36,15 +46,18 @@ public class SecurityConfig {
         jwtAuthConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
 
         http
+            // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .cors(cors -> cors.and())
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints
+
                 .requestMatchers(
-                    "/api/auth/login",
-                    "/api/register/**",
+                    "/api/auth/**",
+                    "/api/register/**", 
                     "/api/forgot-password/**",
+
                     "/api/authenticate",
                     "/api/authenticate/**",
                     "/api/authenticate/google",
@@ -54,7 +67,11 @@ public class SecurityConfig {
                     "/api/ghn/master",
                     "/api/ghn/master/**",
                     "/api/users/*/addresses",
-                    "/api/users/*/addresses/**"
+                    "/api/users/*/addresses/**",
+                    // MoMo Payment callbacks - must be public for MoMo to call
+                    "/api/payment/momo/return",
+                    "/api/payment/momo/callback",
+                    "/api/payment/momo/test-callback"
                 ).permitAll()
 
                 // Allow unauthenticated GET for the products collection
@@ -73,6 +90,27 @@ public class SecurityConfig {
                 .requestMatchers("/api/categories/addCategory").hasRole("ADMIN")
                 .requestMatchers("/api/categories/**").permitAll()
 
+                // Review endpoints
+                .requestMatchers(HttpMethod.GET, "/api/products/*/reviews").permitAll() // Public: view reviews
+                .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").hasRole("BUYER") // Create review
+                .requestMatchers(HttpMethod.PUT, "/api/reviews/*").hasRole("BUYER") // Update review
+                .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasRole("BUYER") // Delete review
+                .requestMatchers(HttpMethod.GET, "/api/reviews/my").hasRole("BUYER") // My reviews
+                .requestMatchers("/api/seller/reviews/**").hasRole("SELLER") // Seller review management
+
+                // Profile endpoints (Buyer/Seller)
+                .requestMatchers(HttpMethod.GET, "/api/profile").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.PUT, "/api/profile").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.POST, "/api/profile/**").hasAnyRole("BUYER", "SELLER")
+
+                // Seller Registration (Buyer upgrade to Seller - Shopee style)
+                .requestMatchers(HttpMethod.POST, "/api/seller/register").hasRole("BUYER")
+
+                // Seller Shop Management
+                .requestMatchers(HttpMethod.GET, "/api/seller/shop").hasRole("SELLER")
+                .requestMatchers(HttpMethod.PUT, "/api/seller/shop").hasRole("SELLER")
+                .requestMatchers(HttpMethod.GET, "/api/seller/shop/analytics").hasRole("SELLER")
+
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
@@ -90,10 +128,12 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+
     @Bean
     public JwtDecoder jwtDecoder() {
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         SecretKeySpec key = new SecretKeySpec(keyBytes, "HmacSHA256");
         return NimbusJwtDecoder.withSecretKey(key).build();
+
     }
 }

@@ -1,23 +1,29 @@
 package com.PBL6.Ecommerce.controller;
 
-import com.PBL6.Ecommerce.service.AuthService;
-import com.PBL6.Ecommerce.service.RefreshTokenService;
-import com.PBL6.Ecommerce.util.TokenProvider;
-import com.PBL6.Ecommerce.domain.dto.LoginDTO;
-import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
-
-
-
-
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.PBL6.Ecommerce.domain.dto.LoginDTO;
+import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.exception.ExpiredRefreshTokenException;
+import com.PBL6.Ecommerce.exception.InvalidRefreshTokenException;
+import com.PBL6.Ecommerce.service.AuthService;
+import com.PBL6.Ecommerce.service.RefreshTokenService;
+import com.PBL6.Ecommerce.util.TokenProvider;
+
 @RestController
 @RequestMapping("/api")
 public class AuthController {
-
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+    
     private final AuthService authService;
     private final com.PBL6.Ecommerce.repository.UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
@@ -33,10 +39,12 @@ public class AuthController {
     @PostMapping("/authenticate")
     public ResponseEntity<ResponseDTO<Map<String, Object>>> login(@RequestBody LoginDTO loginDTO) {
         String token = authService.authenticate(loginDTO);
+        
         // Lấy user info
         com.PBL6.Ecommerce.domain.User user = userRepository.findOneByUsername(loginDTO.getUsername().toLowerCase()).orElse(null);
         Map<String, Object> data = new HashMap<>();
         data.put("token", token);
+        
         if (user != null) {
             data.put("user", Map.of(
                 "id", user.getId(),
@@ -48,26 +56,23 @@ public class AuthController {
             var rt = refreshTokenService.createRefreshToken(user);
             data.put("refreshToken", rt.getToken());
         }
-        ResponseDTO<Map<String, Object>> response = new ResponseDTO<>(200, null, "Login successful", data);
-        return ResponseEntity.ok(response);
+        
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Login successful", data));
     }
+    
     @PostMapping("/refresh-token")
     public ResponseEntity<ResponseDTO<Map<String, Object>>> refreshToken(@RequestBody Map<String, String> body) {
         String refreshToken = body.get("refreshToken");
-        if (refreshToken == null) {
-            return ResponseEntity.badRequest().body(new ResponseDTO<>(400, null, "refreshToken required", null));
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new InvalidRefreshTokenException("Refresh token is required");
         }
 
-        var opt = refreshTokenService.findByToken(refreshToken);
-        if (opt.isEmpty()) {
-            return ResponseEntity.badRequest().body(new ResponseDTO<>(400, null, "Invalid refresh token", null));
-        }
+        var stored = refreshTokenService.findByToken(refreshToken)
+            .orElseThrow(() -> new InvalidRefreshTokenException("Invalid refresh token"));
 
-        var stored = opt.get();
         if (stored.isRevoked() || refreshTokenService.isExpired(stored)) {
-            // remove expired/revoked token
             refreshTokenService.revokeToken(stored);
-            return ResponseEntity.badRequest().body(new ResponseDTO<>(400, null, "Refresh token expired or revoked", null));
+            throw new ExpiredRefreshTokenException("Refresh token expired or revoked");
         }
 
         var user = stored.getUser();
@@ -77,23 +82,28 @@ public class AuthController {
         var newRt = refreshTokenService.createRefreshToken(user);
 
         String newAccess = tokenProvider.createToken(user.getId(), user.getUsername(), user.getEmail(), java.util.List.of(user.getRole().name()));
+        
         Map<String, Object> data = new HashMap<>();
         data.put("token", newAccess);
         data.put("refreshToken", newRt.getToken());
-        ResponseDTO<Map<String, Object>> response = new ResponseDTO<>(200, null, "Token refreshed", data);
-        return ResponseEntity.ok(response);
+        
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Token refreshed", data));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<ResponseDTO<Object>> logout(@RequestBody Map<String, String> body) {
         String refreshToken = body.get("refreshToken");
-        if (refreshToken == null) {
-            return ResponseEntity.badRequest().body(new ResponseDTO<>(400, null, "refreshToken required", null));
+        if (refreshToken == null || refreshToken.isBlank()) {
+            log.warn("Logout attempt without refresh token");
+            return ResponseEntity.ok(new ResponseDTO<>(200, null, "Logged out", null));
         }
+        
         var opt = refreshTokenService.findByToken(refreshToken);
         if (opt.isPresent()) {
             refreshTokenService.revokeToken(opt.get());
+            log.info("Refresh token revoked on logout");
         }
+        
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Logged out", null));
     }
 }

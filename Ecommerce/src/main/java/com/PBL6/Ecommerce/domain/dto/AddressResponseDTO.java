@@ -9,6 +9,12 @@ public class AddressResponseDTO {
     private Integer provinceId;
     private Integer districtId;
     private String wardCode;
+    
+    // Human-readable names from GHN
+    private String provinceName;
+    private String districtName;
+    private String wardName;
+    
     private String contactPhone;
     private Boolean primaryAddress;
     private LocalDateTime createdAt;
@@ -32,6 +38,15 @@ public class AddressResponseDTO {
 
     public String getWardCode() { return wardCode; }
     public void setWardCode(String wardCode) { this.wardCode = wardCode; }
+
+    public String getProvinceName() { return provinceName; }
+    public void setProvinceName(String provinceName) { this.provinceName = provinceName; }
+
+    public String getDistrictName() { return districtName; }
+    public void setDistrictName(String districtName) { this.districtName = districtName; }
+
+    public String getWardName() { return wardName; }
+    public void setWardName(String wardName) { this.wardName = wardName; }
 
     public String getContactPhone() { return contactPhone; }
     public void setContactPhone(String contactPhone) { this.contactPhone = contactPhone; }
