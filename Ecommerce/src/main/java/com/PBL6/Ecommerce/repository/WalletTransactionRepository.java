@@ -5,6 +5,7 @@ import com.PBL6.Ecommerce.domain.Wallet;
 import com.PBL6.Ecommerce.domain.WalletTransaction;
 import com.PBL6.Ecommerce.domain.WalletTransaction.TransactionType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -76,4 +77,9 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
            "WHERE wt.wallet.user.id = :userId " +
            "ORDER BY wt.createdAt DESC")
     List<WalletTransaction> findByUserId(@Param("userId") Long userId);
+    
+    // Xóa transaction liên quan đến order
+    @Modifying
+    @Query("DELETE FROM WalletTransaction wt WHERE wt.relatedOrder.id = :orderId")
+    void deleteByRelatedOrderId(@Param("orderId") Long orderId);
 }
