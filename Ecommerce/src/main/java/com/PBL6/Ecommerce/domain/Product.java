@@ -53,6 +53,11 @@ public class Product {
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> productImages = new ArrayList<>();
 
+
+
+
+
+    
     // Getters and Setters
     public Long getId() {
         return id;
