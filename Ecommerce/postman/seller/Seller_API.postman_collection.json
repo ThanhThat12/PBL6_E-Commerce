@@ -179,7 +179,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"shopName\": \"My Awesome Shop\",\n  \"shopDescription\": \"Best products in town with great service\",\n  \"shopPhone\": \"0987654321\",\n  \"shopAddress\": \"123 Main Street, District 1, Ho Chi Minh City\"\n}"
+              "raw": "{\n  \"shopName\": \"My Awesome Shop\",\n  \"shopDescription\": \"Best products in town with great service\",\n  \"shopPhone\": \"0987654321\",\n  \"shopAddress\": \"123 Main Street, District 1, Ho Chi Minh City\",\n  \"fullName\": \"Nguyễn Văn A\",\n  \"primaryCategory\": \"Clothing\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/seller/register",

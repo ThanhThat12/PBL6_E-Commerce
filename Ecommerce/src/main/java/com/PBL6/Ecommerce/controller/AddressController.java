@@ -45,36 +45,18 @@ public class AddressController {
         d.setProvinceId(a.getProvinceId());
         d.setDistrictId(a.getDistrictId());
         d.setWardCode(a.getWardCode());
-        
+
         // Use stored names from entity
         d.setProvinceName(a.getProvinceName());
         d.setDistrictName(a.getDistrictName());
         d.setWardName(a.getWardName());
-        
-    d.setContactName(a.getContactName());
+
+        d.setContactName(a.getContactName());
         d.setContactPhone(a.getContactPhone());
         d.setPrimaryAddress(a.isPrimaryAddress());
         d.setCreatedAt(a.getCreatedAt());
         return d;
     }
-
-
-    private Long extractUserId(Jwt jwt) {
-    if (jwt == null) return null;
-    
-    // Lấy userId từ claim "userId" thay vì "sub"
-    Object userIdClaim = jwt.getClaim("userId");
-    if (userIdClaim == null) return null;
-    
-    try {
-        if (userIdClaim instanceof Number) {
-            return ((Number) userIdClaim).longValue();
-        }
-        return Long.parseLong(userIdClaim.toString());
-    } catch (NumberFormatException ex) {
-        return null;
-    }
-}
 
     @GetMapping
     public ResponseEntity<ResponseDTO<List<AddressResponseDTO>>> list(@AuthenticationPrincipal Jwt jwt) {
@@ -92,17 +74,17 @@ public class AddressController {
     }
 
     @PostMapping
-    public ResponseEntity<ResponseDTO<AddressResponseDTO>> create(@AuthenticationPrincipal Jwt jwt, 
-                                                                   @Valid @RequestBody AddressRequestDTO req) {
+    public ResponseEntity<ResponseDTO<AddressResponseDTO>> create(@AuthenticationPrincipal Jwt jwt,
+                                                                  @Valid @RequestBody AddressRequestDTO req) {
         Long userId = userService.extractUserIdFromJwt(jwt);
         Address address = addressService.createForUser(userId, req);
         return ResponseDTO.created(toDto(address), "Tạo địa chỉ thành công");
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ResponseDTO<AddressResponseDTO>> update(@AuthenticationPrincipal Jwt jwt, 
-                                                                   @PathVariable Long id, 
-                                                                   @Valid @RequestBody AddressRequestDTO req) {
+    public ResponseEntity<ResponseDTO<AddressResponseDTO>> update(@AuthenticationPrincipal Jwt jwt,
+                                                                  @PathVariable Long id,
+                                                                  @Valid @RequestBody AddressRequestDTO req) {
         Long userId = userService.extractUserIdFromJwt(jwt);
         Address address = addressService.updateForUser(userId, id, req);
         return ResponseDTO.success(toDto(address), "Cập nhật địa chỉ thành công");

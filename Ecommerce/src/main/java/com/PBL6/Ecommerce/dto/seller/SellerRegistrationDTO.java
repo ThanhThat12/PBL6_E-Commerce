@@ -33,4 +33,11 @@ public class SellerRegistrationDTO {
     @NotBlank(message = "Địa chỉ shop không được để trống")
     @Size(max = 500, message = "Địa chỉ shop không được vượt quá 500 ký tự")
     private String shopAddress;
+
+    @NotBlank(message = "Họ tên không được để trống")
+    @Size(min = 2, max = 100, message = "Họ tên phải từ 2 đến 100 ký tự")
+    private String fullName;
+
+    @NotBlank(message = "Loại sản phẩm không được để trống")
+    private String primaryCategory;
 }

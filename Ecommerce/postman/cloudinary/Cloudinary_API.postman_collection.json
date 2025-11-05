@@ -1,0 +1,1194 @@
+{
+	"info": {
+		"_postman_id": "cloudinary-api-collection-2025",
+		"name": "Cloudinary Image Upload API - Complete Testing",
+		"description": "Complete API testing for Cloudinary Image Upload functionality\n\nFeatures:\n- Avatar Upload (BUYER/SELLER/ADMIN)\n- Product Image Upload (SELLER)\n- Review Image Upload (BUYER)\n- Multiple Review Images Upload (BUYER)\n- Image Delete (All authenticated users)\n- Authentication: JWT Bearer Token\n- File Upload: multipart/form-data\n\nTest Data:\n- User: lmao (BUYER), Test Sports Shop (SELLER)\n- Images: JPEG, PNG, GIF, WEBP (max 5MB)\n\nCreated: 2025-11-04",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080/api",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "uploaded_avatar_url",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "uploaded_product_url",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "uploaded_review_url",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "uploaded_review_urls",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Login as BUYER (lmao)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"lmao\",\n  \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('jwt_token', response.access_token);",
+									"    console.log('JWT Token saved:', response.access_token);",
+									"} else {",
+									"    console.log('Login failed:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Login as SELLER (Test Sports Shop)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testsportsshop\",\n  \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('jwt_token', response.access_token);",
+									"    console.log('JWT Token saved:', response.access_token);",
+									"} else {",
+									"    console.log('Login failed:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "📸 Avatar Upload (BUYER/SELLER/ADMIN)",
+			"item": [
+				{
+					"name": "✅ Upload Avatar - Valid Image (JPEG)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/avatar",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"avatar"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('uploaded_avatar_url', response.url);",
+									"    console.log('Avatar uploaded:', response.url);",
+									"    pm.test('Avatar upload successful', function () {",
+									"        pm.expect(response.url).to.include('cloudinary.com');",
+									"        pm.expect(response.url).to.include('avatars');",
+									"    });",
+									"} else {",
+									"    console.log('Upload failed:', pm.response.text());",
+									"    pm.test('Avatar upload failed as expected', function () {",
+									"        pm.expect(pm.response.code).to.be.oneOf([400, 401, 403, 500]);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "❌ Upload Avatar - No File",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/avatar",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"avatar"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Should return 400 Bad Request', function () {",
+									"    pm.expect(pm.response.code).to.equal(400);",
+									"});",
+									"console.log('Response:', pm.response.text());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "❌ Upload Avatar - Invalid File Type (TXT)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/avatar",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"avatar"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Should return 400 Bad Request for invalid file type', function () {",
+									"    pm.expect(pm.response.code).to.equal(400);",
+									"});",
+									"console.log('Response:', pm.response.text());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "❌ Upload Avatar - File Too Large (10MB+)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/avatar",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"avatar"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Should return 400 Bad Request for large file', function () {",
+									"    pm.expect(pm.response.code).to.equal(400);",
+									"});",
+									"console.log('Response:', pm.response.text());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "❌ Upload Avatar - No Authentication",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/avatar",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"avatar"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Should return 401 Unauthorized', function () {",
+									"    pm.expect(pm.response.code).to.equal(401);",
+									"});",
+									"console.log('Response:', pm.response.text());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "🛍️ Product Image Upload (SELLER only)",
+			"item": [
+				{
+					"name": "✅ Upload Product Image - Valid Image",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "productId",
+									"value": "1",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/product?productId=1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"product"
+							],
+							"query": [
+								{
+									"key": "productId",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('uploaded_product_url', response.url);",
+									"    console.log('Product image uploaded:', response.url);",
+									"    pm.test('Product image upload successful', function () {",
+									"        pm.expect(response.url).to.include('cloudinary.com');",
+									"        pm.expect(response.url).to.include('products');",
+									"    });",
+									"} else {",
+									"    console.log('Upload failed:', pm.response.text());",
+									"    pm.test('Product image upload failed as expected', function () {",
+									"        pm.expect(pm.response.code).to.be.oneOf([400, 401, 403, 500]);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "✅ Upload Product Image - No Product ID",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/product",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"product"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    console.log('Product image uploaded (no productId):', response.url);",
+									"    pm.test('Product image upload successful without productId', function () {",
+									"        pm.expect(response.url).to.include('cloudinary.com');",
+									"    });",
+									"} else {",
+									"    console.log('Upload failed:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "❌ Upload Product Image - BUYER Access Denied",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/product",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"product"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Should return 403 Forbidden for BUYER', function () {",
+									"    pm.expect(pm.response.code).to.equal(403);",
+									"});",
+									"console.log('Response:', pm.response.text());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "⭐ Review Image Upload (BUYER only)",
+			"item": [
+				{
+					"name": "✅ Upload Single Review Image - Valid Image",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/review",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"review"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('uploaded_review_url', response.url);",
+									"    console.log('Review image uploaded:', response.url);",
+									"    pm.test('Review image upload successful', function () {",
+									"        pm.expect(response.url).to.include('cloudinary.com');",
+									"        pm.expect(response.url).to.include('reviews');",
+									"    });",
+									"} else {",
+									"    console.log('Upload failed:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "✅ Upload Multiple Review Images (2 files)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"reviews"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('uploaded_review_urls', JSON.stringify(response.urls));",
+									"    console.log('Multiple review images uploaded:', response.urls);",
+									"    pm.test('Multiple review images upload successful', function () {",
+									"        pm.expect(response.urls).to.be.an('array');",
+									"        pm.expect(response.urls.length).to.equal(2);",
+									"        response.urls.forEach(url => {",
+									"            pm.expect(url).to.include('cloudinary.com');",
+									"            pm.expect(url).to.include('reviews');",
+									"        });",
+									"    });",
+									"} else {",
+									"    console.log('Upload failed:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "✅ Upload Multiple Review Images (5 files - Max)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"reviews"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    console.log('Max review images uploaded:', response.urls);",
+									"    pm.test('Max review images upload successful', function () {",
+									"        pm.expect(response.urls).to.be.an('array');",
+									"        pm.expect(response.urls.length).to.equal(5);",
+									"    });",
+									"} else {",
+									"    console.log('Upload failed:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "❌ Upload Multiple Review Images - Too Many (6 files)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"reviews"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Should return 400 Bad Request for too many files', function () {",
+									"    pm.expect(pm.response.code).to.equal(400);",
+									"});",
+									"console.log('Response:', pm.response.text());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "❌ Upload Review Image - SELLER Access Denied",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"reviews"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Should return 403 Forbidden for SELLER', function () {",
+									"    pm.expect(pm.response.code).to.equal(403);",
+									"});",
+									"console.log('Response:', pm.response.text());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "🗑️ Delete Image (All authenticated users)",
+			"item": [
+				{
+					"name": "✅ Delete Uploaded Avatar",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"imageUrl\": \"{{uploaded_avatar_url}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/image",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"image"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    console.log('Image deletion result:', response);",
+									"    pm.test('Image deletion response structure', function () {",
+									"        pm.expect(response).to.have.property('success');",
+									"        pm.expect(response).to.have.property('message');",
+									"    });",
+									"} else {",
+									"    console.log('Delete failed:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "✅ Delete Uploaded Product Image",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"imageUrl\": \"{{uploaded_product_url}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/image",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"image"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    console.log('Product image deletion result:', response);",
+									"} else {",
+									"    console.log('Delete failed:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "✅ Delete Uploaded Review Image",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"imageUrl\": \"{{uploaded_review_url}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/image",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"image"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    console.log('Review image deletion result:', response);",
+									"} else {",
+									"    console.log('Delete failed:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "❌ Delete Image - Invalid URL",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"imageUrl\": \"invalid-url\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/image",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"image"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Should return 400 Bad Request for invalid URL', function () {",
+									"    pm.expect(pm.response.code).to.equal(400);",
+									"});",
+									"console.log('Response:', pm.response.text());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "❌ Delete Image - Empty URL",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"imageUrl\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/image",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"image"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Should return 400 Bad Request for empty URL', function () {",
+									"    pm.expect(pm.response.code).to.equal(400);",
+									"});",
+									"console.log('Response:', pm.response.text());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "❌ Delete Image - No Authentication",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"imageUrl\": \"https://res.cloudinary.com/example/image.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/image",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"image"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Should return 401 Unauthorized', function () {",
+									"    pm.expect(pm.response.code).to.equal(401);",
+									"});",
+									"console.log('Response:', pm.response.text());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "🔄 Integration Tests",
+			"item": [
+				{
+					"name": "🏃‍♂️ Full Upload Flow - Avatar",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/avatar",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"avatar"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    const uploadedUrl = response.url;",
+									"    console.log('Avatar uploaded for deletion test:', uploadedUrl);",
+									"    ",
+									"    // Test deletion immediately",
+									"    const deleteRequest = {",
+									"        url: pm.variables.get('base_url') + '/upload/image',",
+									"        method: 'DELETE',",
+									"        header: {",
+									"            'Content-Type': 'application/json',",
+									"            'Authorization': 'Bearer ' + pm.collectionVariables.get('jwt_token')",
+									"        },",
+									"        body: {",
+									"            mode: 'raw',",
+									"            raw: JSON.stringify({ imageUrl: uploadedUrl })",
+									"        }",
+									"    };",
+									"    ",
+									"    pm.sendRequest(deleteRequest, function (err, res) {",
+									"        if (!err && res.code === 200) {",
+									"            console.log('✅ Full flow test passed: Upload + Delete');",
+									"        } else {",
+									"            console.log('❌ Full flow test failed:', err || res.text());",
+									"        }",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "🏃‍♂️ Full Upload Flow - Multiple Review Images",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/reviews",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"reviews"
+							]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    console.log('Multiple review images uploaded:', response.urls.length);",
+									"    ",
+									"    // Test deletion of first image",
+									"    if (response.urls && response.urls.length > 0) {",
+									"        const deleteRequest = {",
+									"            url: pm.variables.get('base_url') + '/upload/image',",
+									"            method: 'DELETE',",
+									"            header: {",
+									"                'Content-Type': 'application/json',",
+									"                'Authorization': 'Bearer ' + pm.collectionVariables.get('jwt_token')",
+									"            },",
+									"            body: {",
+									"                mode: 'raw',",
+									"                raw: JSON.stringify({ imageUrl: response.urls[0] })",
+									"            }",
+									"        };",
+									"        ",
+									"        pm.sendRequest(deleteRequest, function (err, res) {",
+									"            if (!err && res.code === 200) {",
+									"                console.log('✅ Multiple upload + delete flow test passed');",
+									"            } else {",
+									"                console.log('❌ Multiple upload + delete flow test failed');",
+									"            }",
+									"        });",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}

@@ -14,6 +14,11 @@ public class ProductDTO {
     private String shopName; // có thể giữ hoặc đổi thành ShopDTO
     private List<ProductVariantDTO> variants; // thêm variants
     private List<ProductImageDTO> images; // thêm images
+    
+    // Review fields
+    private BigDecimal rating; // Average rating (0-5)
+    private Integer reviewCount; // Total number of reviews
+    private Integer soldCount; // Total sold
 
     // Constructor mặc định
     public ProductDTO() {}
@@ -77,6 +82,16 @@ public class ProductDTO {
         if (category == null) category = new CategoryDTO();
         category.setName(categoryName);
     }
+
+    // Review getters and setters
+    public BigDecimal getRating() { return rating; }
+    public void setRating(BigDecimal rating) { this.rating = rating; }
+
+    public Integer getReviewCount() { return reviewCount; }
+    public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
+
+    public Integer getSoldCount() { return soldCount; }
+    public void setSoldCount(Integer soldCount) { this.soldCount = soldCount; }
 
     // Các fields cũ không còn dùng
     public Integer getStock() { 

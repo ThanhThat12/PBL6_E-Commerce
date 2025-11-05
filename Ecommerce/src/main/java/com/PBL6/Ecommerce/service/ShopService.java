@@ -280,7 +280,9 @@ public class ShopService {
         
         Shop savedShop = shopRepository.save(shop);
         
-        // Update user role to SELLER (auto-approval)
+        // Update user with fullName and phone (from registration)
+        user.setFullName(registrationDTO.getFullName());
+        user.setPhoneNumber(registrationDTO.getShopPhone());
         user.setRole(com.PBL6.Ecommerce.domain.Role.SELLER);
         userRepository.save(user);
         
