@@ -46,6 +46,9 @@ public class Address {
     @Column(length = 30)
     private String contactPhone;
 
+    @Column(length = 100)
+    private String contactName;
+
     @Column(nullable = false)
     private boolean primaryAddress = false;
 
@@ -85,6 +88,9 @@ public class Address {
 
     public String getContactPhone() { return contactPhone; }
     public void setContactPhone(String contactPhone) { this.contactPhone = contactPhone; }
+
+    public String getContactName() { return contactName; }
+    public void setContactName(String contactName) { this.contactName = contactName; }
 
     public boolean isPrimaryAddress() { return primaryAddress; }
     public void setPrimaryAddress(boolean primaryAddress) { this.primaryAddress = primaryAddress; }

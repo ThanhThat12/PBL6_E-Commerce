@@ -1,34 +1,39 @@
 package com.PBL6.Ecommerce.service;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
+import com.PBL6.Ecommerce.domain.Order;
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.dto.OrderDTO;
+import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
+import com.PBL6.Ecommerce.repository.OrderRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.repository.ShopRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.Order;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import com.PBL6.Ecommerce.domain.OrderItem;
 import com.PBL6.Ecommerce.domain.ProductVariant;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
+import com.PBL6.Ecommerce.domain.dto.OrderItemDTO;
 import com.PBL6.Ecommerce.exception.InvalidOrderStatusException;
 import com.PBL6.Ecommerce.exception.OrderNotFoundException;
 import com.PBL6.Ecommerce.exception.ShopNotFoundException;
 import com.PBL6.Ecommerce.exception.UnauthorizedOrderAccessException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
 import com.PBL6.Ecommerce.repository.OrderItemRepository;
-import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ProductVariantRepository;
-import com.PBL6.Ecommerce.repository.ShopRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
+
 
 @Service
 @Transactional
@@ -67,7 +72,8 @@ public class OrderService {
         Map<Long, ProductVariant> variantMap = productVariantRepository.findAllById(variantIds)
                 .stream().collect(Collectors.toMap(ProductVariant::getId, v -> v));
 
-        BigDecimal total = BigDecimal.ZERO;
+        // Calculate subtotal (product prices only)
+        BigDecimal subtotal = BigDecimal.ZERO;
         List<OrderItem> items = new ArrayList<>();
 
         for (var it : req.getItems()) {
@@ -81,7 +87,7 @@ public class OrderService {
 
             BigDecimal unitPrice = v.getPrice();
             BigDecimal line = unitPrice.multiply(BigDecimal.valueOf(it.getQuantity()));
-            total = total.add(line);
+            subtotal = subtotal.add(line);
 
             OrderItem oi = new OrderItem();
             oi.setVariant(v);
@@ -90,6 +96,18 @@ public class OrderService {
             oi.setPrice(unitPrice);
             oi.setQuantity(it.getQuantity());
             items.add(oi);
+        }
+
+        // Get shipping fee and voucher from request (calculated by frontend)
+        BigDecimal shippingFee = req.getShippingFee() != null ? req.getShippingFee() : BigDecimal.ZERO;
+        BigDecimal voucherDiscount = req.getVoucherDiscount() != null ? req.getVoucherDiscount() : BigDecimal.ZERO;
+        
+        // Calculate final total: subtotal + shipping - voucher
+        BigDecimal finalTotal = subtotal.add(shippingFee).subtract(voucherDiscount);
+        
+        // Ensure final total is not negative
+        if (finalTotal.compareTo(BigDecimal.ZERO) < 0) {
+            finalTotal = BigDecimal.ZERO;
         }
 
         // Get shop from first product variant's shop
@@ -103,7 +121,7 @@ public class OrderService {
         order.setUser(user);
         order.setShop(shop);
         order.setStatus(Order.OrderStatus.PENDING);
-        order.setTotalAmount(total);
+        order.setTotalAmount(finalTotal); // Use finalTotal (subtotal + shipping - voucher)
         // Order does not expose setItems(List<OrderItem>); associate items after saving the order.
         // order.setItems(items);
 
@@ -124,6 +142,7 @@ public class OrderService {
         ghnPayload.put("weight", req.getWeightGrams());
         ghnPayload.put("client_order_code", "ORDER_" + saved.getId());
         ghnPayload.put("cod_amount", req.getCodAmount() != null ? req.getCodAmount().intValue() : 0);
+        ghnPayload.put("shipping_fee", shippingFee); // Pass frontend-calculated shipping fee
         ghnPayload.put("items", req.getItems().stream().map(i -> {
             ProductVariant pv = variantMap.get(i.getVariantId());
             Map<String,Object> m = new HashMap<>();
@@ -240,6 +259,25 @@ public class OrderService {
     }
 
     /**
+     * Lấy danh sách đơn hàng của buyer theo userId
+     * @param userId - User ID của buyer
+     * @return List<OrderDTO> - Danh sách đơn hàng
+     */
+    public List<OrderDTO> getBuyerOrdersByUserId(Long userId) {
+        // Lấy thông tin user
+        User buyer = userRepository.findById(userId)
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng với ID: " + userId));
+
+        // Lấy tất cả orders của user này
+        List<Order> orders = orderRepository.findByUser(buyer);
+
+        // Convert sang DTO
+        return orders.stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+
+    /**
      * Lấy chi tiết đơn hàng của buyer theo ID
      * @param orderId - ID của đơn hàng
      * @param username - Username của buyer (để verify quyền)
@@ -249,6 +287,30 @@ public class OrderService {
         // Tìm user theo username
         User user = userRepository.findOneByUsername(username)
             .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
+
+        // Tìm order theo ID
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        // Verify order thuộc user
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new UnauthorizedOrderAccessException(orderId);
+        }
+
+        // Convert sang DTO
+        return convertToDetailDTO(order);
+    }
+
+    /**
+     * Lấy chi tiết đơn hàng của buyer theo userId
+     * @param orderId - ID của đơn hàng
+     * @param userId - User ID của buyer (để verify quyền)
+     * @return OrderDetailDTO - Chi tiết đơn hàng
+     */
+    public OrderDetailDTO getBuyerOrderDetailByUserId(Long orderId, Long userId) {
+        // Tìm user theo userId
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng với ID: " + userId));
 
         // Tìm order theo ID
         Order order = orderRepository.findById(orderId)
@@ -379,7 +441,7 @@ public class OrderService {
 
     /**
      * Convert Order entity sang OrderDetailDTO (chi tiết đầy đủ)
-     * Lấy tất cả các trường: id, created_at, method, status, total_amount, updated_at, shop_id, user_id
+     * Lấy tất cả các trường: id, created_at, method, status, total_amount, updated_at, shop_id, user_id, items
      */
     private OrderDetailDTO convertToDetailDTO(Order order) {
         OrderDetailDTO dto = new OrderDetailDTO();
@@ -391,7 +453,50 @@ public class OrderService {
         dto.setUpdatedAt(order.getUpdatedAt());
         dto.setShopId(order.getShop() != null ? order.getShop().getId() : null);
         dto.setUserId(order.getUser() != null ? order.getUser().getId() : null);
+
+        // Thêm đoạn này để lấy thông tin giao hàng từ shipment
+        if (order.getShipment() != null) {
+            dto.setReceiverName(order.getShipment().getReceiverName());
+            dto.setReceiverPhone(order.getShipment().getReceiverPhone());
+            dto.setReceiverAddress(order.getShipment().getReceiverAddress());
+        }
+
+        // Convert order items
+        if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
+            List<OrderItemDTO> itemDTOs = order.getOrderItems().stream()
+                .map(this::convertToOrderItemDTO)
+                .collect(Collectors.toList());
+            dto.setItems(itemDTOs);
+        }
+
         return dto;
     }
+    
+    /**
+     * Convert OrderItem entity sang OrderItemDTO
+     */
+    private OrderItemDTO convertToOrderItemDTO(OrderItem item) {
+        OrderItemDTO dto = new OrderItemDTO();
+        dto.setId(item.getId());
+        dto.setProductId(item.getProductId());
+        dto.setVariantId(item.getVariant() != null ? item.getVariant().getId() : null);
+        dto.setVariantName(item.getVariantName());
+        dto.setPrice(item.getPrice());
+        dto.setQuantity(item.getQuantity());
+        
+        // Calculate subtotal
+        if (item.getPrice() != null && item.getQuantity() != null) {
+            dto.setSubtotal(item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+        }
+        
+        // Add product details if variant is available
+        if (item.getVariant() != null && item.getVariant().getProduct() != null) {
+            dto.setProductName(item.getVariant().getProduct().getName());
+            dto.setProductImage(item.getVariant().getProduct().getMainImage());
+        }
+        
+        return dto;
+    }
+     
 }
 

@@ -35,6 +35,11 @@ public class CreateOrderRequestDTO {
     private Integer weightGrams = 1000;
     private BigDecimal codAmount;
 
+    // Shipping fee and voucher discount (from frontend calculation)
+    private BigDecimal shippingFee;
+    private BigDecimal voucherDiscount;
+    private String voucherCode;
+
     public static class Item {
         @NotNull
         private Long variantId;
@@ -74,4 +79,12 @@ public class CreateOrderRequestDTO {
     public void setItems(List<Item> items){this.items = items;}
     public String getOrderReference(){ return orderReference; }
     public void setOrderReference(String orderReference){ this.orderReference = orderReference; }
+    
+    // Getters and setters for shipping and voucher
+    public BigDecimal getShippingFee(){return shippingFee;}
+    public void setShippingFee(BigDecimal s){this.shippingFee=s;}
+    public BigDecimal getVoucherDiscount(){return voucherDiscount;}
+    public void setVoucherDiscount(BigDecimal v){this.voucherDiscount=v;}
+    public String getVoucherCode(){return voucherCode;}
+    public void setVoucherCode(String c){this.voucherCode=c;}
 }

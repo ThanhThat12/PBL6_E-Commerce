@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.domain;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,11 +48,46 @@ public class Product {
     @Column(name = "main_image", length = 500)
     private String mainImage;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductVariant> productVariants = new ArrayList<>();
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> productImages = new ArrayList<>();
+
+     // 🆕 Helper methods để quản lý images
+    public void addProductImage(ProductImage image) {
+        productImages.add(image);
+        image.setProduct(this);
+    }
+
+    public void removeProductImage(ProductImage image) {
+        productImages.remove(image);
+        image.setProduct(null);
+    }
+
+    // 🆕 Helper methods để quản lý variants
+    public void addVariant(ProductVariant variant) {
+        productVariants.add(variant);
+        variant.setProduct(this);
+    }
+
+    public void removeVariant(ProductVariant variant) {
+        productVariants.remove(variant);
+        variant.setProduct(null);
+    }
+
+    // 🆕 Helper method để clear và set lại variants
+    public void setVariants(List<ProductVariant> variants) {
+        this.productVariants.clear();
+        if (variants != null) {
+            for (ProductVariant variant : variants) {
+                addVariant(variant);
+            }
+        }
+    }
 
     // Getters and Setters
     public Long getId() {
@@ -117,6 +153,14 @@ public class Product {
 
     public void setMainImage(String mainImage) {
         this.mainImage = mainImage;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public List<ProductVariant> getProductVariants() {

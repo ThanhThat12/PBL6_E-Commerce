@@ -1,10 +1,12 @@
 package com.PBL6.Ecommerce.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.PBL6.Ecommerce.domain.Role;
@@ -35,6 +37,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // Thêm method đếm số lượng user theo role
     long countByRole(Role role);
+    
+    // Đếm số lượng user theo role và activated status
+    long countByRoleAndActivated(Role role, boolean activated);
+    
+    // Đếm số lượng user theo role và created after date
+    @Query("SELECT COUNT(u) FROM User u WHERE u.role = :role AND u.createdAt >= :startDate")
+    long countByRoleAndCreatedAtAfter(@Param("role") Role role, @Param("startDate") LocalDateTime startDate);
     
     // Method để kiểm tra phone number đã được sử dụng bởi seller chưa
     List<User> findByPhoneNumberAndRole(String phoneNumber, Role role);

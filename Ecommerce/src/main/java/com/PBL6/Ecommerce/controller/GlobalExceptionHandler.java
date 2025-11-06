@@ -1,6 +1,6 @@
-// ...existing code...
 package com.PBL6.Ecommerce.controller;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -271,6 +271,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<Object> handleSecurityException(SecurityException ex) {
+        log.warn("Security violation", ex);
+        Map<String,Object> body = new HashMap<>();
+        body.put("status", 403);
+        body.put("error", "FORBIDDEN");
+        body.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ResponseDTO<Object>> handleConflict(IllegalStateException ex) {
         log.warn("Conflict", ex);
@@ -503,6 +513,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Object> handleRuntimeException(RuntimeException ex) {
+        log.error("Runtime exception", ex);
+        Map<String,Object> body = new HashMap<>();
+        body.put("status", 500);
+        body.put("error", "INTERNAL_SERVER_ERROR");
+        body.put("message", ex.getMessage() != null ? ex.getMessage() : "Runtime error");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ResponseDTO<Object>> handleAll(Exception ex) {
         log.error("Unhandled error", ex);
@@ -515,4 +535,3 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }
-// ...existing code...

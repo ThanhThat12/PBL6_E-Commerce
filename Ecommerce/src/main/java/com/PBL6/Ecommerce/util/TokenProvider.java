@@ -1,4 +1,3 @@
-// ...existing code...
 package com.PBL6.Ecommerce.util;
 
 import io.jsonwebtoken.*;
@@ -24,7 +23,10 @@ public class TokenProvider {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    // Create access token with sub=userId and claims
+    /**
+     * Tạo access token với sub=username (chuẩn OAuth2/JWT)
+     * userId, email, roles là các claim bổ sung
+     */
     public String createToken(Long userId, String username, String email, List<String> roles) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + jwtExpirationMs);
@@ -34,12 +36,15 @@ public class TokenProvider {
                 .setExpiration(exp)
                 .signWith(signingKey(), SignatureAlgorithm.HS256);
 
-        if (userId != null) {
-            b.setSubject(String.valueOf(userId));
-        } else if (username != null) {
+        // THAY ĐỔI: ưu tiên username cho sub
+        if (username != null) {
             b.setSubject(username);
+        } else if (userId != null) {
+            b.setSubject(String.valueOf(userId)); // fallback nếu không có username
         }
 
+        // Các claim bổ sung
+        if (userId != null) b.claim("userId", userId);
         if (username != null) b.claim("username", username);
         if (email != null) b.claim("email", email);
         if (roles != null && !roles.isEmpty()) b.claim("roles", roles);
@@ -60,17 +65,45 @@ public class TokenProvider {
         return Jwts.parserBuilder().setSigningKey(signingKey()).build().parseClaimsJws(token).getBody();
     }
 
+    /**
+     * Lấy userId từ claim "userId" (không phải sub nữa)
+     */
     public Long getUserIdFromJwt(String token) {
         Claims claims = getAllClaims(token);
+        Object userIdObj = claims.get("userId");
+        if (userIdObj == null) return null;
+        
+        // Xử lý cả Integer và Long
+        if (userIdObj instanceof Number) {
+            return ((Number) userIdObj).longValue();
+        }
+        
+        // Fallback: thử parse sub (cho token cũ)
         String sub = claims.getSubject();
-        if (sub == null) return null;
-        try { return Long.parseLong(sub); } catch (NumberFormatException ignored) { return null; }
+        if (sub != null) {
+            try {
+                return Long.parseLong(sub);
+            } catch (NumberFormatException ignored) {}
+        }
+        
+        return null;
     }
 
+    /**
+     * Lấy username từ sub (hoặc claim "username" nếu sub là userId)
+     */
     public String getUsernameFromJwt(String token) {
         Claims claims = getAllClaims(token);
-        Object u = claims.get("username");
-        return u != null ? String.valueOf(u) : claims.getSubject();
+        
+        // Ưu tiên lấy từ sub
+        String sub = claims.getSubject();
+        if (sub != null && !sub.matches("\\d+")) { // nếu sub không phải số
+            return sub;
+        }
+        
+        // Fallback: lấy từ claim "username"
+        Object usernameObj = claims.get("username");
+        return usernameObj != null ? String.valueOf(usernameObj) : sub;
     }
 
     @SuppressWarnings("unchecked")
@@ -81,5 +114,4 @@ public class TokenProvider {
         if (r instanceof String) return List.of(String.valueOf(r));
         return List.of();
     }
-
 }

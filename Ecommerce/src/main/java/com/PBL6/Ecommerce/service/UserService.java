@@ -1,37 +1,36 @@
 package com.PBL6.Ecommerce.service;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.Random;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
+// ============================================
+// DOMAIN IMPORTS
+// ============================================
 import com.PBL6.Ecommerce.domain.Address;
 import com.PBL6.Ecommerce.domain.Cart;
 import com.PBL6.Ecommerce.domain.Role;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.Verification;
+
+// ============================================
+// DTO IMPORTS
+// ============================================
 import com.PBL6.Ecommerce.domain.dto.ChangePasswordDTO;
 import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
 import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
+import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
 import com.PBL6.Ecommerce.domain.dto.UserListDTO;
 import com.PBL6.Ecommerce.domain.dto.UserProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminUserDetailDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.CustomerStatsDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.ListAdminUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.ListCustomerUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.ListSellerUserDTO;
+
+// ============================================
+// EXCEPTION IMPORTS
+// ============================================
 import com.PBL6.Ecommerce.exception.DuplicateEmailException;
 import com.PBL6.Ecommerce.exception.DuplicatePhoneException;
 import com.PBL6.Ecommerce.exception.ExpiredOtpException;
@@ -43,18 +42,49 @@ import com.PBL6.Ecommerce.exception.UnauthenticatedException;
 import com.PBL6.Ecommerce.exception.UnauthorizedUserActionException;
 import com.PBL6.Ecommerce.exception.UserHasReferencesException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
+
+// ============================================
+// REPOSITORY IMPORTS
+// ============================================
 import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
+import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.repository.VerificationRepository;
 
+// ============================================
+// SPRING IMPORTS
+// ============================================
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+// ============================================
+// JAVA IMPORTS
+// ============================================
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
+import java.util.stream.Collectors;
+
 @Service
 public class UserService {
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
     
+    // ============================================
+    // DEPENDENCIES
+    // ============================================
     private final UserRepository userRepository;
     private final VerificationRepository verificationRepository;
     private final PasswordEncoder passwordEncoder;
@@ -65,7 +95,11 @@ public class UserService {
     private final ShopRepository shopRepository;
     private final ProductRepository productRepository;
     private final AddressRepository addressRepository;
+    private final OrderRepository orderRepository; // ✅ THÊM DÒN NÀY
 
+    // ============================================
+    // CONSTRUCTOR
+    // ============================================
     public UserService(UserRepository userRepository,
                        VerificationRepository verificationRepository,
                        PasswordEncoder passwordEncoder,
@@ -75,7 +109,8 @@ public class UserService {
                        CartItemRepository cartItemRepository,
                        ShopRepository shopRepository,
                        ProductRepository productRepository,
-                       AddressRepository addressRepository) {
+                       AddressRepository addressRepository,
+                       OrderRepository orderRepository) { // ✅ THÊM PARAMETER
         this.userRepository = userRepository;
         this.verificationRepository = verificationRepository;
         this.passwordEncoder = passwordEncoder;
@@ -86,6 +121,7 @@ public class UserService {
         this.shopRepository = shopRepository;
         this.productRepository = productRepository;
         this.addressRepository = addressRepository;
+        this.orderRepository = orderRepository; // ✅ THÊM INITIALIZATION
     }
 
     /**
@@ -470,7 +506,111 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    
+    /**
+     * Xóa verification codes theo email và phone
+     */
+    private void deleteUserVerifications(User user) {
+        // Xóa verification theo email
+        if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+            verificationRepository.deleteByContact(user.getEmail());
+        }
+        
+        // Xóa verification theo phone number
+        if (user.getPhoneNumber() != null && !user.getPhoneNumber().isEmpty()) {
+            verificationRepository.deleteByContact(user.getPhoneNumber());
+        }
+    }
 
+    // ================================
+    // TOP BUYERS METHODS
+    // ================================
+
+    /**
+     * Lấy danh sách tất cả top buyers (cho ADMIN)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getAllTopBuyers() {
+        return orderRepository.findTopBuyers();
+    }
+
+    /**
+     * Lấy danh sách top buyers với phân trang (cho ADMIN)
+     */
+    @Transactional(readOnly = true)
+    public Page<TopBuyerDTO> getAllTopBuyers(Pageable pageable) {
+        return orderRepository.findTopBuyers(pageable);
+    }
+
+    /**
+     * Lấy top N buyers (cho ADMIN)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getTopBuyers(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return orderRepository.findTopBuyersWithLimit(pageable);
+    }
+
+    /**
+     * Lấy top buyers theo shop cụ thể (cho SELLER)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getTopBuyersByShop(String username) {
+        // Tìm user theo username
+        User seller = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy seller"));
+        
+        // Tìm shop của seller
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+        
+        return orderRepository.findTopBuyersByShop(shop.getId());
+    }
+
+    /**
+     * Lấy top buyers theo shop ID cụ thể (cho ADMIN)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getTopBuyersByShopId(Long shopId) {
+        // Kiểm tra shop có tồn tại không
+        shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy shop với ID: " + shopId));
+        
+        return orderRepository.findTopBuyersByShop(shopId);
+    }
+
+    /**
+     * Lấy top buyers theo shop ID với giới hạn số lượng (cho ADMIN)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getTopBuyersByShopIdWithLimit(Long shopId, int limit) {
+        // Kiểm tra shop có tồn tại không
+        shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy shop với ID: " + shopId));
+        
+        Pageable pageable = PageRequest.of(0, limit);
+        return orderRepository.findTopBuyersByShopWithLimit(shopId, pageable);
+    }
+
+    /**
+     * Lấy top buyers của shop với giới hạn số lượng (cho SELLER)
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getTopBuyersByShopWithLimit(String username, int limit) {
+        // Tìm user theo username
+        User seller = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy seller"));
+        
+        // Tìm shop của seller
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+        
+        Pageable pageable = PageRequest.of(0, limit);
+        return orderRepository.findTopBuyersByShopWithLimit(shop.getId(), pageable);
+    }
+
+    
+    // -------------------ADMIN-------------------
     // ***Hiển thị từng trang User theo role*** 
     public List<ListAdminUserDTO> getAdminUsers() {
     List<User> users = userRepository.findByRole(Role.ADMIN);
@@ -509,18 +649,62 @@ public class UserService {
     public List<ListCustomerUserDTO> getCustomerUsers() {
         List<User> users = userRepository.findByRole(Role.BUYER);
         return users.stream()
-                .map(user -> new ListCustomerUserDTO(
-                    user.getId(),
-                    user.getUsername(),
-                    user.getEmail(),
-                    user.getPhoneNumber(),
-                    user.isActivated(),
-                    null,  // registeredAt
-                    null,  // lastOrderDate - lấy từ Order entity
-                    0,     // totalOrders - đếm từ Order entity
-                    0.0    // totalSpent - tính từ Order entity
-                ))
+                .map(user -> {
+                    // ✅ Lấy thông tin đơn hàng thực tế
+                    long totalOrders = orderRepository.countCompletedOrdersByUserId(user.getId());
+                    Double totalSpent = orderRepository.getTotalSpentByUserId(user.getId());
+                    LocalDateTime lastOrderDate = orderRepository.getLastCompletedOrderDateByUserId(user.getId()).orElse(null);
+                    
+                    return new ListCustomerUserDTO(
+                        user.getId(),
+                        user.getUsername(),          // ✅ Đã có username
+                        user.getEmail(),
+                        user.getPhoneNumber(),       // ✅ Đã có phoneNumber
+                        user.isActivated(),          // ✅ Đã có activated status
+                        user.getCreatedAt(),         // registeredAt
+                        lastOrderDate,               // ✅ lastOrderDate thật
+                        (int) totalOrders,           // ✅ totalOrders thật
+                        totalSpent != null ? totalSpent : 0.0  // ✅ totalSpent thật
+                    );
+                })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Get customer statistics for admin dashboard
+     * Returns: Total customers, active customers, new this month, total revenue
+     */
+    @Transactional(readOnly = true)
+    public CustomerStatsDTO getCustomerStats() {
+        log.debug("Getting customer statistics");
+        
+        // 1. Tổng số customers (role = BUYER)
+        long totalCustomers = userRepository.countByRole(Role.BUYER);
+        
+        // 2. Active customers (activated = true AND role = BUYER)
+        long activeCustomers = userRepository.countByRoleAndActivated(Role.BUYER, true);
+        
+        // 3. New customers this month
+        LocalDateTime startOfMonth = LocalDateTime.now()
+            .withDayOfMonth(1)
+            .withHour(0)
+            .withMinute(0)
+            .withSecond(0)
+            .withNano(0);
+        long newThisMonth = userRepository.countByRoleAndCreatedAtAfter(Role.BUYER, startOfMonth);
+        
+        // 4. Total revenue from all completed orders
+        Double totalRevenue = orderRepository.getTotalRevenueFromCompletedOrders();
+        
+        log.info("Customer stats - Total: {}, Active: {}, New: {}, Revenue: {}", 
+            totalCustomers, activeCustomers, newThisMonth, totalRevenue);
+        
+        return new CustomerStatsDTO(
+            totalCustomers,
+            activeCustomers,
+            newThisMonth,
+            totalRevenue != null ? totalRevenue : 0.0
+        );
     }
 
 
@@ -570,6 +754,16 @@ public class UserService {
                     // Lấy địa chỉ chính của customer
                     Optional<Address> primaryAddress = addressRepository.findByUserIdAndPrimaryAddressTrue(user.getId());
                     
+                    // ✅ Tính thông tin từ Orders (CHỈ đơn COMPLETED)
+                    long totalOrders = orderRepository.countCompletedOrdersByUserId(user.getId());
+                    Double totalSpent = orderRepository.getTotalSpentByUserId(user.getId());
+                    LocalDateTime lastOrderDate = orderRepository.getLastCompletedOrderDateByUserId(user.getId()).orElse(null);
+                    
+                    // Đếm số sản phẩm trong giỏ hàng
+                    int cartItemsCount = cartRepository.findByUserId(user.getId())
+                            .map(cart -> cartItemRepository.findByCartId(cart.getId()).size())
+                            .orElse(0);
+                    
                     return new AdminUserDetailDTO(
                         user.getId(),
                         user.getUsername(),
@@ -577,11 +771,11 @@ public class UserService {
                         user.getPhoneNumber(),
                         user.getRole().name(),
                         user.isActivated(),
-                        null,  // createdAt
-                        0,     // totalOrders
-                        0.0,   // totalSpent
-                        null,  // lastOrderDate
-                        0,     // cartItemsCount
+                        user.getCreatedAt(),
+                        (int) totalOrders,
+                        totalSpent,
+                        lastOrderDate,
+                        cartItemsCount,
                         primaryAddress.map(Address::getLabel).orElse(null),
                         primaryAddress.map(Address::getFullAddress).orElse(null),
                         primaryAddress.map(Address::getProvinceName).orElse(null),
@@ -621,8 +815,18 @@ public class UserService {
                 null, null, null, 0, 0, 0.0
             );
         } else {
-            // BUYER/CUSTOMER - lấy địa chỉ chính
+            // BUYER/CUSTOMER - lấy địa chỉ chính và thông tin đơn hàng
             Optional<Address> primaryAddress = addressRepository.findByUserIdAndPrimaryAddressTrue(user.getId());
+            
+            // ✅ Tính thông tin từ Orders (CHỈ đơn COMPLETED)
+            long totalOrders = orderRepository.countCompletedOrdersByUserId(user.getId());
+            Double totalSpent = orderRepository.getTotalSpentByUserId(user.getId());
+            LocalDateTime lastOrderDate = orderRepository.getLastCompletedOrderDateByUserId(user.getId()).orElse(null);
+            
+            // Đếm số sản phẩm trong giỏ hàng
+            int cartItemsCount = cartRepository.findByUserId(user.getId())
+                    .map(cart -> cartItemRepository.findByCartId(cart.getId()).size())
+                    .orElse(0);
             
             return new AdminUserDetailDTO(
                 user.getId(),
@@ -631,11 +835,11 @@ public class UserService {
                 user.getPhoneNumber(),
                 user.getRole().name(),
                 user.isActivated(),
-                null,  // createdAt
-                0,     // totalOrders
-                0.0,   // totalSpent
-                null,  // lastOrderDate
-                0,     // cartItemsCount
+                user.getCreatedAt(),
+                (int) totalOrders,
+                totalSpent,
+                lastOrderDate,
+                cartItemsCount,
                 primaryAddress.map(Address::getLabel).orElse(null),
                 primaryAddress.map(Address::getFullAddress).orElse(null),
                 primaryAddress.map(Address::getProvinceName).orElse(null),
@@ -818,22 +1022,6 @@ public class UserService {
             shopRepository.delete(shop);
         }
     }
-    
-    /**
-     * Xóa verification codes theo email và phone
-     */
-    private void deleteUserVerifications(User user) {
-        // Xóa verification theo email
-        if (user.getEmail() != null && !user.getEmail().isEmpty()) {
-            verificationRepository.deleteByContact(user.getEmail());
-        }
-        
-        // Xóa verification theo phone number
-        if (user.getPhoneNumber() != null && !user.getPhoneNumber().isEmpty()) {
-            verificationRepository.deleteByContact(user.getPhoneNumber());
-        }
-    }
 
 
-    
 }

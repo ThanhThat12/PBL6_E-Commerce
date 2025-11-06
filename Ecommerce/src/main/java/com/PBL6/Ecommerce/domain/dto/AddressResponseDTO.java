@@ -15,6 +15,7 @@ public class AddressResponseDTO {
     private String districtName;
     private String wardName;
     
+    private String contactName;
     private String contactPhone;
     private Boolean primaryAddress;
     private LocalDateTime createdAt;
@@ -47,6 +48,8 @@ public class AddressResponseDTO {
 
     public String getWardName() { return wardName; }
     public void setWardName(String wardName) { this.wardName = wardName; }
+    public String getContactName() { return contactName; }
+    public void setContactName(String contactName) { this.contactName = contactName; }
 
     public String getContactPhone() { return contactPhone; }
     public void setContactPhone(String contactPhone) { this.contactPhone = contactPhone; }

@@ -83,8 +83,8 @@ public class BuyerOrderController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDTO<List<OrderDTO>>> getMyOrders(Authentication authentication) {
-        String username = authentication.getName();
-        List<OrderDTO> orders = orderService.getBuyerOrders(username);
+        Long userId = Long.parseLong(authentication.getName());
+        List<OrderDTO> orders = orderService.getBuyerOrdersByUserId(userId);
         return ResponseDTO.success(orders, "Lấy danh sách đơn hàng thành công");
     }
 
@@ -98,8 +98,8 @@ public class BuyerOrderController {
     public ResponseEntity<ResponseDTO<OrderDetailDTO>> getMyOrderDetail(
             @PathVariable Long id,
             Authentication authentication) {
-        String username = authentication.getName();
-        OrderDetailDTO order = orderService.getBuyerOrderDetail(id, username);
+        Long userId = Long.parseLong(authentication.getName());
+        OrderDetailDTO order = orderService.getBuyerOrderDetailByUserId(id, userId);
         return ResponseDTO.success(order, "Lấy chi tiết đơn hàng thành công");
     }
 }
