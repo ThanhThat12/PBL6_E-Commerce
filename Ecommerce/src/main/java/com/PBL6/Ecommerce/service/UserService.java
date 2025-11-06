@@ -137,12 +137,27 @@ public class UserService {
         if (jwt == null || jwt.getSubject() == null) {
             throw new UserNotFoundException("Invalid JWT token");
         }
-        
-        try {
-            return Long.parseLong(jwt.getSubject());
-        } catch (NumberFormatException e) {
-            throw new UserNotFoundException("Invalid user ID in JWT token: " + jwt.getSubject());
+
+        String subject = jwt.getSubject();
+        // Nếu subject là số, trả về userId
+        if (subject.matches("^\\d+$")) {
+            try {
+                return Long.parseLong(subject);
+            } catch (NumberFormatException ignored) {
+                // Không thể parse, tiếp tục xử lý bên dưới
+            }
         }
+        // Nếu subject là username, tìm user theo username
+        Optional<User> userOpt = userRepository.findOneByUsername(subject);
+        if (userOpt.isPresent()) {
+            return userOpt.get().getId();
+        }
+        // Nếu không tìm thấy, thử tìm theo email
+        userOpt = userRepository.findOneByEmail(subject);
+        if (userOpt.isPresent()) {
+            return userOpt.get().getId();
+        }
+        throw new UserNotFoundException("Invalid user ID or username in JWT token: " + subject);
     }
 
     public String checkContact(CheckContactDTO dto) {
