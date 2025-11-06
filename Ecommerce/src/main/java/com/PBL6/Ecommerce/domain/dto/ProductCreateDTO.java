@@ -34,7 +34,8 @@ public class ProductCreateDTO {
     
     private String mainImage;
     private List<ProductVariantDTO> variants;
-    private List<String> imageUrls;
+    private List<String> imageUrls; // Giữ để backward compatibility
+    private List<ProductImageDTO> images; // 🔧 THÊM: Images với color
     
     // Getters and Setters
     public Long getCategoryId() { return categoryId; }
@@ -63,4 +64,8 @@ public class ProductCreateDTO {
     
     public List<String> getImageUrls() { return imageUrls; }
     public void setImageUrls(List<String> imageUrls) { this.imageUrls = imageUrls; }
+    
+    // 🔧 THÊM: Getter/Setter cho images với color
+    public List<ProductImageDTO> getImages() { return images; }
+    public void setImages(List<ProductImageDTO> images) { this.images = images; }
 }
