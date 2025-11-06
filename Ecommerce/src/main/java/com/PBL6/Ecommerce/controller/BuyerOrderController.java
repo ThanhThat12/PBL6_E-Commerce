@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,6 +20,7 @@ import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.service.OrderService;
+import com.PBL6.Ecommerce.service.UserService;
 
 import jakarta.validation.Valid;
 
@@ -31,9 +33,11 @@ import jakarta.validation.Valid;
 public class BuyerOrderController {
     
     private final OrderService orderService;
+    private final UserService userService;
 
-    public BuyerOrderController(OrderService orderService) {
+    public BuyerOrderController(OrderService orderService, UserService userService) {
         this.orderService = orderService;
+        this.userService = userService;
     }
 
     /**
@@ -57,9 +61,10 @@ public class BuyerOrderController {
     public ResponseEntity<ResponseDTO<OrderResponseDTO>> createOrder(
             @Valid @RequestBody CreateOrderRequestDTO dto,
             Authentication authentication) {
-        // Lấy userId từ JWT token (authentication.getName() trả về userId)
-        Long userId = Long.parseLong(authentication.getName());
-        dto.setUserId(userId);
+    // Lấy userId từ JWT token (có thể là số hoặc username)
+    Jwt jwt = (Jwt) authentication.getPrincipal();
+    Long userId = userService.extractUserIdFromJwt(jwt);
+    dto.setUserId(userId);
         
         Order order = orderService.createOrder(dto);
         
@@ -83,9 +88,10 @@ public class BuyerOrderController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDTO<List<OrderDTO>>> getMyOrders(Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-        List<OrderDTO> orders = orderService.getBuyerOrdersByUserId(userId);
-        return ResponseDTO.success(orders, "Lấy danh sách đơn hàng thành công");
+    Jwt jwt = (Jwt) authentication.getPrincipal();
+    Long userId = userService.extractUserIdFromJwt(jwt);
+    List<OrderDTO> orders = orderService.getBuyerOrdersByUserId(userId);
+    return ResponseDTO.success(orders, "Lấy danh sách đơn hàng thành công");
     }
 
     /**
@@ -98,8 +104,9 @@ public class BuyerOrderController {
     public ResponseEntity<ResponseDTO<OrderDetailDTO>> getMyOrderDetail(
             @PathVariable Long id,
             Authentication authentication) {
-        Long userId = Long.parseLong(authentication.getName());
-        OrderDetailDTO order = orderService.getBuyerOrderDetailByUserId(id, userId);
-        return ResponseDTO.success(order, "Lấy chi tiết đơn hàng thành công");
+    Jwt jwt = (Jwt) authentication.getPrincipal();
+    Long userId = userService.extractUserIdFromJwt(jwt);
+    OrderDetailDTO order = orderService.getBuyerOrderDetailByUserId(id, userId);
+    return ResponseDTO.success(order, "Lấy chi tiết đơn hàng thành công");
     }
 }
