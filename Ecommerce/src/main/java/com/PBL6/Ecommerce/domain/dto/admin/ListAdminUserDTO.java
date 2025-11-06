@@ -1,4 +1,4 @@
-package com.PBL6.Ecommerce.domain.dto;
+package com.PBL6.Ecommerce.domain.dto.admin;
 
 import java.time.LocalDateTime;
 
