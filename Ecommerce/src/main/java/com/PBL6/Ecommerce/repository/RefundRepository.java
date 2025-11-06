@@ -5,6 +5,7 @@ import com.PBL6.Ecommerce.domain.Refund;
 import com.PBL6.Ecommerce.domain.Refund.RefundStatus;
 import com.PBL6.Ecommerce.domain.WalletTransaction;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -76,4 +77,9 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     @Query("SELECT COALESCE(SUM(r.amount), 0) FROM Refund r " +
            "WHERE r.status = 'COMPLETED'")
     BigDecimal calculateTotalCompletedRefundAmount();
+    
+    // Xóa refund liên quan đến order
+    @Modifying
+    @Query("DELETE FROM Refund r WHERE r.order.id = :orderId")
+    void deleteByOrderId(@Param("orderId") Long orderId);
 }
