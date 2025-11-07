@@ -148,9 +148,8 @@ public class GhnService {
             }
         }
         
-        // Generate custom GHN order code: GHN0001, GHN0002, etc.
-        long shipmentCount = shipmentRepository.count();
-        String customOrderCode = String.format("GHN%04d", shipmentCount + 1);
+        // Generate unique GHN order code using timestamp
+        String customOrderCode = "GHN" + System.currentTimeMillis();
         s.setGhnOrderCode(customOrderCode);
         
         // Extract data from GHN response
