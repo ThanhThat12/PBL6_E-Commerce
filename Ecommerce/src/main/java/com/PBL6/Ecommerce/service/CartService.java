@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.PBL6.Ecommerce.domain.Cart;
 import com.PBL6.Ecommerce.domain.CartItem;
 import com.PBL6.Ecommerce.domain.Product;
+import com.PBL6.Ecommerce.domain.Product.ProductStatus;
 import com.PBL6.Ecommerce.domain.ProductVariant;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.dto.CartDTO;
@@ -63,9 +64,12 @@ public class CartService {
         if (quantity <= 0) throw new IllegalArgumentException("Quantity must be > 0");
         ProductVariant variant = productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new ProductNotFoundException("Product variant not found with ID: " + variantId));
-        if (!Boolean.TRUE.equals(variant.getProduct().getIsActive())) {
+        
+        // ✅ Kiểm tra sản phẩm phải ở trạng thái ACTIVE
+        if (variant.getProduct().getStatus() != ProductStatus.ACTIVE) {
             throw new IllegalStateException("Product is not active");
         }
+        
         if (variant.getStock() < quantity) {
             throw new IllegalArgumentException("Not enough stock. Available: " + variant.getStock());
         }

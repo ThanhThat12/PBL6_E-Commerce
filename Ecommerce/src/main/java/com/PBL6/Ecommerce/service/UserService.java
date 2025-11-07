@@ -716,7 +716,7 @@ public class UserService {
         
         return new CustomerStatsDTO(
             totalCustomers,
-            activeCustomers,
+            activeCustomers,    
             newThisMonth,
             totalRevenue != null ? totalRevenue : 0.0
         );

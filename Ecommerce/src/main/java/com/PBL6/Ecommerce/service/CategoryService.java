@@ -10,6 +10,7 @@ import com.PBL6.Ecommerce.domain.Category;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.Product;
+import com.PBL6.Ecommerce.domain.Product.ProductStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -135,7 +136,7 @@ public class CategoryService {
         dto.setName(product.getName());
         dto.setDescription(product.getDescription());
         dto.setBasePrice(product.getBasePrice());
-        dto.setIsActive(product.getIsActive());
+        dto.setStatus(product.getStatus()); // ✅ Sử dụng status thay vì isActive
         dto.setMainImage(product.getMainImage());
         
         // Set category information

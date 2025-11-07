@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.PBL6.Ecommerce.domain.Product.ProductStatus;
 import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
@@ -262,7 +263,7 @@ public class ProductController {
         return ResponseDTO.success(product, "Thay đổi trạng thái sản phẩm thành công");
     }
     
- // Lấy tất cả sản phẩm của shop của user hiện tại (có phân trang)
+ // ✅ Lấy tất cả sản phẩm của shop của user hiện tại (có phân trang)
     @GetMapping("/my-shop/all")
     @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
     public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getMyShopProducts(
@@ -270,14 +271,26 @@ public class ProductController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir,
-            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) String status, // ✅ Đổi từ Boolean isActive sang String status
             Authentication authentication) {
         try {
             Sort sort = sortDir.equalsIgnoreCase("desc") ? 
                 Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
             Pageable pageable = PageRequest.of(page, size, sort);
             
-            Page<ProductDTO> products = productService.getMyShopProducts(authentication, isActive, pageable);
+            // ✅ Convert String sang ProductStatus enum
+            ProductStatus productStatus = null;
+            if (status != null && !status.isEmpty()) {
+                try {
+                    productStatus = ProductStatus.valueOf(status.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(400, "BAD_REQUEST", 
+                        "Status không hợp lệ. Các giá trị hợp lệ: ACTIVE, INACTIVE, PENDING, LOW_STOCK", null);
+                    return ResponseEntity.badRequest().body(response);
+                }
+            }
+            
+            Page<ProductDTO> products = productService.getMyShopProducts(authentication, productStatus, pageable);
             ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(200, null, "Lấy sản phẩm của shop thành công", products);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -286,7 +299,7 @@ public class ProductController {
         }
     }
 
-    // 🆕 Lấy sản phẩm đã duyệt của shop của user hiện tại (có phân trang)
+    // ✅ Lấy sản phẩm đã duyệt của shop của user hiện tại (có phân trang)
     @GetMapping("/my-shop/approved")
     @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
     public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getMyShopApprovedProducts(

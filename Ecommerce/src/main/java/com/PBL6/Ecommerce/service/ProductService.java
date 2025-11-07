@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.domain.Category;
 import com.PBL6.Ecommerce.domain.Product;
+import com.PBL6.Ecommerce.domain.Product.ProductStatus;
 import com.PBL6.Ecommerce.domain.ProductAttribute;
 import com.PBL6.Ecommerce.domain.ProductImage;
 import com.PBL6.Ecommerce.domain.ProductVariant;
@@ -153,12 +154,14 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     product.setCategory(category);
     product.setShop(shop);
     
-    // Set active status
+    // ✅ Set status based on role
     if (isAdmin(authentication)) {
-        product.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
+        // Admin có thể set status tùy ý, mặc định là ACTIVE
+        product.setStatus(ProductStatus.ACTIVE);
     } else {
-        product.setIsActive(false);
-        System.out.println("🔍 DEBUG - Seller tạo sản phẩm, is_active = false");
+        // Seller tạo sản phẩm sẽ ở trạng thái PENDING
+        product.setStatus(ProductStatus.PENDING);
+        System.out.println("🔍 DEBUG - Seller tạo sản phẩm, status = PENDING");
     }
     
     // 🔧 2. SAVE product trước khi add relationships
@@ -181,13 +184,14 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     return convertToProductDTO(product);
 }
 
-     // 🆕 Admin duyệt/từ chối sản phẩm
+     // ✅ Admin duyệt/từ chối sản phẩm
     @PreAuthorize("hasRole('ADMIN')")
     public ProductDTO approveProduct(Long productId, Boolean approved) {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + productId));
         
-        product.setIsActive(approved);
+        // ✅ Đổi status thay vì isActive
+        product.setStatus(approved ? ProductStatus.ACTIVE : ProductStatus.INACTIVE);
         product = productRepository.save(product);
         
         // TODO: Gửi notification cho seller về kết quả duyệt
@@ -198,19 +202,19 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         return convertToProductDTO(product);
     }
 
-      // 🆕 Lấy danh sách sản phẩm chờ duyệt (chỉ admin)
+    // ✅ Lấy danh sách sản phẩm chờ duyệt (chỉ admin)
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional(readOnly = true)
     public Page<ProductDTO> getPendingProducts(Pageable pageable) {
-        Page<Product> pendingProducts = productRepository.findByIsActiveFalse(pageable);
+        Page<Product> pendingProducts = productRepository.findPendingProducts(pageable);
         return pendingProducts.map(this::convertToProductDTO);
     }
 
-    // 🆕 Đếm số sản phẩm chờ duyệt
+    // ✅ Đếm số sản phẩm chờ duyệt
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional(readOnly = true)
     public long countPendingProducts() {
-        return productRepository.countByIsActiveFalse();
+        return productRepository.countPendingProducts();
     }
     
     
@@ -250,27 +254,27 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         }
     }
     
-    // Lấy tất cả sản phẩm đang hoạt động (cho khách hàng)
+    // ✅ Lấy tất cả sản phẩm đang hoạt động (cho khách hàng)
     @Transactional(readOnly = true)
     public Page<ProductDTO> getAllActiveProducts(Pageable pageable) {
-        Page<Product> products = productRepository.findByIsActiveTrue(pageable);
+        Page<Product> products = productRepository.findActiveProducts(pageable);
         return products.map(this::convertToProductDTO);
     }
     
-    // Tìm kiếm sản phẩm đang hoạt động
+    // ✅ Tìm kiếm sản phẩm đang hoạt động
     @Transactional(readOnly = true)
     public Page<ProductDTO> searchActiveProducts(String name, Long categoryId, Long shopId, 
                                                BigDecimal minPrice, BigDecimal maxPrice, 
                                                Pageable pageable) {
         Page<Product> products = productRepository.findProductsWithFilters(
-            name, categoryId, shopId, true, minPrice, maxPrice, pageable);
+            name, categoryId, shopId, ProductStatus.ACTIVE, minPrice, maxPrice, pageable);
         return products.map(this::convertToProductDTO);
     }
     
-    // Lấy sản phẩm đang hoạt động theo category
+    // ✅ Lấy sản phẩm đang hoạt động theo category
     @Transactional(readOnly = true)
     public Page<ProductDTO> getActiveProductsByCategory(Long categoryId, Pageable pageable) {
-        Page<Product> products = productRepository.findByCategoryIdAndIsActiveTrue(categoryId, pageable);
+        Page<Product> products = productRepository.findByCategoryIdAndActiveStatus(categoryId, pageable);
         return products.map(this::convertToProductDTO);
     }
     
@@ -367,13 +371,19 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     }
     
      
-    // 🔧 SỬA: Chỉ admin mới được thay đổi trạng thái sản phẩm
+    // ✅ Admin toggle trạng thái sản phẩm (ACTIVE <-> INACTIVE)
     @PreAuthorize("hasRole('ADMIN')")
     public ProductDTO toggleProductStatus(Long id, Authentication authentication) {
         Product product = productRepository.findById(id)
             .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
         
-        product.setIsActive(!product.getIsActive());
+        // Toggle between ACTIVE and INACTIVE
+        if (product.getStatus() == ProductStatus.ACTIVE) {
+            product.setStatus(ProductStatus.INACTIVE);
+        } else {
+            product.setStatus(ProductStatus.ACTIVE);
+        }
+        
         product = productRepository.save(product);
         
         return convertToProductDTO(product);
@@ -504,7 +514,7 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         dto.setName(product.getName());
         dto.setDescription(product.getDescription());
         dto.setBasePrice(product.getBasePrice());
-        dto.setIsActive(product.getIsActive());
+        dto.setStatus(product.getStatus()); // ✅ Sử dụng status
         dto.setMainImage(product.getMainImage());
         
         // Convert category
@@ -687,8 +697,8 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
     }
 }
 
- // Lấy sản phẩm của shop của user hiện tại (có phân trang)
-    public Page<ProductDTO> getMyShopProducts(Authentication authentication, Boolean isActive, Pageable pageable) {
+ // ✅ Lấy sản phẩm của shop của user hiện tại (có phân trang)
+    public Page<ProductDTO> getMyShopProducts(Authentication authentication, ProductStatus status, Pageable pageable) {
         if (authentication == null) {
             throw new RuntimeException("Authentication required");
         }
@@ -704,8 +714,8 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
             .orElseThrow(() -> new RuntimeException("Shop not found for user: " + username));
 
         Page<Product> products;
-        if (isActive != null) {
-            products = productRepository.findByShopIdAndIsActive(shop.getId(), isActive, pageable);
+        if (status != null) {
+            products = productRepository.findByShopIdAndStatus(shop.getId(), status, pageable);
         } else {
             products = productRepository.findByShopId(shop.getId(), pageable);
         }
@@ -713,7 +723,7 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
         return products.map(this::convertToProductDTO);
     }
 
-     // Lấy sản phẩm đã duyệt của shop (có phân trang)
+     // ✅ Lấy sản phẩm đã duyệt của shop (có phân trang)
     public Page<ProductDTO> getMyShopApprovedProducts(Authentication authentication, Pageable pageable) {
         if (authentication == null) {
             throw new RuntimeException("Authentication required");
@@ -727,7 +737,7 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
         Shop shop = shopRepository.findByOwnerId(user.getId())
             .orElseThrow(() -> new RuntimeException("Shop not found for user: " + username));
 
-        Page<Product> products = productRepository.findByShopIdAndIsActive(shop.getId(), true, pageable);
+        Page<Product> products = productRepository.findByShopIdAndStatus(shop.getId(), ProductStatus.ACTIVE, pageable);
         return products.map(this::convertToProductDTO);
     }
 }
