@@ -33,10 +33,8 @@ import com.PBL6.Ecommerce.domain.dto.ProductDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductImageDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantValueDTO;
-import com.PBL6.Ecommerce.exception.CategoryNotFoundException;
 import com.PBL6.Ecommerce.exception.DuplicateSKUException;
 import com.PBL6.Ecommerce.exception.InvalidProductDataException;
-import com.PBL6.Ecommerce.exception.ProductHasReferencesException;
 import com.PBL6.Ecommerce.exception.ProductNotFoundException;
 import com.PBL6.Ecommerce.exception.ShopNotFoundException;
 import com.PBL6.Ecommerce.exception.UnauthorizedProductAccessException;
@@ -152,6 +150,12 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     product.setMainImage(request.getMainImage());
     product.setCategory(category);
     product.setShop(shop);
+    
+    // 🆕 Set shipping dimensions for GHN
+    product.setWeightGrams(request.getWeightGrams());
+    product.setLengthCm(request.getLengthCm());
+    product.setWidthCm(request.getWidthCm());
+    product.setHeightCm(request.getHeightCm());
     
     // Set active status
     if (isAdmin(authentication)) {

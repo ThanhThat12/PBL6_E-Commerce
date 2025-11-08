@@ -1,12 +1,11 @@
 package com.PBL6.Ecommerce.repository;
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,7 +14,7 @@ import org.springframework.stereotype.Repository;
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
-import java.util.Optional;
+import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
@@ -161,6 +160,36 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      */
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0.0) FROM Order o WHERE o.status = 'COMPLETED'")
     Double getTotalRevenueFromCompletedOrders();
+    
+    // =====================================================
+    // SELLER DASHBOARD APIs - Added for frontend alignment
+    // =====================================================
+    
+    /**
+     * Lấy orders theo shopId và status
+     */
+    List<Order> findByShopIdAndStatus(Long shopId, com.PBL6.Ecommerce.constant.OrderStatus status);
+    
+    /**
+     * Đếm số orders theo shopId
+     */
+    Long countByShopId(Long shopId);
+    
+    /**
+     * Đếm số khách hàng unique (distinct user_id) của shop
+     */
+    @Query("SELECT COUNT(DISTINCT o.user.id) FROM Order o WHERE o.shop.id = :shopId")
+    Long countDistinctUsersByShopId(@Param("shopId") Long shopId);
+    
+    /**
+     * Lấy orders theo shopId, status và khoảng thời gian
+     */
+    List<Order> findByShopIdAndStatusAndCreatedAtBetween(
+        Long shopId, 
+        com.PBL6.Ecommerce.constant.OrderStatus status,
+        LocalDateTime startDate, 
+        LocalDateTime endDate
+    );
     
 //     /**
 //      * Lấy ngày đặt hàng gần nhất của user (tất cả trạng thái)

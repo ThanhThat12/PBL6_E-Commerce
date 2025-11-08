@@ -1,8 +1,5 @@
 package com.PBL6.Ecommerce.domain.dto;
 
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -36,6 +33,12 @@ public class ProductCreateDTO {
     private List<ProductVariantDTO> variants;
     private List<String> imageUrls;
     
+    // 🆕 Shipping dimensions for GHN
+    private Integer weightGrams; // Trọng lượng (gram)
+    private Integer lengthCm;    // Chiều dài (cm)
+    private Integer widthCm;     // Chiều rộng (cm)
+    private Integer heightCm;    // Chiều cao (cm)
+    
     // Getters and Setters
     public Long getCategoryId() { return categoryId; }
     public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
@@ -63,4 +66,17 @@ public class ProductCreateDTO {
     
     public List<String> getImageUrls() { return imageUrls; }
     public void setImageUrls(List<String> imageUrls) { this.imageUrls = imageUrls; }
+    
+    // Getters and Setters for shipping dimensions
+    public Integer getWeightGrams() { return weightGrams; }
+    public void setWeightGrams(Integer weightGrams) { this.weightGrams = weightGrams; }
+    
+    public Integer getLengthCm() { return lengthCm; }
+    public void setLengthCm(Integer lengthCm) { this.lengthCm = lengthCm; }
+    
+    public Integer getWidthCm() { return widthCm; }
+    public void setWidthCm(Integer widthCm) { this.widthCm = widthCm; }
+    
+    public Integer getHeightCm() { return heightCm; }
+    public void setHeightCm(Integer heightCm) { this.heightCm = heightCm; }
 }

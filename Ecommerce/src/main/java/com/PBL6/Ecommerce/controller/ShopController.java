@@ -13,12 +13,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
+import com.PBL6.Ecommerce.dto.seller.ImageUploadResponseDTO;
+import com.PBL6.Ecommerce.dto.seller.ShopStatsDTO;
+import com.PBL6.Ecommerce.service.CloudinaryService;
 import com.PBL6.Ecommerce.service.ShopService;
 import com.PBL6.Ecommerce.service.UserService;
 
@@ -30,10 +34,12 @@ public class ShopController {
     
     private final ShopService shopService;
     private final UserService userService;
+    private final CloudinaryService cloudinaryService;
     
-    public ShopController(ShopService shopService, UserService userService) {
+    public ShopController(ShopService shopService, UserService userService, CloudinaryService cloudinaryService) {
         this.shopService = shopService;
         this.userService = userService;
+        this.cloudinaryService = cloudinaryService;
     }
 
     /**
@@ -263,6 +269,88 @@ public class ShopController {
                 false
             );
             return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * API l?y th?ng k� shop
+     * GET /api/seller/shop/stats
+     */
+    @GetMapping("/seller/shop/stats")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<ShopStatsDTO>> getShopStats() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
+            ShopStatsDTO stats = shopService.getShopStats(username);
+            return ResponseEntity.ok(new ResponseDTO<>(200, null, "L?y th?ng k� shop th�nh c�ng", stats));
+        } catch (RuntimeException e) {
+            int statusCode = e.getMessage().contains("chua c� shop") ? 404 : 400;
+            return ResponseEntity.status(statusCode).body(
+                new ResponseDTO<>(statusCode, e.getMessage(), "L?y th?ng k� shop th?t b?i", null)
+            );
+        }
+    }
+    
+    /**
+     * API upload logo shop
+     * POST /api/seller/shop/logo
+     */
+    @PostMapping("/seller/shop/logo")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<ImageUploadResponseDTO>> uploadLogo(
+            @RequestParam("logo") MultipartFile file) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
+            
+            // Get seller ID from shop
+            ShopDTO shopDTO = shopService.getSellerShop(username);
+            
+            // Upload to Cloudinary
+            String imageUrl = cloudinaryService.uploadShopLogo(file, shopDTO.getId());
+            
+            // TODO: Optionally update shop.logoUrl in database
+            // shopService.updateShopLogo(shopDTO.getId(), imageUrl);
+            
+            ImageUploadResponseDTO response = new ImageUploadResponseDTO(imageUrl, "Logo uploaded successfully");
+            return ResponseEntity.ok(new ResponseDTO<>(200, null, "Upload logo thành công", response));
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                new ResponseDTO<>(500, e.getMessage(), "Upload logo thất bại", null)
+            );
+        }
+    }
+    
+    /**
+     * API upload banner shop
+     * POST /api/seller/shop/banner
+     */
+    @PostMapping("/seller/shop/banner")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<ImageUploadResponseDTO>> uploadBanner(
+            @RequestParam("banner") MultipartFile file) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
+            
+            // Get seller ID from shop
+            ShopDTO shopDTO = shopService.getSellerShop(username);
+            
+            // Upload to Cloudinary
+            String imageUrl = cloudinaryService.uploadShopBanner(file, shopDTO.getId());
+            
+            // TODO: Optionally update shop.bannerUrl in database
+            // shopService.updateShopBanner(shopDTO.getId(), imageUrl);
+            
+            ImageUploadResponseDTO response = new ImageUploadResponseDTO(imageUrl, "Banner uploaded successfully");
+            return ResponseEntity.ok(new ResponseDTO<>(200, null, "Upload banner thành công", response));
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                new ResponseDTO<>(500, e.getMessage(), "Upload banner thất bại", null)
+            );
         }
     }
 }

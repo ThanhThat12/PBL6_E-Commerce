@@ -1,7 +1,9 @@
 package com.PBL6.Ecommerce.controller;
 
 import java.math.BigDecimal;
+import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -21,11 +23,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.dto.seller.VariantImageDTO;
 import com.PBL6.Ecommerce.service.ProductService;
+import com.PBL6.Ecommerce.service.VariantImageService;
 
 import jakarta.validation.Valid;
 
@@ -35,6 +40,9 @@ public class ProductController {
     
     @Autowired
     private ProductService productService;
+
+    @Autowired
+    private VariantImageService variantImageService;
 
 
 
@@ -227,86 +235,185 @@ public class ProductController {
 
     }
     
-    // Lấy sản phẩm của seller hiện tại (có phân trang)
-    @GetMapping("/my-products")
+    // ==================== VARIANT IMAGE MANAGEMENT ====================
+
+    /**
+     * Upload an image for a specific product variant
+     * POST /api/seller/products/{productId}/variants/{variantId}/images
+     */
+    @PostMapping("/{productId}/variants/{variantId}/images")
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getMyProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir,
-            Authentication authentication) {
-        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
-            Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
-        Pageable pageable = PageRequest.of(page, size, sort);
-        
-        Page<ProductDTO> products = productService.getSellerProducts(pageable, authentication);
-        return ResponseDTO.success(products, "Lấy sản phẩm của seller thành công");
-    }
-    
-    // Lấy sản phẩm của seller hiện tại (không phân trang)
-    @GetMapping("/my-products/all")
-    @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ResponseDTO<List<ProductDTO>>> getMyProductsList(Authentication authentication) {
-        List<ProductDTO> products = productService.getSellerProductsList(authentication);
-        return ResponseDTO.success(products, "Lấy tất cả sản phẩm của seller thành công");
-    }
-    
-    // Thay đổi trạng thái sản phẩm - Admin 
-    @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<ProductDTO>> toggleProductStatus(
-            @PathVariable Long id,
-            Authentication authentication) {
-        ProductDTO product = productService.toggleProductStatus(id, authentication);
-        return ResponseDTO.success(product, "Thay đổi trạng thái sản phẩm thành công");
-    }
-    
- // Lấy tất cả sản phẩm của shop của user hiện tại (có phân trang)
-    @GetMapping("/my-shop/all")
-    @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getMyShopProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir,
-            @RequestParam(required = false) Boolean isActive,
-            Authentication authentication) {
+    public ResponseEntity<ResponseDTO<VariantImageDTO>> uploadVariantImage(
+            @PathVariable Long productId,
+            @PathVariable Long variantId,
+            @RequestParam("image") MultipartFile file,
+            @RequestParam(required = false, defaultValue = "0") Integer displayOrder,
+            @RequestParam(required = false) String altText,
+            Principal principal) {
         try {
-            Sort sort = sortDir.equalsIgnoreCase("desc") ? 
-                Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
-            Pageable pageable = PageRequest.of(page, size, sort);
-            
-            Page<ProductDTO> products = productService.getMyShopProducts(authentication, isActive, pageable);
-            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(200, null, "Lấy sản phẩm của shop thành công", products);
-            return ResponseEntity.ok(response);
+            VariantImageDTO imageDTO = variantImageService.uploadVariantImage(
+                    variantId, file, displayOrder, altText);
+            return ResponseEntity.ok(new ResponseDTO<>(200, "Success", "Image uploaded successfully", imageDTO));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ResponseDTO<>(400, "BAD_REQUEST", "Invalid request: " + e.getMessage(), null));
         } catch (Exception e) {
-            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(400, "BAD_REQUEST", "Lỗi khi lấy sản phẩm: " + e.getMessage(), null);
-            return ResponseEntity.badRequest().body(response);
+            return ResponseEntity.status(500)
+                    .body(new ResponseDTO<>(500, "INTERNAL_SERVER_ERROR", "Failed to upload image: " + e.getMessage(), null));
         }
     }
 
-    // 🆕 Lấy sản phẩm đã duyệt của shop của user hiện tại (có phân trang)
-    @GetMapping("/my-shop/approved")
-    @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getMyShopApprovedProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir,
-            Authentication authentication) {
+    /**
+     * Get all images for a variant
+     * GET /api/seller/products/{productId}/variants/{variantId}/images
+     */
+    @GetMapping("/{productId}/variants/{variantId}/images")
+    public ResponseEntity<ResponseDTO<List<VariantImageDTO>>> getVariantImages(
+            @PathVariable Long productId,
+            @PathVariable Long variantId) {
         try {
-            Sort sort = sortDir.equalsIgnoreCase("desc") ? 
-                Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
-            Pageable pageable = PageRequest.of(page, size, sort);
-            
-            Page<ProductDTO> products = productService.getMyShopApprovedProducts(authentication, pageable);
-            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(200, null, "Lấy sản phẩm đã duyệt của shop thành công", products);
-            return ResponseEntity.ok(response);
+            List<VariantImageDTO> images = variantImageService.getVariantImages(variantId);
+            return ResponseEntity.ok(new ResponseDTO<>(200, "Success", "Retrieved successfully", images));
         } catch (Exception e) {
-            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(400, "BAD_REQUEST", "Lỗi khi lấy sản phẩm đã duyệt: " + e.getMessage(), null);
-            return ResponseEntity.badRequest().body(response);
+            return ResponseEntity.status(500)
+                    .body(new ResponseDTO<>(500, "INTERNAL_SERVER_ERROR", "Failed to fetch images: " + e.getMessage(), null));
         }
     }
-    
+
+    /**
+     * Get active images for a variant
+     * GET /api/seller/products/{productId}/variants/{variantId}/images/active
+     */
+    @GetMapping("/{productId}/variants/{variantId}/images/active")
+    public ResponseEntity<ResponseDTO<List<VariantImageDTO>>> getActiveVariantImages(
+            @PathVariable Long productId,
+            @PathVariable Long variantId) {
+        try {
+            List<VariantImageDTO> images = variantImageService.getActiveVariantImages(variantId);
+            return ResponseEntity.ok(new ResponseDTO<>(200, "Success", "Retrieved successfully", images));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(new ResponseDTO<>(500, "INTERNAL_SERVER_ERROR", "Failed to fetch images: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Get the main image (displayOrder = 0) for a variant
+     * GET /api/seller/products/{productId}/variants/{variantId}/images/main
+     */
+    @GetMapping("/{productId}/variants/{variantId}/images/main")
+    public ResponseEntity<ResponseDTO<VariantImageDTO>> getMainVariantImage(
+            @PathVariable Long productId,
+            @PathVariable Long variantId) {
+        try {
+            VariantImageDTO mainImage = variantImageService.getMainImage(variantId);
+            if (mainImage == null) {
+                return ResponseEntity.status(404)
+                        .body(new ResponseDTO<>(404, "NOT_FOUND", "Main image not found", null));
+            }
+            return ResponseEntity.ok(new ResponseDTO<>(200, "Success", "Retrieved successfully", mainImage));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(new ResponseDTO<>(500, "INTERNAL_SERVER_ERROR", "Failed to fetch main image: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Update variant image metadata (displayOrder and altText)
+     * PUT /api/seller/products/{productId}/variants/{variantId}/images/{imageId}
+     */
+    @PutMapping("/{productId}/variants/{variantId}/images/{imageId}")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<VariantImageDTO>> updateVariantImage(
+            @PathVariable Long productId,
+            @PathVariable Long variantId,
+            @PathVariable Long imageId,
+            @RequestParam(required = false) Integer displayOrder,
+            @RequestParam(required = false) String altText,
+            Principal principal) {
+        try {
+            VariantImageDTO updatedImage = variantImageService.updateVariantImage(
+                    variantId, imageId, displayOrder, altText);
+            return ResponseEntity.ok(new ResponseDTO<>(200, "Success", "Image updated successfully", updatedImage));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ResponseDTO<>(400, "BAD_REQUEST", "Invalid request: " + e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(new ResponseDTO<>(500, "INTERNAL_SERVER_ERROR", "Failed to update image: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Delete a variant image
+     * DELETE /api/seller/products/{productId}/variants/{variantId}/images/{imageId}
+     */
+    @DeleteMapping("/{productId}/variants/{variantId}/images/{imageId}")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<String>> deleteVariantImage(
+            @PathVariable Long productId,
+            @PathVariable Long variantId,
+            @PathVariable Long imageId,
+            Principal principal) {
+        try {
+            variantImageService.deleteVariantImage(variantId, imageId);
+            return ResponseEntity.ok(new ResponseDTO<>(200, "Success", "Image deleted successfully", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ResponseDTO<>(400, "BAD_REQUEST", "Invalid request: " + e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(new ResponseDTO<>(500, "INTERNAL_SERVER_ERROR", "Failed to delete image: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Reorder variant images
+     * POST /api/seller/products/{productId}/variants/{variantId}/images/reorder
+     * Body: { "imageIds": [id1, id2, id3, ...] }
+     */
+    @PostMapping("/{productId}/variants/{variantId}/images/reorder")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<List<VariantImageDTO>>> reorderVariantImages(
+            @PathVariable Long productId,
+            @PathVariable Long variantId,
+            @RequestBody Map<String, List<Long>> body,
+            Principal principal) {
+        try {
+            List<Long> imageIds = body.get("imageIds");
+            if (imageIds == null || imageIds.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(new ResponseDTO<>(400, "BAD_REQUEST", "imageIds list is required", null));
+            }
+            List<VariantImageDTO> reorderedImages = variantImageService.reorderVariantImages(
+                    variantId, imageIds);
+            return ResponseEntity.ok(new ResponseDTO<>(200, "Success", "Images reordered successfully", reorderedImages));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ResponseDTO<>(400, "BAD_REQUEST", "Invalid request: " + e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(new ResponseDTO<>(500, "INTERNAL_SERVER_ERROR", "Failed to reorder images: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Delete all images for a variant
+     * DELETE /api/seller/products/{productId}/variants/{variantId}/images
+     */
+    @DeleteMapping("/{productId}/variants/{variantId}/images")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<String>> deleteAllVariantImages(
+            @PathVariable Long productId,
+            @PathVariable Long variantId,
+            Principal principal) {
+        try {
+            variantImageService.deleteAllVariantImages(variantId);
+            return ResponseEntity.ok(new ResponseDTO<>(200, "Success", "All images deleted successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(new ResponseDTO<>(500, "INTERNAL_SERVER_ERROR", "Failed to delete images: " + e.getMessage(), null));
+        }
+    }
+
 }

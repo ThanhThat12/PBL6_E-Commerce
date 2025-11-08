@@ -76,5 +76,49 @@ public class OrdersController {
         OrderDetailDTO updatedOrder = orderService.updateOrderStatus(id, statusDTO.getStatus(), username);
         return ResponseDTO.success(updatedOrder, "Cập nhật trạng thái đơn hàng thành công");
     }
+    
+    /**
+     * API lấy thống kê đơn hàng theo trạng thái - Phase 3
+     * GET /api/seller/orders/stats
+     * Lấy số lượng đơn hàng theo từng trạng thái
+     * Chỉ SELLER mới có quyền truy cập
+     */
+    @GetMapping("/orders/stats")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<com.PBL6.Ecommerce.domain.dto.seller.OrderStatsDTO>> getOrderStats(
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            com.PBL6.Ecommerce.domain.dto.seller.OrderStatsDTO stats = orderService.getSellerOrderStats(username);
+            return ResponseDTO.success(stats, "Lấy thống kê đơn hàng thành công");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(
+                new ResponseDTO<>(400, e.getMessage(), "Lấy thống kê thất bại", null)
+            );
+        }
+    }
+    
+    /**
+     * API hủy đơn hàng với lý do - Phase 3
+     * POST /api/seller/orders/{id}/cancel
+     * Hủy đơn hàng với lý do cụ thể
+     * Chỉ SELLER mới có quyền và chỉ hủy được orders của shop mình
+     */
+    @PatchMapping("/orders/{id}/cancel")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<OrderDetailDTO>> cancelOrder(
+            @PathVariable Long id,
+            @Valid @RequestBody com.PBL6.Ecommerce.domain.dto.seller.OrderCancelDTO cancelDTO,
+            Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            OrderDetailDTO order = orderService.cancelSellerOrder(id, cancelDTO.getReason(), username);
+            return ResponseDTO.success(order, "Hủy đơn hàng thành công");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(
+                new ResponseDTO<>(400, e.getMessage(), "Hủy đơn hàng thất bại", null)
+            );
+        }
+    }
 }
 

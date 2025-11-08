@@ -50,6 +50,19 @@ public class Product {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+    
+    // 🆕 Shipping dimensions - for GHN shipping fee calculation
+    @Column(name = "weight_grams")
+    private Integer weightGrams; // Trọng lượng (gram)
+    
+    @Column(name = "length_cm")
+    private Integer lengthCm; // Chiều dài (cm)
+    
+    @Column(name = "width_cm")
+    private Integer widthCm; // Chiều rộng (cm)
+    
+    @Column(name = "height_cm")
+    private Integer heightCm; // Chiều cao (cm)
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductVariant> productVariants = new ArrayList<>();
@@ -177,5 +190,38 @@ public class Product {
 
     public void setProductImages(List<ProductImage> productImages) {
         this.productImages = productImages;
+    }
+
+    // Getters and Setters for shipping dimensions
+    public Integer getWeightGrams() {
+        return weightGrams;
+    }
+
+    public void setWeightGrams(Integer weightGrams) {
+        this.weightGrams = weightGrams;
+    }
+
+    public Integer getLengthCm() {
+        return lengthCm;
+    }
+
+    public void setLengthCm(Integer lengthCm) {
+        this.lengthCm = lengthCm;
+    }
+
+    public Integer getWidthCm() {
+        return widthCm;
+    }
+
+    public void setWidthCm(Integer widthCm) {
+        this.widthCm = widthCm;
+    }
+
+    public Integer getHeightCm() {
+        return heightCm;
+    }
+
+    public void setHeightCm(Integer heightCm) {
+        this.heightCm = heightCm;
     }
 }

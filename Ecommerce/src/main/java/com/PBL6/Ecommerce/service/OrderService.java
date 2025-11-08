@@ -1,26 +1,21 @@
 package com.PBL6.Ecommerce.service;
 
 
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.dto.OrderDTO;
-import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
-import com.PBL6.Ecommerce.repository.OrderRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.repository.ShopRepository;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.OrderItem;
 import com.PBL6.Ecommerce.domain.ProductVariant;
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
@@ -31,8 +26,11 @@ import com.PBL6.Ecommerce.exception.ShopNotFoundException;
 import com.PBL6.Ecommerce.exception.UnauthorizedOrderAccessException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
 import com.PBL6.Ecommerce.repository.OrderItemRepository;
+import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ProductVariantRepository;
+import com.PBL6.Ecommerce.repository.ShopRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
 
 
 @Service
@@ -514,6 +512,66 @@ public class OrderService {
         }
         
         return dto;
+    }
+    
+    /**
+     * Get order statistics by status for seller - Phase 3
+     * @param username Seller's username
+     * @return OrderStatsDTO with counts by status
+     */
+    public com.PBL6.Ecommerce.domain.dto.seller.OrderStatsDTO getSellerOrderStats(String username) {
+        User seller = userRepository.findOneByUsername(username)
+            .orElseThrow(() -> new UserNotFoundException("Seller not found"));
+        
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+            .orElseThrow(() -> new ShopNotFoundException(seller.getId()));
+        
+        List<Order> allOrders = orderRepository.findOrdersByShopId(shop.getId());
+        
+        long total = allOrders.size();
+        long pending = allOrders.stream().filter(o -> o.getStatus() == Order.OrderStatus.PENDING).count();
+        long processing = allOrders.stream().filter(o -> o.getStatus() == Order.OrderStatus.PROCESSING).count();
+        long completed = allOrders.stream().filter(o -> o.getStatus() == Order.OrderStatus.COMPLETED).count();
+        long cancelled = allOrders.stream().filter(o -> o.getStatus() == Order.OrderStatus.CANCELLED).count();
+        
+        return new com.PBL6.Ecommerce.domain.dto.seller.OrderStatsDTO(total, pending, processing, completed, cancelled);
+    }
+    
+    /**
+     * Cancel order with reason - Phase 3
+     * @param orderId Order ID to cancel
+     * @param reason Cancellation reason
+     * @param username Seller's username
+     * @return Updated order details
+     */
+    @Transactional
+    public OrderDetailDTO cancelSellerOrder(Long orderId, String reason, String username) {
+        User seller = userRepository.findOneByUsername(username)
+            .orElseThrow(() -> new UserNotFoundException("Seller not found"));
+        
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+            .orElseThrow(() -> new ShopNotFoundException(seller.getId()));
+        
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+        
+        // Verify ownership
+        if (!order.getShop().getId().equals(shop.getId())) {
+            throw new UnauthorizedOrderAccessException("You don't have permission to cancel this order");
+        }
+        
+        // Can only cancel PENDING or PROCESSING orders
+        if (order.getStatus() != Order.OrderStatus.PENDING && 
+            order.getStatus() != Order.OrderStatus.PROCESSING) {
+            throw new InvalidOrderStatusException("Cannot cancel order in status: " + order.getStatus());
+        }
+        
+        // Set status to CANCELLED
+        order.setStatus(Order.OrderStatus.CANCELLED);
+        // Note: You can add a reason field to Order entity or log it separately
+        
+        orderRepository.save(order);
+        return getOrderDetail(orderId, username);
     }
      
 }

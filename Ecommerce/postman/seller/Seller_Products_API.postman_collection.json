@@ -1,0 +1,623 @@
+{
+	"info": {
+		"_postman_id": "seller-products-api-001",
+		"name": "Seller Products API",
+		"description": "Complete Seller Product Management APIs - Phase 2 Frontend Compatible\n\n**Features:**\n- Product CRUD operations for sellers\n- Image upload (main, product images, variant images)\n- Product variants management\n- Auto-approval enabled for products\n- Category-based attributes\n\n**Authentication:** Required (SELLER role)\n\n**Base URL:** {{base_url}}/api/seller/products",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login as Seller",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.token) {",
+									"        pm.environment.set(\"token\", jsonData.data.token);",
+									"        pm.environment.set(\"username\", pm.request.body.raw ? JSON.parse(pm.request.body.raw).username : \"\");",
+									"        console.log(\"✅ Login successful! Token saved.\");",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"seller1\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login với tài khoản SELLER để lấy JWT token"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Product Management",
+			"item": [
+				{
+					"name": "Create Product",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"categoryId\": 1,\n  \"shopId\": 1,\n  \"name\": \"Áo Thun Nam Basic\",\n  \"description\": \"Áo thun nam chất liệu cotton 100%, thoáng mát, phù hợp mọi hoàn cảnh\",\n  \"basePrice\": 150000,\n  \"isActive\": true,\n  \"mainImage\": \"https://res.cloudinary.com/your-cloud/image/main.jpg\",\n  \"imageUrls\": [\n    \"https://res.cloudinary.com/your-cloud/image/img1.jpg\",\n    \"https://res.cloudinary.com/your-cloud/image/img2.jpg\"\n  ],\n  \"variants\": [\n    {\n      \"sku\": \"ATHN-M-BLACK\",\n      \"price\": 150000,\n      \"stock\": 50,\n      \"imageUrl\": \"https://res.cloudinary.com/your-cloud/image/variant-black.jpg\",\n      \"variantValues\": [\n        {\n          \"productAttributeId\": 1,\n          \"value\": \"M\",\n          \"productAttribute\": {\n            \"name\": \"Size\"\n          }\n        },\n        {\n          \"productAttributeId\": 2,\n          \"value\": \"Đen\",\n          \"productAttribute\": {\n            \"name\": \"Color\"\n          }\n        }\n      ]\n    },\n    {\n      \"sku\": \"ATHN-L-WHITE\",\n      \"price\": 160000,\n      \"stock\": 30,\n      \"imageUrl\": \"https://res.cloudinary.com/your-cloud/image/variant-white.jpg\",\n      \"variantValues\": [\n        {\n          \"productAttributeId\": 1,\n          \"value\": \"L\",\n          \"productAttribute\": {\n            \"name\": \"Size\"\n          }\n        },\n        {\n          \"productAttributeId\": 2,\n          \"value\": \"Trắng\",\n          \"productAttribute\": {\n            \"name\": \"Color\"\n          }\n        }\n      ]\n    }\n  ],\n  \"weightGrams\": 200,\n  \"lengthCm\": 30,\n  \"widthCm\": 25,\n  \"heightCm\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/seller/products",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"products"
+							]
+						},
+						"description": "Tạo sản phẩm mới với:\n- 1 ảnh chính (mainImage)\n- Tối đa 9 ảnh sản phẩm (imageUrls)\n- Mỗi variant có 1 ảnh riêng (variant.imageUrl)\n- Auto-approval: isActive = true"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Products",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/seller/products?page=0&size=10&sort=createdAt&direction=DESC",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"products"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "sort",
+									"value": "createdAt"
+								},
+								{
+									"key": "direction",
+									"value": "DESC"
+								}
+							]
+						},
+						"description": "Lấy danh sách sản phẩm của seller với pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product By ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/seller/products/:productId",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"products",
+								":productId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1",
+									"description": "ID của sản phẩm"
+								}
+							]
+						},
+						"description": "Lấy chi tiết 1 sản phẩm theo ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Product",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"categoryId\": 1,\n  \"shopId\": 1,\n  \"name\": \"Áo Thun Nam Basic - Updated\",\n  \"description\": \"Áo thun nam chất liệu cotton 100%, đã cập nhật mô tả\",\n  \"basePrice\": 170000,\n  \"isActive\": true,\n  \"mainImage\": \"https://res.cloudinary.com/your-cloud/image/main-updated.jpg\",\n  \"imageUrls\": [\n    \"https://res.cloudinary.com/your-cloud/image/img1-updated.jpg\",\n    \"https://res.cloudinary.com/your-cloud/image/img2-updated.jpg\",\n    \"https://res.cloudinary.com/your-cloud/image/img3-new.jpg\"\n  ],\n  \"variants\": [\n    {\n      \"id\": 1,\n      \"sku\": \"ATHN-M-BLACK\",\n      \"price\": 170000,\n      \"stock\": 45,\n      \"imageUrl\": \"https://res.cloudinary.com/your-cloud/image/variant-black-updated.jpg\",\n      \"variantValues\": [\n        {\n          \"productAttributeId\": 1,\n          \"value\": \"M\",\n          \"productAttribute\": { \"name\": \"Size\" }\n        },\n        {\n          \"productAttributeId\": 2,\n          \"value\": \"Đen\",\n          \"productAttribute\": { \"name\": \"Color\" }\n        }\n      ]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/seller/products/:productId",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"products",
+								":productId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1",
+									"description": "ID của sản phẩm cần update"
+								}
+							]
+						},
+						"description": "Cập nhật sản phẩm:\n- Có thể update ảnh chính, ảnh sản phẩm, ảnh variant\n- Giữ variant.id để update, bỏ id để tạo mới\n- Thay đổi SKU, giá, tồn kho"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Product",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/seller/products/:productId",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"products",
+								":productId"
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1",
+									"description": "ID của sản phẩm cần xóa"
+								}
+							]
+						},
+						"description": "Xóa sản phẩm (chỉ seller sở hữu mới được xóa)"
+					},
+					"response": []
+				},
+				{
+					"name": "Toggle Product Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/seller/products/:productId/status?status=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"products",
+								":productId",
+								"status"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "true",
+									"description": "true = ACTIVE, false = INACTIVE"
+								}
+							],
+							"variable": [
+								{
+									"key": "productId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Bật/tắt trạng thái sản phẩm (active/inactive)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Image Upload",
+			"item": [
+				{
+					"name": "Upload Single Product Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": [],
+									"description": "Chọn file ảnh (JPG, PNG)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/upload/product-image",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"upload",
+								"product-image"
+							]
+						},
+						"description": "Upload 1 ảnh sản phẩm lên Cloudinary\n\n**Sử dụng cho:**\n- Ảnh chính (main image)\n- Ảnh variant (1 per variant)\n\n**Response:** URL của ảnh đã upload"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Multiple Product Images",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "files",
+									"type": "file",
+									"src": [],
+									"description": "Chọn nhiều file ảnh (tối đa 9)"
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": [],
+									"description": "File 2"
+								},
+								{
+									"key": "files",
+									"type": "file",
+									"src": [],
+									"description": "File 3"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/upload/product-images",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"upload",
+								"product-images"
+							]
+						},
+						"description": "Upload nhiều ảnh sản phẩm (tối đa 9 ảnh)\n\n**Sử dụng cho:**\n- Product images (imageUrls array)\n\n**Response:** Mảng URLs của các ảnh đã upload"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Image",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/upload/image?imageUrl=https://res.cloudinary.com/your-cloud/image/sample.jpg",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"upload",
+								"image"
+							],
+							"query": [
+								{
+									"key": "imageUrl",
+									"value": "https://res.cloudinary.com/your-cloud/image/sample.jpg",
+									"description": "URL đầy đủ của ảnh cần xóa"
+								}
+							]
+						},
+						"description": "Xóa ảnh từ Cloudinary bằng URL"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Shop Management",
+			"item": [
+				{
+					"name": "Get Shop Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/seller/shop",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"shop"
+							]
+						},
+						"description": "Lấy thông tin shop của seller\n\n**Response fields:**\n- name, description, address\n- phone, email\n- logo, banner\n- rating, totalSales\n- status (ACTIVE/INACTIVE)\n- created_at, updated_at"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Shop Info",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"My Fashion Shop\",\n  \"description\": \"Chuyên cung cấp thời trang nam nữ chất lượng cao\",\n  \"address\": \"123 Đường ABC, Quận 1, TP.HCM\",\n  \"phone\": \"0901234567\",\n  \"email\": \"contact@myfashionshop.com\",\n  \"logo\": \"https://res.cloudinary.com/your-cloud/image/shop-logo.jpg\",\n  \"banner\": \"https://res.cloudinary.com/your-cloud/image/shop-banner.jpg\",\n  \"status\": \"ACTIVE\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/seller/shop",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"shop"
+							]
+						},
+						"description": "Cập nhật thông tin shop:\n- Tên, mô tả, địa chỉ\n- Số điện thoại, email\n- Logo, banner (URLs từ Cloudinary)\n- Trạng thái ACTIVE/INACTIVE"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Categories & Attributes",
+			"item": [
+				{
+					"name": "Get All Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/categories",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"categories"
+							]
+						},
+						"description": "Lấy danh sách tất cả categories với attributes\n\n**Response:**\n- Category ID, name\n- Attributes: name, label, type, options\n- Dùng để hiển thị form tạo sản phẩm"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Category By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/categories/:categoryId",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								":categoryId"
+							],
+							"variable": [
+								{
+									"key": "categoryId",
+									"value": "1",
+									"description": "Category ID"
+								}
+							]
+						},
+						"description": "Lấy chi tiết 1 category với danh sách attributes"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Orders & Analytics",
+			"item": [
+				{
+					"name": "Get Seller Orders",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/seller/orders?page=0&size=20",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"orders"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Lấy danh sách đơn hàng của shop"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Shop Analytics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/seller/analytics/overview",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"analytics",
+								"overview"
+							]
+						},
+						"description": "Lấy thống kê tổng quan shop:\n- Tổng doanh thu\n- Tổng đơn hàng\n- Tổng sản phẩm\n- Rating trung bình"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

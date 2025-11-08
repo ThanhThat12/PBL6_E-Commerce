@@ -9,6 +9,7 @@ public class ProductVariantDTO {
     private BigDecimal price;
     private Integer stock;
     private List<ProductVariantValueDTO> variantValues;
+    private String imageUrl; // ✅ Ảnh cho variant (theo màu)
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -25,4 +26,7 @@ public class ProductVariantDTO {
     
     public List<ProductVariantValueDTO> getVariantValues() { return variantValues; }
     public void setVariantValues(List<ProductVariantValueDTO> variantValues) { this.variantValues = variantValues; }
+    
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 }

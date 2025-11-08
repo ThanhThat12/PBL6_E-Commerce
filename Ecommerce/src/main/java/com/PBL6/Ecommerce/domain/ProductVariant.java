@@ -39,6 +39,9 @@ public class ProductVariant {
     @OneToMany(mappedBy = "variant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductVariantValue> productVariantValues = new ArrayList<>();
 
+    @OneToMany(mappedBy = "variant", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<VariantImage> variantImages = new ArrayList<>();
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -86,5 +89,23 @@ public class ProductVariant {
 
     public void setProductVariantValues(List<ProductVariantValue> productVariantValues) {
         this.productVariantValues = productVariantValues;
+    }
+
+    public List<VariantImage> getVariantImages() {
+        return variantImages;
+    }
+
+    public void setVariantImages(List<VariantImage> variantImages) {
+        this.variantImages = variantImages;
+    }
+
+    public void addVariantImage(VariantImage image) {
+        variantImages.add(image);
+        image.setVariant(this);
+    }
+
+    public void removeVariantImage(VariantImage image) {
+        variantImages.remove(image);
+        image.setVariant(null);
     }
 }

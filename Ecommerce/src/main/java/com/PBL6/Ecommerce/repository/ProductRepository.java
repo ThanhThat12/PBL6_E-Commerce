@@ -1,6 +1,8 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.Product;
+import java.math.BigDecimal;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,8 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.util.List;
+import com.PBL6.Ecommerce.domain.Product;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
@@ -97,5 +98,18 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      // Tìm sản phẩm theo shop ID và trạng thái
     Page<Product> findByShopIdAndIsActive(Long shopId, Boolean isActive, Pageable pageable);
     List<Product> findByShopIdAndIsActive(Long shopId, Boolean isActive);
+    
+    // Đếm sản phẩm theo shop ID và trạng thái
+    long countByShopIdAndIsActive(Long shopId, Boolean isActive);
+    
+    // 🆕 Tìm top sản phẩm bán chạy nhất của shop (cho dashboard)
+    // Note: Use Pageable for limit instead of LIMIT in native query
+    @Query(value = "SELECT p.* FROM products p " +
+                   "LEFT JOIN product_variants pv ON p.id = pv.product_id " +
+                   "WHERE p.shop_id = ?1 " +
+                   "GROUP BY p.id " +
+                   "ORDER BY COALESCE(SUM(pv.sold_count), 0) DESC", 
+           nativeQuery = true)
+    List<Product> findTopSellingProductsByShopId(Long shopId, Pageable pageable);
     
 }

@@ -16,7 +16,10 @@ import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
+import com.PBL6.Ecommerce.dto.seller.ShopStatsDTO;
 import com.PBL6.Ecommerce.repository.OrderRepository;
+import com.PBL6.Ecommerce.repository.ProductRepository;
+import com.PBL6.Ecommerce.repository.ProductReviewRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
 
@@ -30,6 +33,12 @@ public class ShopService {
     private UserRepository userRepository;
 
     private final OrderRepository orderRepository;
+    
+    @Autowired
+    private ProductRepository productRepository;
+    
+    @Autowired
+    private ProductReviewRepository productReviewRepository;
 
     public ShopService(ShopRepository shopRepository, UserRepository userRepository, OrderRepository orderRepository) {
         this.shopRepository = shopRepository;
@@ -285,5 +294,45 @@ public class ShopService {
         userRepository.save(user);
         
         return savedShop;
+    }
+    
+    /**
+     * Get shop statistics
+     * @param username - Username của seller từ JWT token
+     * @return ShopStatsDTO - Thống kê shop
+     */
+    public ShopStatsDTO getShopStats(String username) {
+        // Tìm user theo username
+        User user = userRepository.findOneByUsername(username)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        // Kiểm tra role SELLER
+        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+            throw new RuntimeException("Người dùng không phải là seller");
+        }
+
+        // Tìm shop của seller
+        Shop shop = shopRepository.findByOwner(user)
+            .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+
+        Long shopId = shop.getId();
+        
+        // Get average rating from reviews
+        Double avgRating = productReviewRepository.getAverageRatingByProductShopId(shopId);
+        BigDecimal rating = avgRating != null ? BigDecimal.valueOf(avgRating) : BigDecimal.ZERO;
+        
+        // Count total products
+        long totalProducts = productRepository.countByShopId(shopId);
+        
+        // Count active products only
+        long activeProducts = productRepository.countByShopIdAndIsActive(shopId, true);
+        
+        // Count total orders
+        long totalOrders = orderRepository.countByShopId(shopId);
+        
+        // Followers count (future feature - default 0)
+        long followersCount = 0L;
+        
+        return new ShopStatsDTO(rating, followersCount, totalProducts, totalOrders, activeProducts);
     }
 }
