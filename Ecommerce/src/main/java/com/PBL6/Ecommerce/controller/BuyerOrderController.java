@@ -101,12 +101,43 @@ public class BuyerOrderController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ResponseDTO<OrderDetailDTO>> getMyOrderDetail(
+    public ResponseEntity<ResponseDTO<OrderDetailDTO>> getOrderDetail(
             @PathVariable Long id,
             Authentication authentication) {
     Jwt jwt = (Jwt) authentication.getPrincipal();
     Long userId = userService.extractUserIdFromJwt(jwt);
     OrderDetailDTO order = orderService.getBuyerOrderDetailByUserId(id, userId);
     return ResponseDTO.success(order, "Lấy chi tiết đơn hàng thành công");
+    }
+
+    /**
+     * Update order status after successful wallet payment (SPORTYPAY)
+     * POST /api/orders/{id}/update-after-payment
+     * Được gọi từ frontend sau khi thanh toán wallet thành công
+     */
+    @PostMapping("/{id}/update-after-payment")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResponseDTO<Void>> updateOrderAfterWalletPayment(
+            @PathVariable Long id,
+            Authentication authentication) {
+    System.out.println("🔄 [API] POST /api/orders/" + id + "/update-after-payment called");
+    
+    Jwt jwt = (Jwt) authentication.getPrincipal();
+    Long userId = userService.extractUserIdFromJwt(jwt);
+    System.out.println("  - User ID: " + userId);
+    
+    // Verify order belongs to user
+    Order order = orderService.getOrderById(id);
+    System.out.println("  - Order owner ID: " + order.getUser().getId());
+    
+    if (!order.getUser().getId().equals(userId)) {
+        System.out.println("❌ Authorization failed - user doesn't own this order");
+        return ResponseDTO.badRequest("Bạn không có quyền cập nhật đơn hàng này");
+    }
+    
+    System.out.println("✅ Authorization passed");
+    orderService.updateOrderAfterWalletPayment(id);
+    System.out.println("✅ Order status updated successfully");
+    return ResponseDTO.success(null, "Cập nhật trạng thái đơn hàng thành công");
     }
 }

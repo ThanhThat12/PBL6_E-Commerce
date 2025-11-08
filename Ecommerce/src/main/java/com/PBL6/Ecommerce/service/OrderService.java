@@ -171,6 +171,45 @@ public class OrderService {
 
         return saved;
     }
+
+    /**
+     * Update order status after successful wallet payment (SPORTYPAY)
+     */
+    @Transactional
+    public Order updateOrderAfterWalletPayment(Long orderId) {
+        System.out.println("🔄 [SportyPay] Updating order #" + orderId + " after wallet payment");
+        
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+        
+        System.out.println("✅ Found order #" + orderId);
+        System.out.println("  - Current status: " + order.getStatus());
+        System.out.println("  - Current payment status: " + order.getPaymentStatus());
+        
+        // Mark as PAID
+        order.setPaymentStatus(Order.PaymentStatus.PAID);
+        order.setPaidAt(java.time.LocalDateTime.now());
+        order.setStatus(Order.OrderStatus.PROCESSING);
+        
+        System.out.println("  - Updated status: " + order.getStatus());
+        System.out.println("  - Updated payment status: " + order.getPaymentStatus());
+        
+        Order saved = orderRepository.save(order);
+        System.out.println("✅ Order #" + orderId + " updated successfully!");
+        System.out.println("  - Saved status: " + saved.getStatus());
+        System.out.println("  - Saved payment status: " + saved.getPaymentStatus());
+        
+        return saved;
+    }
+
+    /**
+     * Get order by ID
+     */
+    public Order getOrderById(Long orderId) {
+        return orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+    }
+
     /**
      * Lấy danh sách đơn hàng của seller theo username
      * Lấy theo shop của seller
@@ -286,10 +325,12 @@ public class OrderService {
         // Chỉ hiển thị:
         // - Đơn COD
         // - Đơn MOMO đã thanh toán (paymentStatus = PAID)
+        // - Đơn SPORTYPAY đã thanh toán (paymentStatus = PAID)
         return orders.stream()
             .filter(o ->
                 "COD".equalsIgnoreCase(o.getMethod()) ||
-                ("MOMO".equalsIgnoreCase(o.getMethod()) && o.getPaymentStatus() == Order.PaymentStatus.PAID)
+                ("MOMO".equalsIgnoreCase(o.getMethod()) && o.getPaymentStatus() == Order.PaymentStatus.PAID) ||
+                ("SPORTYPAY".equalsIgnoreCase(o.getMethod()) && o.getPaymentStatus() == Order.PaymentStatus.PAID)
             )
             .map(this::convertToDTO)
             .collect(Collectors.toList());
