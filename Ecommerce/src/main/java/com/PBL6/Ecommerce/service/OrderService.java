@@ -92,7 +92,7 @@ public class OrderService {
             OrderItem oi = new OrderItem();
             oi.setVariant(v);
             oi.setProductId(v.getProduct().getId());
-            oi.setVariantName(v.getSku() != null ? v.getSku() : v.getProduct().getName());
+            // oi.setVariantName(v.getSku() != null ? v.getSku() : v.getProduct().getName());
             oi.setPrice(unitPrice);
             oi.setQuantity(it.getQuantity());
             items.add(oi);
@@ -498,7 +498,7 @@ public class OrderService {
         dto.setId(item.getId());
         dto.setProductId(item.getProductId());
         dto.setVariantId(item.getVariant() != null ? item.getVariant().getId() : null);
-        dto.setVariantName(item.getVariantName());
+        // dto.setVariantName(item.getVariantName());
         dto.setPrice(item.getPrice());
         dto.setQuantity(item.getQuantity());
         

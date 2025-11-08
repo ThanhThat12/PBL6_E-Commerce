@@ -2,7 +2,6 @@ package com.PBL6.Ecommerce.domain.dto;
 
 import java.math.BigDecimal;
 import java.util.List;
-import com.PBL6.Ecommerce.domain.Product.ProductStatus;
 
 public class ProductDTO {
     private Long id;
@@ -10,7 +9,7 @@ public class ProductDTO {
     private String description;
     private String mainImage; // thay vì image
     private BigDecimal basePrice; // thay vì price
-    private ProductStatus status; // ✅ Đổi từ Boolean isActive sang ProductStatus
+    private Boolean isActive; // thêm field này
     private CategoryDTO category; // thay vì categoryName
     private String shopName; // có thể giữ hoặc đổi thành ShopDTO
     private List<ProductVariantDTO> variants; // thêm variants
@@ -49,8 +48,8 @@ public class ProductDTO {
     public BigDecimal getBasePrice() { return basePrice; }
     public void setBasePrice(BigDecimal basePrice) { this.basePrice = basePrice; }
 
-    public ProductStatus getStatus() { return status; }
-    public void setStatus(ProductStatus status) { this.status = status; }
+    public Boolean getIsActive() { return isActive; }
+    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
 
     public CategoryDTO getCategory() { return category; }
     public void setCategory(CategoryDTO category) { this.category = category; }
