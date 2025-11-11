@@ -32,16 +32,6 @@ public class Shop {
     @Column(nullable = false, length = 255)
     private String name;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "pickup_address_id")
-    private Address pickupAddress;
-
-    // GHN mapping: optional service id and service type id to use when creating shipments for this shop
-    @Column(name = "ghn_service_id")
-    private Integer ghnServiceId;
-
-    @Column(name = "ghn_service_type_id")
-    private Integer ghnServiceTypeId;
     
     // External GHN shop identifier (shop id assigned by GHN). Stored as string to be safe.
     @Column(name = "ghn_shop_id", length = 100)
@@ -94,28 +84,6 @@ public class Shop {
         this.name = name;
     }
 
-    public Address getPickupAddress() {
-        return pickupAddress;
-    }
-    public void setPickupAddress(Address pickupAddress) {
-        this.pickupAddress = pickupAddress;
-    }
-
-    public Integer getGhnServiceId() {
-        return ghnServiceId;
-    }
-
-    public void setGhnServiceId(Integer ghnServiceId) {
-        this.ghnServiceId = ghnServiceId;
-    }
-
-    public Integer getGhnServiceTypeId() {
-        return ghnServiceTypeId;
-    }
-
-    public void setGhnServiceTypeId(Integer ghnServiceTypeId) {
-        this.ghnServiceTypeId = ghnServiceTypeId;
-    }
 
     public String getGhnShopId() {
         return ghnShopId;
