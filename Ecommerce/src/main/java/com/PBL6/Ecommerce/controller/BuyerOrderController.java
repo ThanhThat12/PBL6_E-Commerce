@@ -109,4 +109,16 @@ public class BuyerOrderController {
     System.out.println("✅ Order status updated successfully");
     return ResponseDTO.success(null, "Cập nhật trạng thái đơn hàng thành công");
     }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResponseDTO<Void>> cancelOrder(
+            @PathVariable Long id,
+            @RequestBody(required = false) String reason,
+            Authentication authentication) {
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        Long userId = userService.extractUserIdFromJwt(jwt);
+        orderService.cancelOrderAndRefund(id, userId, reason);
+        return ResponseDTO.success(null, "Đã hủy đơn hàng thành công");
+    }
 }

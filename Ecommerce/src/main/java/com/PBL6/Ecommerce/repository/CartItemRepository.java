@@ -34,4 +34,9 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     @Query("DELETE FROM CartItem ci WHERE ci.cart.id = :cartId")
     void deleteByCartId(@Param("cartId") Long cartId);
     
+    // ✅ Xóa các items theo cartId và danh sách variantId
+    @Modifying
+    @Query("DELETE FROM CartItem ci WHERE ci.cart.id = :cartId AND ci.productVariant.id IN :variantIds")
+    void deleteByCartIdAndVariantIdIn(@Param("cartId") Long cartId, @Param("variantIds") List<Long> variantIds);
+    
 }

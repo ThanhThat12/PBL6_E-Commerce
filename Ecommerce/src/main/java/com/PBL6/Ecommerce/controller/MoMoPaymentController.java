@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.controller;
 
+import com.PBL6.Ecommerce.constant.PaymentTransactionStatus;
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.PaymentTransaction;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
@@ -188,7 +189,7 @@ public class MoMoPaymentController {
             try {
                 if (callback.getRequestId() != null) {
                     PaymentTransaction tx = paymentTransactionService.getByRequestId(callback.getRequestId());
-                    if (tx != null && tx.getStatus() == PaymentTransaction.PaymentStatus.SUCCESS) {
+                    if (tx != null && tx.getStatus() == PaymentTransactionStatus.SUCCESS) {
                         alreadySuccess = true;
                     }
                 }
@@ -427,7 +428,7 @@ public class MoMoPaymentController {
             transaction.setTransId(request.getOrDefault("transId", System.currentTimeMillis()).toString());
             transaction.setResultCode(0);
             transaction.setMessage("TEST: Payment successful");
-            transaction.setStatus(PaymentTransaction.PaymentStatus.SUCCESS);
+            transaction.setStatus(PaymentTransactionStatus.SUCCESS);
             
             paymentTransactionService.save(transaction);
             
