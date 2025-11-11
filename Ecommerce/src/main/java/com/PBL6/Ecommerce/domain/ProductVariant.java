@@ -36,6 +36,7 @@ public class ProductVariant {
     @Column(nullable = false)
     private Integer stock;
 
+
     @OneToMany(mappedBy = "variant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductVariantValue> productVariantValues = new ArrayList<>();
 

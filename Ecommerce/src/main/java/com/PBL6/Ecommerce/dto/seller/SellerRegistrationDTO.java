@@ -30,7 +30,9 @@ public class SellerRegistrationDTO {
     )
     private String shopPhone;
 
-    @NotBlank(message = "Địa chỉ shop không được để trống")
+    // Optional: if provided, client can pass an existing address id saved in addresses table
+    private Long pickupAddressId;
+
     @Size(max = 500, message = "Địa chỉ shop không được vượt quá 500 ký tự")
-    private String shopAddress;
+    private String shopAddress; // optional when pickupAddressId is provided
 }

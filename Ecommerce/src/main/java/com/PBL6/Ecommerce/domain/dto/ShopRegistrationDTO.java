@@ -11,6 +11,9 @@ public class ShopRegistrationDTO {
     
     @Size(max = 255, message = "Địa chỉ không được vượt quá 255 ký tự")
     private String address;
+
+    // Optional: use existing address id saved in addresses table
+    private Long pickupAddressId;
     
     private String description;
     
@@ -38,6 +41,14 @@ public class ShopRegistrationDTO {
     
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public Long getPickupAddressId() {
+        return pickupAddressId;
+    }
+
+    public void setPickupAddressId(Long pickupAddressId) {
+        this.pickupAddressId = pickupAddressId;
     }
     
     public String getDescription() {

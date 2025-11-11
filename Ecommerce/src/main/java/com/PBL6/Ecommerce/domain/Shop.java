@@ -12,7 +12,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.CascadeType;
@@ -25,15 +25,30 @@ public class Shop {
     private Long id;
 
     // Chủ shop
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
     @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(length = 255)
-    private String address;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pickup_address_id")
+    private Address pickupAddress;
+
+    // GHN mapping: optional service id and service type id to use when creating shipments for this shop
+    @Column(name = "ghn_service_id")
+    private Integer ghnServiceId;
+
+    @Column(name = "ghn_service_type_id")
+    private Integer ghnServiceTypeId;
+    
+    // External GHN shop identifier (shop id assigned by GHN). Stored as string to be safe.
+    @Column(name = "ghn_shop_id", length = 100)
+    private String ghnShopId;
+    
+    @Column(name = "ghn_token", length = 500)
+    private String ghnToken;
 
     @Column(columnDefinition = "TEXT")
     private String description;
@@ -79,12 +94,43 @@ public class Shop {
         this.name = name;
     }
 
-    public String getAddress() {
-        return address;
+    public Address getPickupAddress() {
+        return pickupAddress;
+    }
+    public void setPickupAddress(Address pickupAddress) {
+        this.pickupAddress = pickupAddress;
     }
 
-    public void setAddress(String address) {
-        this.address = address;
+    public Integer getGhnServiceId() {
+        return ghnServiceId;
+    }
+
+    public void setGhnServiceId(Integer ghnServiceId) {
+        this.ghnServiceId = ghnServiceId;
+    }
+
+    public Integer getGhnServiceTypeId() {
+        return ghnServiceTypeId;
+    }
+
+    public void setGhnServiceTypeId(Integer ghnServiceTypeId) {
+        this.ghnServiceTypeId = ghnServiceTypeId;
+    }
+
+    public String getGhnShopId() {
+        return ghnShopId;
+    }
+
+    public void setGhnShopId(String ghnShopId) {
+        this.ghnShopId = ghnShopId;
+    }
+
+    public String getGhnToken() {
+        return ghnToken;
+    }
+
+    public void setGhnToken(String ghnToken) {
+        this.ghnToken = ghnToken;
     }
 
     public String getDescription() {

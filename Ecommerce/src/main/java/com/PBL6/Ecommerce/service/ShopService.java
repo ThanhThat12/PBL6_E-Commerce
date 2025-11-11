@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.Address;
 import com.PBL6.Ecommerce.domain.dto.MonthlyRevenueDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
@@ -19,6 +20,7 @@ import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.repository.AddressRepository;
 
 @Service
 public class ShopService {
@@ -28,6 +30,9 @@ public class ShopService {
     
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AddressRepository addressRepository;
 
     private final OrderRepository orderRepository;
 
@@ -86,8 +91,17 @@ public class ShopService {
             shop.setName(updateShopDTO.getName().trim());
         }
 
-        if (updateShopDTO.getAddress() != null && !updateShopDTO.getAddress().trim().isEmpty()) {
-            shop.setAddress(updateShopDTO.getAddress().trim());
+        if (updateShopDTO.getPickupAddressId() != null) {
+            // validate ownership of address
+            Address addr = addressRepository.findByIdAndUserId(updateShopDTO.getPickupAddressId(), user.getId())
+                .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
+            shop.setPickupAddress(addr);
+        } else if (updateShopDTO.getAddress() != null && !updateShopDTO.getAddress().trim().isEmpty()) {
+            Address addr = new Address();
+            addr.setUser(user);
+            addr.setFullAddress(updateShopDTO.getAddress().trim());
+            Address savedAddr = addressRepository.save(addr);
+            shop.setPickupAddress(savedAddr);
         }
 
         if (updateShopDTO.getDescription() != null && !updateShopDTO.getDescription().trim().isEmpty()) {
@@ -118,11 +132,17 @@ public class ShopService {
         ShopDTO dto = new ShopDTO();
         dto.setId(shop.getId());
         dto.setName(shop.getName());
-        dto.setAddress(shop.getAddress());
+    Address pickup = shop.getPickupAddress();
+    dto.setAddress(pickup != null ? pickup.getFullAddress() : null);
         dto.setDescription(shop.getDescription());
         dto.setStatus(shop.getStatus() != null ? shop.getStatus().name() : null);
         dto.setCreatedAt(shop.getCreatedAt());
         return dto;
+    }
+    
+    // Public helper to convert Shop -> ShopDTO for controllers
+    public ShopDTO toDTO(Shop shop) {
+        return convertToDTO(shop);
     }
 
     /**
@@ -207,7 +227,17 @@ public class ShopService {
         Shop shop = new Shop();
         shop.setOwner(user);
         shop.setName(shopRegistrationDTO.getName());
-        shop.setAddress(shopRegistrationDTO.getAddress());
+        if (shopRegistrationDTO.getPickupAddressId() != null) {
+            Address addr = addressRepository.findByIdAndUserId(shopRegistrationDTO.getPickupAddressId(), user.getId())
+                .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
+            shop.setPickupAddress(addr);
+        } else if (shopRegistrationDTO.getAddress() != null && !shopRegistrationDTO.getAddress().trim().isEmpty()) {
+            Address addr = new Address();
+            addr.setUser(user);
+            addr.setFullAddress(shopRegistrationDTO.getAddress().trim());
+            Address savedAddr = addressRepository.save(addr);
+            shop.setPickupAddress(savedAddr);
+        }
         shop.setDescription(shopRegistrationDTO.getDescription());
         shop.setStatus(Shop.ShopStatus.ACTIVE);
         shop.setCreatedAt(LocalDateTime.now());
@@ -220,6 +250,23 @@ public class ShopService {
             .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
         
         return shopRepository.findByOwner(user).orElse(null);
+    }
+
+    public Shop getShopByIdAndOwner(Long shopId, User user) {
+        Shop shop = shopRepository.findById(shopId)
+            .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
+        if (shop.getOwner() == null || !shop.getOwner().getId().equals(user.getId())) {
+            throw new RuntimeException("Bạn không có quyền trên shop này");
+        }
+        return shop;
+    }
+
+    public Shop saveShop(Shop shop) {
+        return shopRepository.save(shop);
+    }
+
+    public Shop getShopById(Long shopId) {
+        return shopRepository.findById(shopId).orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
     }
     
     public boolean hasShop(Long userId) {
@@ -273,7 +320,17 @@ public class ShopService {
         Shop shop = new Shop();
         shop.setOwner(user);
         shop.setName(registrationDTO.getShopName());
-        shop.setAddress(registrationDTO.getShopAddress());
+        if (registrationDTO.getPickupAddressId() != null) {
+            Address addr = addressRepository.findByIdAndUserId(registrationDTO.getPickupAddressId(), user.getId())
+                .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
+            shop.setPickupAddress(addr);
+        } else if (registrationDTO.getShopAddress() != null && !registrationDTO.getShopAddress().trim().isEmpty()) {
+            Address addr = new Address();
+            addr.setUser(user);
+            addr.setFullAddress(registrationDTO.getShopAddress().trim());
+            Address savedAddr = addressRepository.save(addr);
+            shop.setPickupAddress(savedAddr);
+        }
         shop.setDescription(registrationDTO.getShopDescription());
         shop.setStatus(Shop.ShopStatus.ACTIVE);
         shop.setCreatedAt(LocalDateTime.now());
