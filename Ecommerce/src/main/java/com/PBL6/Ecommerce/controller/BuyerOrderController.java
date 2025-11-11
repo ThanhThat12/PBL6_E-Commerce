@@ -40,22 +40,6 @@ public class BuyerOrderController {
         this.userService = userService;
     }
 
-    /**
-     * API tạo đơn hàng mới (Buyer/User)
-     * POST /api/orders
-     * 
-     * Request body (userId được tự động lấy từ JWT token):
-     * {
-     *   "items": [
-     *     {"variantId": 1, "quantity": 2}
-     *   ],
-     *   "toName": "Nguyễn Văn A",
-     *   "toPhone": "0912345678",
-     *   "toDistrictId": "1",
-     *   "toWardCode": "1",
-     *   "toAddress": "123 Đường ABC"
-     * }
-     */
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDTO<OrderResponseDTO>> createOrder(
@@ -80,11 +64,6 @@ public class BuyerOrderController {
         return ResponseDTO.created(response, "Đặt hàng thành công");
     }
 
-    /**
-     * API lấy danh sách đơn hàng của buyer đang đăng nhập
-     * GET /api/orders
-     * Lấy tất cả orders của user
-     */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDTO<List<OrderDTO>>> getMyOrders(Authentication authentication) {
@@ -94,19 +73,40 @@ public class BuyerOrderController {
     return ResponseDTO.success(orders, "Lấy danh sách đơn hàng thành công");
     }
 
-    /**
-     * API lấy chi tiết đơn hàng (Buyer)
-     * GET /api/orders/{id}
-     * Chỉ xem được orders của chính mình
-     */
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ResponseDTO<OrderDetailDTO>> getMyOrderDetail(
+    public ResponseEntity<ResponseDTO<OrderDetailDTO>> getOrderDetail(
             @PathVariable Long id,
             Authentication authentication) {
     Jwt jwt = (Jwt) authentication.getPrincipal();
     Long userId = userService.extractUserIdFromJwt(jwt);
     OrderDetailDTO order = orderService.getBuyerOrderDetailByUserId(id, userId);
     return ResponseDTO.success(order, "Lấy chi tiết đơn hàng thành công");
+    }
+
+    @PostMapping("/{id}/update-after-payment")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResponseDTO<Void>> updateOrderAfterWalletPayment(
+            @PathVariable Long id,
+            Authentication authentication) {
+    System.out.println("🔄 [API] POST /api/orders/" + id + "/update-after-payment called");
+    
+    Jwt jwt = (Jwt) authentication.getPrincipal();
+    Long userId = userService.extractUserIdFromJwt(jwt);
+    System.out.println("  - User ID: " + userId);
+    
+    // Verify order belongs to user
+    Order order = orderService.getOrderById(id);
+    System.out.println("  - Order owner ID: " + order.getUser().getId());
+    
+    if (!order.getUser().getId().equals(userId)) {
+        System.out.println("❌ Authorization failed - user doesn't own this order");
+        return ResponseDTO.badRequest("Bạn không có quyền cập nhật đơn hàng này");
+    }
+    
+    System.out.println("✅ Authorization passed");
+    orderService.updateOrderAfterWalletPayment(id);
+    System.out.println("✅ Order status updated successfully");
+    return ResponseDTO.success(null, "Cập nhật trạng thái đơn hàng thành công");
     }
 }
