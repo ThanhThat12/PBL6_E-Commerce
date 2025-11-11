@@ -40,22 +40,6 @@ public class BuyerOrderController {
         this.userService = userService;
     }
 
-    /**
-     * API tạo đơn hàng mới (Buyer/User)
-     * POST /api/orders
-     * 
-     * Request body (userId được tự động lấy từ JWT token):
-     * {
-     *   "items": [
-     *     {"variantId": 1, "quantity": 2}
-     *   ],
-     *   "toName": "Nguyễn Văn A",
-     *   "toPhone": "0912345678",
-     *   "toDistrictId": "1",
-     *   "toWardCode": "1",
-     *   "toAddress": "123 Đường ABC"
-     * }
-     */
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDTO<OrderResponseDTO>> createOrder(
@@ -80,11 +64,6 @@ public class BuyerOrderController {
         return ResponseDTO.created(response, "Đặt hàng thành công");
     }
 
-    /**
-     * API lấy danh sách đơn hàng của buyer đang đăng nhập
-     * GET /api/orders
-     * Lấy tất cả orders của user
-     */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDTO<List<OrderDTO>>> getMyOrders(Authentication authentication) {
@@ -94,11 +73,6 @@ public class BuyerOrderController {
     return ResponseDTO.success(orders, "Lấy danh sách đơn hàng thành công");
     }
 
-    /**
-     * API lấy chi tiết đơn hàng (Buyer)
-     * GET /api/orders/{id}
-     * Chỉ xem được orders của chính mình
-     */
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDTO<OrderDetailDTO>> getOrderDetail(
@@ -110,11 +84,6 @@ public class BuyerOrderController {
     return ResponseDTO.success(order, "Lấy chi tiết đơn hàng thành công");
     }
 
-    /**
-     * Update order status after successful wallet payment (SPORTYPAY)
-     * POST /api/orders/{id}/update-after-payment
-     * Được gọi từ frontend sau khi thanh toán wallet thành công
-     */
     @PostMapping("/{id}/update-after-payment")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDTO<Void>> updateOrderAfterWalletPayment(
