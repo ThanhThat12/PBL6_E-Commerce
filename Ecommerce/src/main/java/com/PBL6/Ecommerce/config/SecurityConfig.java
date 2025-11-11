@@ -91,12 +91,14 @@ public class SecurityConfig {
                 .requestMatchers("/api/categories/**").permitAll()
 
                 // Review endpoints
-                .requestMatchers(HttpMethod.GET, "/api/products/*/reviews").permitAll() // Public: view reviews
-                .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").hasRole("BUYER") // Create review
+                .requestMatchers(HttpMethod.GET, "/api/products/*/reviews").permitAll() // Public: view product reviews
+                .requestMatchers(HttpMethod.GET, "/api/products/*/rating-summary").permitAll() // Public: rating summary
+                .requestMatchers(HttpMethod.GET, "/api/users/*/reviews").permitAll() // Public: user reviews
+                .requestMatchers(HttpMethod.POST, "/api/reviews").hasRole("BUYER") // Create review
                 .requestMatchers(HttpMethod.PUT, "/api/reviews/*").hasRole("BUYER") // Update review
-                .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasRole("BUYER") // Delete review
-                .requestMatchers(HttpMethod.GET, "/api/reviews/my").hasRole("BUYER") // My reviews
-                .requestMatchers("/api/seller/reviews/**").hasRole("SELLER") // Seller review management
+                .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasAnyRole("ADMIN", "BUYER") // Delete review (admin or owner)
+                .requestMatchers(HttpMethod.GET, "/api/my-reviews").hasRole("BUYER") // My reviews
+                .requestMatchers(HttpMethod.POST, "/api/reviews/*/reply").hasRole("SELLER") // Seller reply
 
                 // Profile endpoints (Buyer/Seller)
                 .requestMatchers(HttpMethod.GET, "/api/profile").hasAnyRole("BUYER", "SELLER")
