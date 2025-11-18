@@ -2,6 +2,7 @@ package com.PBL6.Ecommerce.service;
 
 
 import com.PBL6.Ecommerce.constant.OrderStatus;
+import com.PBL6.Ecommerce.constant.OrderItemStatus;
 import com.PBL6.Ecommerce.constant.PaymentMethod;
 import com.PBL6.Ecommerce.constant.PaymentStatus;
 import com.PBL6.Ecommerce.constant.RefundStatus;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.Optional;
@@ -29,6 +31,8 @@ import java.util.Map;
 import com.PBL6.Ecommerce.domain.OrderItem;
 import com.PBL6.Ecommerce.domain.ProductVariant;
 import com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO;
+import com.PBL6.Ecommerce.domain.dto.ItemReturnRequestDTO;
+import com.PBL6.Ecommerce.domain.dto.MultiShopOrderResult;
 import com.PBL6.Ecommerce.domain.dto.OrderDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderItemDTO;
@@ -43,11 +47,15 @@ import com.PBL6.Ecommerce.repository.ProductVariantRepository;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
 import com.PBL6.Ecommerce.domain.Cart;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 @Service
 @Transactional
 public class OrderService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
     
     private final ProductVariantRepository productVariantRepository;
     private final OrderRepository orderRepository;
@@ -65,6 +73,8 @@ public class OrderService {
     private CartItemRepository cartItemRepository;
     @Autowired
     private CartRepository cartRepository;
+    @Autowired
+    private MoMoPaymentService momoPaymentService;
     public OrderService(ProductRepository productRepository,
                         ProductVariantRepository productVariantRepository,
                         OrderRepository orderRepository,
@@ -178,31 +188,124 @@ public class OrderService {
             return m;
         }).collect(Collectors.toList()));
 
-        // Create shipment and set shipment_id
-        try {
-            var shipment = ghnService.createShippingOrderAsync(saved.getId(), ghnPayload);
-            if (shipment != null) {
-                saved.setShipment(shipment);
-                orderRepository.save(saved);
-            }
-        } catch (Exception ex) {
-            // log only; order has been created
-        }
-
-        // ✅ Xóa cart cho COD ngay sau khi tạo order
-        // Với MOMO và SPORTYPAY, chỉ xóa sau khi thanh toán thành công (trong callback)
+        // Create shipment based on payment method
+        // COD: Tạo shipment ngay, nếu GHN fail thì rollback toàn bộ order
+        // Online payment (MOMO/SPORTYPAY): Chỉ tạo shipment sau khi thanh toán thành công
         if ("COD".equalsIgnoreCase(saved.getMethod())) {
             try {
-                clearCartAfterSuccessfulPayment(user.getId(), saved.getId());
-                System.out.println("✅ Cart cleared for COD order #" + saved.getId());
+                var shipment = ghnService.createShippingOrderAsync(saved.getId(), ghnPayload);
+                if (shipment != null && shipment.getGhnOrderCode() != null) {
+                    saved.setShipment(shipment);
+                    orderRepository.save(saved);
+                    logger.info("✅ Shipment created successfully for COD order: {}", saved.getId());
+                } else {
+                    // GHN trả về null hoặc không có order code → rollback
+                    throw new RuntimeException("GHN không tạo được vận đơn. Vui lòng kiểm tra địa chỉ giao hàng.");
+                }
             } catch (Exception ex) {
-                System.err.println("❌ Error clearing cart for COD: " + ex.getMessage());
+                // Với COD, GHN fail là không thể tiếp tục → rollback order
+                logger.error("❌ GHN shipment creation failed for COD order: {}", ex.getMessage());
+                throw new RuntimeException("Không thể tạo vận đơn giao hàng: " + ex.getMessage());
+            }
+            
+            // Xóa cart cho COD ngay sau khi tạo order thành công
+            try {
+                clearCartAfterSuccessfulPayment(user.getId(), saved.getId());
+                logger.info("✅ Cart cleared for COD order #{}", saved.getId());
+            } catch (Exception ex) {
+                logger.error("❌ Error clearing cart for COD: {}", ex.getMessage());
             }
         } else {
-            System.out.println("⏳ Cart will be cleared after payment confirmation for method: " + saved.getMethod());
+            // Online payment: Chưa tạo shipment, chờ thanh toán xong mới tạo
+            logger.info("⏳ Shipment will be created after payment confirmation for method: {}", saved.getMethod());
+            logger.info("⏳ Cart will be cleared after payment confirmation");
         }
 
         return saved;
+    }
+
+    /**
+     * Tạo shipment cho order sau khi thanh toán thành công (với online payment)
+     * Được gọi từ CheckoutService sau khi xác nhận thanh toán
+     */
+    @Transactional
+    public void createShipmentAfterPayment(Long orderId) {
+        logger.info("Creating shipment after payment for order: {}", orderId);
+        
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+        
+        // Kiểm tra nếu đã có shipment thì không tạo nữa
+        if (order.getShipment() != null && order.getShipment().getGhnOrderCode() != null) {
+            logger.info("Shipment already exists for order: {}", orderId);
+            return;
+        }
+        
+        // Kiểm tra order đã thanh toán chưa
+        if (order.getPaymentStatus() != Order.PaymentStatus.PAID) {
+            logger.warn("Order {} is not paid yet, cannot create shipment", orderId);
+            return;
+        }
+        
+        // Lấy shipment cũ (có thể là GHN_ERROR) để lấy thông tin
+        var existingShipment = order.getShipment();
+        if (existingShipment == null) {
+            logger.warn("No shipment record found for order: {}, cannot retry", orderId);
+            return;
+        }
+        
+        // Chuẩn bị GHN payload từ thông tin shipment cũ
+        Map<String, Object> ghnPayload = new HashMap<>();
+        ghnPayload.put("to_name", existingShipment.getReceiverName());
+        ghnPayload.put("to_phone", existingShipment.getReceiverPhone());
+        ghnPayload.put("to_address", existingShipment.getReceiverAddress());
+        ghnPayload.put("province", existingShipment.getProvince());
+        ghnPayload.put("district", existingShipment.getDistrict());
+        ghnPayload.put("ward", existingShipment.getWard());
+        
+        // Parse GHN payload cũ nếu có
+        if (existingShipment.getGhnPayload() != null) {
+            try {
+                var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                @SuppressWarnings("unchecked")
+                Map<String, Object> oldPayload = objectMapper.readValue(
+                    existingShipment.getGhnPayload(), 
+                    Map.class
+                );
+                
+                // Lấy các thông tin quan trọng từ payload cũ
+                if (oldPayload.containsKey("request")) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> request = (Map<String, Object>) oldPayload.get("request");
+                    ghnPayload.put("to_district_id", request.get("to_district_id"));
+                    ghnPayload.put("to_ward_code", request.get("to_ward_code"));
+                    ghnPayload.put("weight", request.get("weight"));
+                    ghnPayload.put("cod_amount", request.get("cod_amount"));
+                    ghnPayload.put("shipping_fee", request.get("shipping_fee"));
+                    ghnPayload.put("items", request.get("items"));
+                }
+            } catch (Exception e) {
+                logger.error("Error parsing old GHN payload: {}", e.getMessage());
+            }
+        }
+        
+        ghnPayload.put("client_order_code", "ORDER_" + orderId);
+        
+        // Gọi GHN API để tạo vận đơn
+        try {
+            var shipment = ghnService.createShippingOrderAsync(orderId, ghnPayload);
+            if (shipment != null && shipment.getGhnOrderCode() != null) {
+                order.setShipment(shipment);
+                orderRepository.save(order);
+                logger.info("✅ Shipment created successfully after payment for order: {}", orderId);
+            } else {
+                logger.warn("⚠️ GHN returned null or invalid shipment for order: {}", orderId);
+            }
+        } catch (Exception ex) {
+            logger.error("❌ Failed to create shipment after payment for order {}: {}", orderId, ex.getMessage());
+            // Không throw exception, để order vẫn có thể tiếp tục
+            // Seller có thể tạo lại shipment sau
+        }
     }
 
     /**
@@ -297,11 +400,110 @@ public class OrderService {
     }
 
     /**
+     * Create multiple orders for multi-shop checkout
+     * Groups items by shop and creates separate orders
+     */
+    @Transactional
+    public MultiShopOrderResult createMultiShopOrders(CreateOrderRequestDTO req) {
+        // Validate user
+        var user = userRepository.findById(req.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // Get all variants
+        List<Long> variantIds = req.getItems().stream()
+                .map(CreateOrderRequestDTO.Item::getVariantId)
+                .collect(Collectors.toList());
+
+        Map<Long, ProductVariant> variantMap = productVariantRepository.findAllById(variantIds)
+                .stream().collect(Collectors.toMap(ProductVariant::getId, v -> v));
+
+        // Group items by shop
+        Map<Long, List<CreateOrderRequestDTO.Item>> itemsByShop = new HashMap<>();
+        for (var item : req.getItems()) {
+            ProductVariant variant = variantMap.get(item.getVariantId());
+            if (variant == null) {
+                throw new IllegalArgumentException("Variant not found: " + item.getVariantId());
+            }
+            Long shopId = variant.getProduct().getShop().getId();
+            itemsByShop.computeIfAbsent(shopId, k -> new ArrayList<>()).add(item);
+        }
+
+        // Create separate orders for each shop
+        List<Long> orderIds = new ArrayList<>();
+        BigDecimal grandTotal = BigDecimal.ZERO;
+
+        for (Map.Entry<Long, List<CreateOrderRequestDTO.Item>> entry : itemsByShop.entrySet()) {
+            // Create a new request DTO for this shop's items
+            CreateOrderRequestDTO shopOrderReq = new CreateOrderRequestDTO();
+            shopOrderReq.setUserId(req.getUserId());
+            shopOrderReq.setItems(entry.getValue());
+            shopOrderReq.setReceiverName(req.getReceiverName());
+            shopOrderReq.setReceiverPhone(req.getReceiverPhone());
+            shopOrderReq.setReceiverAddress(req.getReceiverAddress());
+            shopOrderReq.setProvince(req.getProvince());
+            shopOrderReq.setDistrict(req.getDistrict());
+            shopOrderReq.setWard(req.getWard());
+            shopOrderReq.setToDistrictId(req.getToDistrictId());
+            shopOrderReq.setToWardCode(req.getToWardCode());
+            shopOrderReq.setMethod(req.getMethod());
+            
+            // Calculate shipping fee for this shop's items
+            // For now, divide shipping proportionally by item count
+            // TODO: Implement proper per-shop shipping calculation
+            int totalItems = req.getItems().size();
+            int shopItems = entry.getValue().size();
+            BigDecimal shopShippingFee = req.getShippingFee() != null 
+                ? req.getShippingFee().multiply(BigDecimal.valueOf(shopItems))
+                    .divide(BigDecimal.valueOf(totalItems), 2, BigDecimal.ROUND_HALF_UP)
+                : BigDecimal.ZERO;
+            
+            shopOrderReq.setShippingFee(shopShippingFee);
+            
+            // Calculate weight for this shop's items
+            int shopWeight = entry.getValue().stream()
+                .mapToInt(CreateOrderRequestDTO.Item::getQuantity)
+                .sum() * 200; // Approximate 200g per item
+            shopOrderReq.setWeightGrams(shopWeight);
+            
+            // Voucher discount only applied to first shop (or split it)
+            // For now, no voucher for individual shop orders
+            shopOrderReq.setVoucherDiscount(BigDecimal.ZERO);
+            shopOrderReq.setCodAmount(BigDecimal.ZERO);
+
+            // Create order for this shop
+            Order order = createOrder(shopOrderReq);
+            orderIds.add(order.getId());
+            grandTotal = grandTotal.add(order.getTotalAmount());
+        }
+
+        MultiShopOrderResult result = new MultiShopOrderResult();
+        result.setOrderIds(orderIds);
+        result.setTotalAmount(grandTotal);
+        result.setMethod(req.getMethod());
+
+        return result;
+    }
+
+    /**
      * Get order by ID
      */
     public Order getOrderById(Long orderId) {
         return orderRepository.findById(orderId)
             .orElseThrow(() -> new OrderNotFoundException(orderId));
+    }
+
+    /**
+     * Get order by ID and verify user ownership (for buyer refund requests)
+     */
+    public Order getOrderByIdAndUser(Long orderId, Long userId) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+        
+        if (!order.getUser().getId().equals(userId)) {
+            throw new UnauthorizedOrderAccessException("Bạn không có quyền truy cập đơn hàng này");
+        }
+        
+        return order;
     }
 
     /**
@@ -567,6 +769,29 @@ public class OrderService {
             throw new InvalidOrderStatusException(newStatus);
         }
 
+        // ⚠️ BUSINESS RULE: Seller không được tự ý chuyển sang COMPLETED hoặc CANCELLED
+        // COMPLETED: Chỉ buyer hoặc system (auto after 1 day) mới set được
+        // CANCELLED: Chỉ được phép từ PENDING hoặc PROCESSING (đã check ở controller)
+        Order.OrderStatus currentStatus = order.getStatus();
+        
+        // Kiểm tra luồng chuyển trạng thái hợp lệ
+        if (orderStatus == Order.OrderStatus.COMPLETED) {
+            throw new InvalidOrderStatusException("Seller không được phép tự đặt trạng thái Hoàn thành. Chỉ buyer xác nhận hoặc hệ thống tự động.");
+        }
+        
+        // Validate flow: PENDING → PROCESSING → SHIPPING → (COMPLETED by buyer/system)
+        if (currentStatus == Order.OrderStatus.PENDING && orderStatus != Order.OrderStatus.PROCESSING && orderStatus != Order.OrderStatus.CANCELLED) {
+            throw new InvalidOrderStatusException("Từ trạng thái Chờ xác nhận, chỉ có thể chuyển sang Đang xử lý hoặc Hủy đơn");
+        }
+        
+        if (currentStatus == Order.OrderStatus.PROCESSING && orderStatus != Order.OrderStatus.SHIPPING && orderStatus != Order.OrderStatus.CANCELLED) {
+            throw new InvalidOrderStatusException("Từ trạng thái Đang xử lý, chỉ có thể chuyển sang Đang giao hàng hoặc Hủy đơn");
+        }
+        
+        if (currentStatus == Order.OrderStatus.SHIPPING && orderStatus != Order.OrderStatus.COMPLETED) {
+            throw new InvalidOrderStatusException("Từ trạng thái Đang giao hàng, không thể thay đổi. Chỉ buyer hoặc hệ thống tự động chuyển sang Hoàn thành");
+        }
+
         // Cập nhật status
         order.setStatus(orderStatus);
         
@@ -589,6 +814,15 @@ public class OrderService {
         dto.setStatus(order.getStatus() != null ? order.getStatus().name() : null);
         dto.setTotalAmount(order.getTotalAmount());
         dto.setUserId(order.getUser() != null ? order.getUser().getId() : null);
+        
+        // Thêm items để frontend có thể filter theo item status
+        if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
+            List<OrderItemDTO> itemDTOs = order.getOrderItems().stream()
+                .map(this::convertToOrderItemDTO)
+                .collect(Collectors.toList());
+            dto.setItems(itemDTOs);
+        }
+        
         return dto;
     }
 
@@ -636,6 +870,7 @@ public class OrderService {
         dto.setVariantName(item.getVariantName());
         dto.setPrice(item.getPrice());
         dto.setQuantity(item.getQuantity());
+        dto.setStatus(item.getStatus() != null ? item.getStatus().name() : OrderItemStatus.COMPLETED.name());
         
         // Calculate subtotal
         if (item.getPrice() != null && item.getQuantity() != null) {
@@ -678,6 +913,22 @@ public class OrderService {
                     .findFirstByOrderIdAndStatus(order.getId(), com.PBL6.Ecommerce.constant.PaymentTransactionStatus.SUCCESS)
                     .orElse(null);
 
+            // Hoàn tiền Momo nếu là thanh toán Momo
+            if ("MOMO".equalsIgnoreCase(order.getMethod()) && transaction != null) {
+                try {
+                    // Gọi API refund Momo UAT
+                    momoPaymentService.refundMomoPayment(
+                        transaction.getOrderIdMomo(),
+                        order.getTotalAmount(),
+                        transaction.getTransId()
+                    );
+                    logger.info("Momo refund successful for order: {}", order.getId());
+                } catch (Exception e) {
+                    logger.error("Momo refund failed for order: {}, error: {}", order.getId(), e.getMessage());
+                    // Vẫn tiếp tục hoàn tiền vào ví ngay cả khi refund Momo thất bại
+                }
+            }
+
             // Hoàn tiền vào ví (dùng method deposit của walletService)
             walletService.deposit(order.getUser().getId(), order.getTotalAmount(), "Refund for cancelled order #" + order.getId());
 
@@ -698,6 +949,141 @@ public class OrderService {
         // Trường hợp khác (chưa thanh toán), chỉ hủy đơn
         order.setStatus(Order.OrderStatus.CANCELLED);
         orderRepository.save(order);
+    }
+
+    /**
+     * Seller cập nhật trạng thái đơn hàng sang SHIPPING (Đang giao hàng)
+     * Shipment record sẽ được tạo từ GHN service
+     */
+    @Transactional
+    public Order markAsShipping(Long orderId) {
+        logger.info("Marking order as shipping: {}", orderId);
+        
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+        
+        // Chỉ có thể chuyển từ PENDING hoặc PROCESSING sang SHIPPING
+        if (order.getStatus() != Order.OrderStatus.PENDING && 
+            order.getStatus() != Order.OrderStatus.PROCESSING) {
+            throw new InvalidOrderStatusException("Order must be in PENDING or PROCESSING status");
+        }
+        
+        order.setStatus(Order.OrderStatus.SHIPPING);
+        order.setUpdatedAt(LocalDateTime.now());
+        
+        return orderRepository.save(order);
+    }
+
+    /**
+     * Buyer xác nhận đã nhận hàng → chuyển sang COMPLETED
+     */
+    @Transactional
+    public Order confirmReceived(Long orderId, Long userId) {
+        logger.info("Buyer {} confirming received for order: {}", userId, orderId);
+        
+        Order order = getOrderByIdAndUser(orderId, userId);
+        
+        if (order.getStatus() != Order.OrderStatus.SHIPPING) {
+            throw new InvalidOrderStatusException("Order must be in SHIPPING status");
+        }
+        
+        order.setStatus(Order.OrderStatus.COMPLETED);
+        order.setUpdatedAt(LocalDateTime.now());
+        
+        return orderRepository.save(order);
+    }
+
+    /**
+     * Tự động hoàn thành đơn hàng sau 1 ngày kể từ khi chuyển sang SHIPPING
+     * Dựa vào Shipment.created_at để tính thời gian
+     * Scheduled task sẽ gọi method này
+     */
+    @Transactional
+    public void autoCompleteShippingOrders() {
+        logger.info("Running auto-complete for shipping orders");
+        
+        LocalDateTime oneDayAgo = LocalDateTime.now().minusDays(1);
+        
+        // Tìm tất cả đơn hàng đang ở trạng thái SHIPPING
+        List<Order> shippingOrders = orderRepository.findByStatus(Order.OrderStatus.SHIPPING);
+        
+        int completedCount = 0;
+        for (Order order : shippingOrders) {
+            // Kiểm tra xem có shipment và đã quá 1 ngày chưa
+            if (order.getShipment() != null && 
+                order.getShipment().getCreatedAt() != null &&
+                order.getShipment().getCreatedAt().isBefore(oneDayAgo)) {
+                
+                order.setStatus(Order.OrderStatus.COMPLETED);
+                order.setUpdatedAt(LocalDateTime.now());
+                orderRepository.save(order);
+                logger.info("Auto-completed order: {} (shipment created: {})", 
+                    order.getId(), order.getShipment().getCreatedAt());
+                completedCount++;
+            }
+        }
+        
+        logger.info("Auto-completed {} orders out of {} shipping orders", 
+            completedCount, shippingOrders.size());
+    }
+
+    /**
+     * Buyer yêu cầu trả hàng cho một sản phẩm cụ thể trong đơn hàng
+     */
+    @Transactional
+    public Refund requestItemReturn(ItemReturnRequestDTO dto, Long userId) {
+        logger.info("Buyer {} requesting return for order item: {}", userId, dto.getOrderItemId());
+        
+        // Tìm order item
+        OrderItem orderItem = orderItemRepository.findById(dto.getOrderItemId())
+            .orElseThrow(() -> new RuntimeException("Order item not found"));
+        
+        Order order = orderItem.getOrder();
+        
+        // Verify order belongs to user
+        if (!order.getUser().getId().equals(userId)) {
+            throw new UnauthorizedOrderAccessException("You don't have permission to return this item");
+        }
+        
+        // Chỉ cho phép trả hàng khi đơn đã COMPLETED
+        if (order.getStatus() != Order.OrderStatus.COMPLETED) {
+            throw new InvalidOrderStatusException("Can only return items from completed orders");
+        }
+        
+        // Kiểm tra item chưa được yêu cầu trả hàng
+        if (orderItem.getStatus() != OrderItemStatus.COMPLETED) {
+            throw new RuntimeException("Item already has a return request");
+        }
+        
+        // Cập nhật status của order item
+        orderItem.setStatus(OrderItemStatus.RETURN_REQUESTED);
+        orderItemRepository.save(orderItem);
+        
+        // Tạo refund request (sử dụng lại bảng refunds)
+        Refund refund = new Refund();
+        refund.setOrder(order);
+        refund.setStatus(Refund.RefundStatus.PENDING);
+        refund.setReason(dto.getReason());
+        
+        // Lưu thông tin return method và images vào reason (có thể tạo bảng riêng sau)
+        String detailedReason = String.format(
+            "Return Request - Product: %s, Quantity: %d, Method: %s, Reason: %s, Images: %s",
+            orderItem.getVariantName(),
+            dto.getQuantity(),
+            dto.getReturnMethod(),
+            dto.getReason(),
+            dto.getImageUrls() != null ? String.join(",", dto.getImageUrls()) : ""
+        );
+        refund.setReason(detailedReason);
+        
+        // Tính số tiền hoàn lại
+        BigDecimal refundAmount = orderItem.getPrice().multiply(new BigDecimal(dto.getQuantity()));
+        refund.setAmount(refundAmount);
+        
+        refund.setRequiresReturn(true); // Yêu cầu trả hàng
+        refund.setCreatedAt(LocalDateTime.now());
+        
+        return refundRepository.save(refund);
     }
 }
 

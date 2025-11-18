@@ -24,15 +24,19 @@ public class Refund {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private RefundStatus status = RefundStatus.REQUESTED;
+    private RefundStatus status = RefundStatus.PENDING;
 
     @ManyToOne
     @JoinColumn(name = "transaction_id")
     private WalletTransaction transaction;
 
-
+    // Lưu ảnh bằng chứng từ khách (JSON array nếu nhiều ảnh)
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
+    
+    // Cờ đánh dấu có cần trả hàng không
+    @Column(name = "requires_return")
+    private Boolean requiresReturn = false;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -48,10 +52,12 @@ public class Refund {
     }
 
     public enum RefundStatus {
-        REQUESTED,    // Yêu cầu hoàn tiền
-        APPROVED,     // Đã chấp nhận
-        REJECTED,     // Từ chối
-        COMPLETED     // Hoàn thành
+        PENDING,                     // Chờ duyệt
+        APPROVED_WAITING_RETURN,     // Đã duyệt - Chờ trả hàng
+        RETURNING,                   // Đang trả hàng
+        APPROVED_REFUNDING,          // Đã duyệt - Đang hoàn tiền
+        COMPLETED,                   // Hoàn tiền thành công
+        REJECTED                     // Từ chối
     }
 
     // Constructors
@@ -62,7 +68,7 @@ public class Refund {
         this.order = order;
         this.amount = amount;
         this.reason = reason;
-        this.status = RefundStatus.REQUESTED;
+        this.status = RefundStatus.PENDING;
     }
 
     // Getters and Setters
@@ -128,6 +134,14 @@ public class Refund {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Boolean getRequiresReturn() {
+        return requiresReturn;
+    }
+
+    public void setRequiresReturn(Boolean requiresReturn) {
+        this.requiresReturn = requiresReturn;
     }
 
     @PreUpdate

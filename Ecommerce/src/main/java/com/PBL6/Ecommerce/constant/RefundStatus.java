@@ -1,13 +1,15 @@
 package com.PBL6.Ecommerce.constant;
 
 /**
- * Refund status enum
+ * Refund status enum - Workflow chuẩn
  */
 public enum RefundStatus {
-    REQUESTED("Yêu cầu hoàn tiền"),
-    APPROVED("Đã duyệt"),
-    COMPLETED("Hoàn tiền thành công"),
-    REJECTED("Từ chối hoàn tiền");
+    PENDING("Chờ duyệt"),                              // Khách vừa tạo yêu cầu
+    APPROVED_WAITING_RETURN("Đã duyệt - Chờ trả hàng"), // Shop chấp nhận, yêu cầu khách trả hàng
+    RETURNING("Đang trả hàng"),                         // Khách đã gửi hàng về
+    APPROVED_REFUNDING("Đã duyệt - Đang hoàn tiền"),     // Hàng OK hoặc không cần trả, chuẩn bị refund
+    COMPLETED("Hoàn tiền thành công"),                  // Đã hoàn tiền xong
+    REJECTED("Từ chối hoàn tiền");                      // Shop từ chối
 
     private final String displayName;
 
