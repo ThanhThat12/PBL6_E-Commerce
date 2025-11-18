@@ -2,21 +2,6 @@ package com.PBL6.Ecommerce.controller;
 
 import java.util.List;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-
-import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
-import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
-import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
-import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
-import com.PBL6.Ecommerce.domain.dto.UpdateUserRoleDTO;
-import com.PBL6.Ecommerce.domain.dto.UpdateUserStatusDTO;
-import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
-import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
-import com.PBL6.Ecommerce.domain.dto.admin.AdminUserDetailDTO;
-import com.PBL6.Ecommerce.domain.dto.admin.CustomerStatsDTO;
-import com.PBL6.Ecommerce.domain.dto.admin.ListCustomerUserDTO;
-import com.PBL6.Ecommerce.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -26,7 +11,24 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
+import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
+import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
+import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
+import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminCreateAdminDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminStatsDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminUpdateSellerDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminUpdateUserDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminUserDetailDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.CustomerStatsDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.ListAdminUserDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.ListCustomerUserDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.ListSellerUserDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.SellerStatsDTO;
+import com.PBL6.Ecommerce.service.UserService;
+
 
 
 @RestController
@@ -63,29 +65,128 @@ public class UserController {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // ================================
     // ADMIN APIs
     // ================================
     // Admin APIs - Chỉ admin mới có thể truy cập
     @GetMapping("/admin/users/admin")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<List<UserInfoDTO>>> getAdminUsers() {
-        List<UserInfoDTO> adminUsers = userService.getUsersByRole("ADMIN");
+    public ResponseEntity<ResponseDTO<List<ListAdminUserDTO>>> getAdminUsers() {
+        List<ListAdminUserDTO> adminUsers = userService.getAdminUsers();
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Admin users retrieved successfully", adminUsers));
+    }
+    
+    /**
+     * API lấy danh sách admin users với phân trang
+     * GET /api/admin/users/admin/page?page=0&size=10
+     * @param page - Trang hiện tại (bắt đầu từ 0)
+     * @param size - Số lượng items trên mỗi trang (mặc định 10)
+     */
+    @GetMapping("/admin/users/admin/page")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Page<ListAdminUserDTO>>> getAdminUsersWithPaging(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ListAdminUserDTO> adminUsers = userService.getAdminUsers(pageable);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Admin users retrieved successfully", adminUsers));
+    }
+
+    @GetMapping("/admin/users/admin/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminStatsDTO>> getAdminStats() {
+        AdminStatsDTO stats = userService.getAdminStats();
+        return ResponseEntity.ok(
+            new ResponseDTO<>(200, null, "Admin statistics retrieved successfully", stats)
+        );
     }
 
 
     @GetMapping("/admin/users/sellers")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<List<UserInfoDTO>>> getSellerUsers() {
-        List<UserInfoDTO> sellerUsers = userService.getUsersByRole("SELLER");
+    public ResponseEntity<ResponseDTO<List<ListSellerUserDTO>>> getSellerUsers(
+            @RequestParam(value = "status", required = false) String status) {
+        List<ListSellerUserDTO> sellerUsers;
+        
+        if (status != null && !status.isEmpty()) {
+            // Lấy sellers theo status (ACTIVE, PENDING, INACTIVE)
+            sellerUsers = userService.getSellersByStatus(status);
+        } else {
+            // Lấy tất cả sellers
+            sellerUsers = userService.getSellerUsers();
+        }
+        
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Seller users retrieved successfully", sellerUsers));
+    }
+    
+    /**
+     * API lấy danh sách seller users với phân trang
+     * GET /api/admin/users/sellers/page?page=0&size=10
+     * @param page - Trang hiện tại (bắt đầu từ 0)
+     * @param size - Số lượng items trên mỗi trang (mặc định 10)
+     */
+    @GetMapping("/admin/users/sellers/page")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Page<ListSellerUserDTO>>> getSellerUsersWithPaging(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ListSellerUserDTO> sellerUsers = userService.getSellerUsers(pageable);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Seller users retrieved successfully", sellerUsers));
+    }
+
+    @GetMapping("/admin/users/sellers/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<SellerStatsDTO>> getSellerStats() {
+        SellerStatsDTO stats = userService.getSellerStats();
+        return ResponseEntity.ok(
+            new ResponseDTO<>(200, null, "Seller statistics retrieved successfully", stats)
+        );
     }
 
     @GetMapping("/admin/users/customers")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseDTO<List<ListCustomerUserDTO>>> getCustomerUsers() {
         List<ListCustomerUserDTO> customerUsers = userService.getCustomerUsers();
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Customer users retrieved successfully", customerUsers));
+    }
+    
+    /**
+     * API lấy danh sách customers với phân trang
+     * GET /api/admin/users/customers/page?page=0&size=10
+     * @param page - Trang hiện tại (bắt đầu từ 0)
+     * @param size - Số lượng items trên mỗi trang (mặc định 10)
+     */
+    @GetMapping("/admin/users/customers/page")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Page<ListCustomerUserDTO>>> getCustomerUsersWithPaging(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ListCustomerUserDTO> customerUsers = userService.getCustomerUsers(pageable);
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Customer users retrieved successfully", customerUsers));
     }
     
@@ -104,26 +205,6 @@ public class UserController {
         AdminUserDetailDTO userDetail = userService.getUserDetailById(userId);
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "User detail retrieved successfully", userDetail));
     }
-
-    // API thay đổi role của user
-    @PatchMapping("/admin/users/{userId}/role")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<UserInfoDTO>> updateUserRole(
-            @PathVariable Long userId,
-            @RequestBody UpdateUserRoleDTO dto) {
-        UserInfoDTO updatedUser = userService.updateUserRole(userId, dto.getRole());
-        return ResponseEntity.ok(new ResponseDTO<>(200, null, "User role updated successfully", updatedUser));
-    }
-
-    // API thay đổi trạng thái user (active/inactive)
-    @PatchMapping("/admin/users/{userId}/status")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<UserInfoDTO>> updateUserStatus(
-            @PathVariable Long userId,
-            @RequestBody UpdateUserStatusDTO dto) {
-        UserInfoDTO updatedUser = userService.updateUserStatus(userId, dto.isActivated());
-        return ResponseEntity.ok(new ResponseDTO<>(200, null, "User status updated successfully", updatedUser));
-    }
     
     // API xóa user http://127.0.0.1:8081/api/admin/users/{userId}
     @DeleteMapping("/admin/users/{userId}")
@@ -132,6 +213,64 @@ public class UserController {
         userService.deleteUser(userId);
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "User deleted successfully", "User has been removed from the system"));
     }
+
+    /**
+     * API cập nhật thông tin user (cho BUYER và ADMIN role)
+     */
+    @PatchMapping("/admin/users/{userId}/update")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<UserInfoDTO>> updateUserInfo(
+            @PathVariable Long userId,
+            @RequestBody AdminUpdateUserDTO dto) {
+        UserInfoDTO updatedUser = userService.updateUserInfo(userId, dto);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "User updated successfully", updatedUser));
+    }
+
+    /**
+     * API cập nhật thông tin seller (shop và user info)
+     * PATCH /api/admin/seller/{userId}/update
+     */
+    @PatchMapping("/admin/seller/{userId}/update")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<UserInfoDTO>> updateSellerInfo(
+            @PathVariable Long userId,
+            @RequestBody AdminUpdateSellerDTO dto) {
+        UserInfoDTO updatedSeller = userService.updateSellerInfo(userId, dto);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Seller updated successfully", updatedSeller));
+    }
+
+    /**
+     * API tạo tài khoản admin mới
+     * POST /api/admin/create-admin
+     */
+    @PostMapping("/admin/create-admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<String>> createAdmin(@RequestBody AdminCreateAdminDTO dto) {
+        String result = userService.createAdmin(dto);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Admin created successfully", result));
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // ================================
     // TOP BUYERS APIs
@@ -146,29 +285,6 @@ public class UserController {
     public ResponseEntity<ResponseDTO<List<TopBuyerDTO>>> getAllTopBuyers() {
         try {
             List<TopBuyerDTO> topBuyers = userService.getAllTopBuyers();
-            return ResponseEntity.ok(
-                new ResponseDTO<>(200, null, "Lấy danh sách top buyers thành công", topBuyers)
-            );
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(
-                new ResponseDTO<>(400, e.getMessage(), "Lấy danh sách top buyers thất bại", null)
-            );
-        }
-    }
-
-    /**
-     * API lấy top buyers với phân trang (cho ADMIN)
-     * GET /api/admin/users/top-buyers/page?page=0&size=10
-     */
-    @GetMapping("/admin/users/top-buyers/page")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<Page<TopBuyerDTO>>> getTopBuyersWithPaging(
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "10") int size) {
-        try {
-            Pageable pageable = PageRequest.of(page, size);
-            Page<TopBuyerDTO> topBuyers = userService.getAllTopBuyers(pageable);
-            
             return ResponseEntity.ok(
                 new ResponseDTO<>(200, null, "Lấy danh sách top buyers thành công", topBuyers)
             );

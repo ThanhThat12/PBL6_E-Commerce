@@ -1,12 +1,17 @@
 package com.PBL6.Ecommerce.service;
 
+import com.PBL6.Ecommerce.domain.Role;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.dto.ForgotPasswordDTO;
 import com.PBL6.Ecommerce.domain.dto.ResetPasswordDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
+import com.PBL6.Ecommerce.exception.UserNotFoundException;
 import com.PBL6.Ecommerce.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,6 +20,8 @@ import java.util.Random;
 
 @Service
 public class ForgotPasswordService {
+    private static final Logger log = LoggerFactory.getLogger(ForgotPasswordService.class);
+    
     private final UserRepository userRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
@@ -73,5 +80,53 @@ public class ForgotPasswordService {
         otpStorage.remove(dto.getContact());
 
         return "Cập nhật mật khẩu thành công";
+    }
+
+    /**
+     * Admin reset password for user by userId
+     * Default password based on role:
+     * - BUYER/CUSTOMER: Customer123@
+     * - SELLER: Seller123@
+     * - ADMIN: Admin123@
+     * 
+     * @param userId - ID của user cần reset password
+     * @return Message xác nhận reset thành công
+     */
+    @Transactional
+    public String adminResetPassword(Long userId) {
+        log.debug("Admin resetting password for user ID: {}", userId);
+        
+        // Tìm user theo ID
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.warn("User not found with ID: {}", userId);
+                    return new UserNotFoundException("User not found with ID: " + userId);
+                });
+        
+        // Xác định mật khẩu mặc định dựa trên role
+        String defaultPassword;
+        switch (user.getRole()) {
+            case BUYER:
+                defaultPassword = "Customer123@";
+                break;
+            case SELLER:
+                defaultPassword = "Seller123@";
+                break;
+            case ADMIN:
+                defaultPassword = "Admin123@";
+                break;
+            default:
+                defaultPassword = "User123@";
+                break;
+        }
+        
+        // Mã hóa và cập nhật mật khẩu
+        user.setPassword(passwordEncoder.encode(defaultPassword));
+        userRepository.save(user);
+        
+        log.info("Password reset successfully for user ID: {}, Username: {}, Role: {}", 
+            userId, user.getUsername(), user.getRole());
+        
+        return "Password has been reset to default: " + defaultPassword;
     }
 }

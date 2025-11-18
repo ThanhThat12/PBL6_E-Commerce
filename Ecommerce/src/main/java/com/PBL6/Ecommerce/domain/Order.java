@@ -10,6 +10,8 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.OneToOne;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -34,7 +36,11 @@ public class Order {
     @JoinColumn(name = "shop_id")
     private Shop shop;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "voucher_id")
+    private Vouchers voucher;
+
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shipment_id")
     private Shipment shipment;
 
@@ -64,6 +70,8 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
 
+
+    
     // Getters and Setters
     public Long getId() {
         return id;
@@ -87,6 +95,14 @@ public class Order {
 
     public void setShop(Shop shop) {
         this.shop = shop;
+    }
+
+    public Vouchers getVoucher() {
+        return voucher;
+    }
+
+    public void setVoucher(Vouchers voucher) {
+        this.voucher = voucher;
     }
 
     public Shipment getShipment() {
