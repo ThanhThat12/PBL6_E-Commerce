@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.repository;
 
 import com.PBL6.Ecommerce.domain.Product;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminListProductDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -100,5 +101,88 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      // Tìm sản phẩm theo shop ID và trạng thái
     Page<Product> findByShopIdAndIsActive(Long shopId, Boolean isActive, Pageable pageable);
     List<Product> findByShopIdAndIsActive(Long shopId, Boolean isActive);
+
+    // 🆕 Admin: Lấy danh sách sản phẩm với thông tin tổng hợp (phân trang)
+    @Query(value = "SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminListProductDTO(" +
+           "p.id, " +
+           "p.name, " +
+           "p.mainImage, " +
+           "c.name, " +
+           "p.basePrice, " +
+           "COALESCE(SUM(pv.stock), 0L), " +
+           "p.isActive, " +
+           "COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0L), " +
+           "COALESCE(AVG(pr.rating), 0.0)) " +
+           "FROM Product p " +
+           "LEFT JOIN p.category c " +
+           "LEFT JOIN p.productVariants pv " +
+           "LEFT JOIN OrderItem oi ON oi.variant = pv " +
+           "LEFT JOIN oi.order o " +
+           "LEFT JOIN ProductReview pr ON pr.product = p " +
+           "GROUP BY p.id, p.name, p.mainImage, c.name, p.basePrice, p.isActive",
+           countQuery = "SELECT COUNT(DISTINCT p.id) FROM Product p")
+    Page<AdminListProductDTO> findAllProductsForAdmin(Pageable pageable);
+
+    // 🆕 Admin: Lấy danh sách sản phẩm theo category
+    @Query(value = "SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminListProductDTO(" +
+           "p.id, " +
+           "p.name, " +
+           "p.mainImage, " +
+           "c.name, " +
+           "p.basePrice, " +
+           "COALESCE(SUM(pv.stock), 0L), " +
+           "p.isActive, " +
+           "COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0L), " +
+           "COALESCE(AVG(pr.rating), 0.0)) " +
+           "FROM Product p " +
+           "LEFT JOIN p.category c " +
+           "LEFT JOIN p.productVariants pv " +
+           "LEFT JOIN OrderItem oi ON oi.variant = pv " +
+           "LEFT JOIN oi.order o " +
+           "LEFT JOIN ProductReview pr ON pr.product = p " +
+           "WHERE c.name = :categoryName " +
+           "GROUP BY p.id, p.name, p.mainImage, c.name, p.basePrice, p.isActive",
+           countQuery = "SELECT COUNT(DISTINCT p.id) FROM Product p LEFT JOIN p.category c WHERE c.name = :categoryName")
+    Page<AdminListProductDTO> findProductsByCategory(@Param("categoryName") String categoryName, Pageable pageable);
+
+    // 🆕 Admin: Lấy danh sách sản phẩm theo status
+    @Query(value = "SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminListProductDTO(" +
+           "p.id, " +
+           "p.name, " +
+           "p.mainImage, " +
+           "c.name, " +
+           "p.basePrice, " +
+           "COALESCE(SUM(pv.stock), 0L), " +
+           "p.isActive, " +
+           "COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0L), " +
+           "COALESCE(AVG(pr.rating), 0.0)) " +
+           "FROM Product p " +
+           "LEFT JOIN p.category c " +
+           "LEFT JOIN p.productVariants pv " +
+           "LEFT JOIN OrderItem oi ON oi.variant = pv " +
+           "LEFT JOIN oi.order o " +
+           "LEFT JOIN ProductReview pr ON pr.product = p " +
+           "WHERE p.isActive = :isActive " +
+           "GROUP BY p.id, p.name, p.mainImage, c.name, p.basePrice, p.isActive",
+           countQuery = "SELECT COUNT(DISTINCT p.id) FROM Product p WHERE p.isActive = :isActive")
+    Page<AdminListProductDTO> findProductsByStatus(@Param("isActive") Boolean isActive, Pageable pageable);
+
+    // 🆕 Admin Stats: Đếm tổng số sản phẩm
+    @Query("SELECT COUNT(p) FROM Product p")
+    Long countTotalProducts();
+
+    // 🆕 Admin Stats: Đếm sản phẩm Active
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true")
+    Long countActiveProducts();
+
+    // 🆕 Admin Stats: Đếm sản phẩm Pending
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = false")
+    Long countPendingProducts();
+
+    // 🆕 Admin Stats: Tổng sản phẩm đã bán (COMPLETED orders)
+    @Query("SELECT COALESCE(SUM(oi.quantity), 0L) FROM OrderItem oi " +
+           "LEFT JOIN oi.order o " +
+           "WHERE o.status = 'COMPLETED'")
+    Long countTotalProductsSold();
     
 }
