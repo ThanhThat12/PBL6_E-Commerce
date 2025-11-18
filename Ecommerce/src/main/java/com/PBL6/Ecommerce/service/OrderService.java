@@ -1,21 +1,28 @@
 package com.PBL6.Ecommerce.service;
 
 
+import com.PBL6.Ecommerce.constant.OrderStatus;
+import com.PBL6.Ecommerce.constant.PaymentMethod;
+import com.PBL6.Ecommerce.constant.PaymentStatus;
+import com.PBL6.Ecommerce.constant.RefundStatus;
 import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.Refund;
 import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.dto.OrderDTO;
-import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
+import com.PBL6.Ecommerce.domain.PaymentTransaction;
+import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.repository.OrderRepository;
+import com.PBL6.Ecommerce.repository.RefundRepository;
+import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.repository.ShopRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
-
+import java.util.Optional;
+import com.PBL6.Ecommerce.repository.ShopRepository;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,6 +40,9 @@ import com.PBL6.Ecommerce.exception.UserNotFoundException;
 import com.PBL6.Ecommerce.repository.OrderItemRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ProductVariantRepository;
+import com.PBL6.Ecommerce.repository.CartItemRepository;
+import com.PBL6.Ecommerce.repository.CartRepository;
+import com.PBL6.Ecommerce.domain.Cart;
 
 
 @Service
@@ -45,6 +55,16 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ShopRepository shopRepository;
     private final GhnService ghnService;
+    @Autowired
+    private RefundRepository refundRepository;
+    @Autowired
+    private PaymentTransactionRepository paymentTransactionRepository;
+    @Autowired
+    private WalletService walletService;
+    @Autowired
+    private CartItemRepository cartItemRepository;
+    @Autowired
+    private CartRepository cartRepository;
     public OrderService(ProductRepository productRepository,
                         ProductVariantRepository productVariantRepository,
                         OrderRepository orderRepository,
@@ -169,8 +189,121 @@ public class OrderService {
             // log only; order has been created
         }
 
+        // ✅ Xóa cart cho COD ngay sau khi tạo order
+        // Với MOMO và SPORTYPAY, chỉ xóa sau khi thanh toán thành công (trong callback)
+        if ("COD".equalsIgnoreCase(saved.getMethod())) {
+            try {
+                clearCartAfterSuccessfulPayment(user.getId(), saved.getId());
+                System.out.println("✅ Cart cleared for COD order #" + saved.getId());
+            } catch (Exception ex) {
+                System.err.println("❌ Error clearing cart for COD: " + ex.getMessage());
+            }
+        } else {
+            System.out.println("⏳ Cart will be cleared after payment confirmation for method: " + saved.getMethod());
+        }
+
         return saved;
     }
+
+    /**
+     * Xóa các sản phẩm vừa thanh toán khỏi cart
+     * @param userId - ID của user
+     * @param items - Danh sách sản phẩm vừa đặt order
+     */
+    private void clearCartAfterOrder(Long userId, List<CreateOrderRequestDTO.Item> items) {
+        try {
+            Optional<Cart> cartOpt = cartRepository.findByUserId(userId);
+            if (cartOpt.isEmpty()) {
+                return;
+            }
+
+            Cart cart = cartOpt.get();
+            List<Long> variantIds = items.stream()
+                    .map(CreateOrderRequestDTO.Item::getVariantId)
+                    .collect(Collectors.toList());
+
+            // Xóa các cart items có variant trong danh sách vừa thanh toán
+            cartItemRepository.deleteByCartIdAndVariantIdIn(cart.getId(), variantIds);
+        } catch (Exception ex) {
+            // log only; không ảnh hưởng đến quy trình thanh toán
+            System.err.println("Error clearing cart after order: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Public method: Xóa sản phẩm khỏi cart sau khi thanh toán thành công
+     * @param userId - ID của user
+     * @param orderId - ID của order vừa tạo
+     */
+    public void clearCartAfterSuccessfulPayment(Long userId, Long orderId) {
+        try {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new OrderNotFoundException(orderId));
+            
+            // Lấy danh sách order items
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+            
+            // Tạo danh sách variant IDs từ order items
+            List<Long> variantIds = orderItems.stream()
+                    .map(item -> item.getVariant().getId())
+                    .collect(Collectors.toList());
+            
+            // Xóa các cart items tương ứng
+            Optional<Cart> cartOpt = cartRepository.findByUserId(userId);
+            if (cartOpt.isPresent()) {
+                cartItemRepository.deleteByCartIdAndVariantIdIn(cartOpt.get().getId(), variantIds);
+                System.out.println("✅ Cart cleared for user " + userId + " after order #" + orderId);
+            }
+        } catch (Exception ex) {
+            System.err.println("❌ Error clearing cart after successful payment: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Update order status after successful wallet payment (SPORTYPAY)
+     */
+    @Transactional
+    public Order updateOrderAfterWalletPayment(Long orderId) {
+        System.out.println("🔄 [SportyPay] Updating order #" + orderId + " after wallet payment");
+
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        System.out.println("✅ Found order #" + orderId);
+        System.out.println("  - Current status: " + order.getStatus());
+        System.out.println("  - Current payment status: " + order.getPaymentStatus());
+
+        // Mark as PAID, giữ nguyên status (PENDING)
+        order.setPaymentStatus(Order.PaymentStatus.PAID);
+        order.setPaidAt(java.time.LocalDateTime.now());
+
+        System.out.println("  - Updated status: " + order.getStatus());
+        System.out.println("  - Updated payment status: " + order.getPaymentStatus());
+
+        Order saved = orderRepository.save(order);
+        System.out.println("✅ Order #" + orderId + " updated successfully!");
+        System.out.println("  - Saved status: " + saved.getStatus());
+        System.out.println("  - Saved payment status: " + saved.getPaymentStatus());
+
+        // ✅ XÓA CÁC SẢN PHẨM ĐÃ THANH TOÁN KHỎI CART
+        try {
+            clearCartAfterSuccessfulPayment(order.getUser().getId(), orderId);
+            System.out.println("✅ Cart items cleared after successful SportyPay payment for order #" + orderId);
+        } catch (Exception e) {
+            System.err.println("❌ Error clearing cart after SportyPay payment: " + e.getMessage());
+        }
+
+        return saved;
+    }
+
+    /**
+     * Get order by ID
+     */
+    public Order getOrderById(Long orderId) {
+        return orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+    }
+
     /**
      * Lấy danh sách đơn hàng của seller theo username
      * Lấy theo shop của seller
@@ -286,10 +419,12 @@ public class OrderService {
         // Chỉ hiển thị:
         // - Đơn COD
         // - Đơn MOMO đã thanh toán (paymentStatus = PAID)
+        // - Đơn SPORTYPAY đã thanh toán (paymentStatus = PAID)
         return orders.stream()
             .filter(o ->
                 "COD".equalsIgnoreCase(o.getMethod()) ||
-                ("MOMO".equalsIgnoreCase(o.getMethod()) && o.getPaymentStatus() == Order.PaymentStatus.PAID)
+                ("MOMO".equalsIgnoreCase(o.getMethod()) && o.getPaymentStatus() == Order.PaymentStatus.PAID) ||
+                ("SPORTYPAY".equalsIgnoreCase(o.getMethod()) && o.getPaymentStatus() == Order.PaymentStatus.PAID)
             )
             .map(this::convertToDTO)
             .collect(Collectors.toList());
@@ -516,5 +651,53 @@ public class OrderService {
         return dto;
     }
      
+    @Transactional
+    public void cancelOrderAndRefund(Long orderId, Long userId, String reason) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        if (!order.getUser().getId().equals(userId)) {
+            throw new RuntimeException("You are not allowed to cancel this order");
+        }
+        // Dùng đúng enum inner class của entity
+        if (order.getStatus() != Order.OrderStatus.PENDING) {
+            throw new RuntimeException("Order cannot be cancelled in current status");
+        }
+
+        // Nếu COD thì chỉ hủy đơn, không hoàn tiền
+        if ("COD".equalsIgnoreCase(order.getMethod())) {
+            order.setStatus(Order.OrderStatus.CANCELLED);
+            orderRepository.save(order);
+            return;
+        }
+
+        // Nếu đã thanh toán bằng MOMO hoặc SPORTYPAY thì hoàn tiền vào ví
+        if (("MOMO".equalsIgnoreCase(order.getMethod()) || "SPORTYPAY".equalsIgnoreCase(order.getMethod()))
+                && order.getPaymentStatus() == Order.PaymentStatus.PAID) {
+            // Tìm giao dịch thanh toán thành công của đơn này
+            PaymentTransaction transaction = paymentTransactionRepository
+                    .findFirstByOrderIdAndStatus(order.getId(), com.PBL6.Ecommerce.constant.PaymentTransactionStatus.SUCCESS)
+                    .orElse(null);
+
+            // Hoàn tiền vào ví (dùng method deposit của walletService)
+            walletService.deposit(order.getUser().getId(), order.getTotalAmount(), "Refund for cancelled order #" + order.getId());
+
+            // Tạo bản ghi refund
+            Refund refund = new Refund();
+            refund.setOrder(order); // Gán entity Order
+            refund.setAmount(order.getTotalAmount());
+            refund.setReason(reason != null ? reason : "User cancelled order");
+            refund.setStatus(Refund.RefundStatus.COMPLETED); // Dùng enum inner class của Refund
+            refundRepository.save(refund);
+
+            // Cập nhật trạng thái đơn hàng
+            order.setStatus(Order.OrderStatus.CANCELLED);
+            orderRepository.save(order);
+            return;
+        }
+
+        // Trường hợp khác (chưa thanh toán), chỉ hủy đơn
+        order.setStatus(Order.OrderStatus.CANCELLED);
+        orderRepository.save(order);
+    }
 }
 

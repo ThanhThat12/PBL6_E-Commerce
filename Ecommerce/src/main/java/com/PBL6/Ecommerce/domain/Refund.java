@@ -30,11 +30,22 @@ public class Refund {
     @JoinColumn(name = "transaction_id")
     private WalletTransaction transaction;
 
+
+    @Column(name = "image_url", columnDefinition = "TEXT")
+    private String imageUrl;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
 
     public enum RefundStatus {
         REQUESTED,    // Yêu cầu hoàn tiền

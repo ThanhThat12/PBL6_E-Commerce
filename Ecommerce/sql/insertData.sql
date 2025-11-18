@@ -152,9 +152,9 @@ VALUES
 -- =========================================
 -- 18) REFUNDS (example none processed yet; include sample requested refund)
 -- =========================================
-INSERT INTO `refunds` (id, order_id, reason, amount, status, transaction_id)
+INSERT INTO `refunds` (id, order_id, reason, amount, status, transaction_id, image_url)
 VALUES
-(1, 1, 'Product damaged', 150000.00, 'REQUESTED', NULL);
+(1, 1, 'Product damaged', 150000.00, 'REQUESTED', NULL, NULL);
 
 -- =========================================
 -- 19) PLATFORM_FEES

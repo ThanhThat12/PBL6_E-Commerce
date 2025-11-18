@@ -39,7 +39,13 @@ public class CartController {
     public ResponseEntity<ResponseDTO<CartDTO>> addItem(
             Authentication authentication, 
             @Valid @RequestBody AddCartItemDTO body) {
-        CartDTO dto = cartService.addItem(authentication, body.getProductId(), body.getQuantity());
+        // Validate that at least one ID is provided
+        if (!body.hasValidId()) {
+            return ResponseDTO.badRequest("Either productId or variantId must be provided");
+        }
+        
+        // Use getVariantId() which has fallback logic to productId
+        CartDTO dto = cartService.addItem(authentication, body.getVariantId(), body.getQuantity());
         return ResponseDTO.success(dto, "Item added");
     }
 
