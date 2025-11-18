@@ -44,6 +44,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // Tìm theo shop (không phân trang)
     List<Product> findByShopId(Long shopId);
     
+    // Tìm theo shop entity
+    @Query("SELECT p FROM Product p WHERE p.shop = :shop")
+    List<Product> findByShop(@Param("shop") com.PBL6.Ecommerce.domain.Shop shop);
     
     // Tìm sản phẩm đang hoạt động
     Page<Product> findByIsActiveTrue(Pageable pageable);

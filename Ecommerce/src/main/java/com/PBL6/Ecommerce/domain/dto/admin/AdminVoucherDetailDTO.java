@@ -1,53 +1,37 @@
-package com.PBL6.Ecommerce.domain;
+package com.PBL6.Ecommerce.domain.dto.admin;
 
-import jakarta.persistence.*;
 import java.time.LocalDate;
 
-@Entity
-@Table(name = "vouchers")
-public class Vouchers {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class AdminVoucherDetailDTO {
     private Long id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id", nullable = true)  // Cho phép null
-    private Shop shop;
-
-    @Column(name = "code", length = 10, unique = true, nullable = false)
     private String code;
-
-    @Column(name = "description", length = 255, nullable = true)
     private String description;
-
-    @Column(name = "discount_amount", nullable = false)
+    private String shopName; // Tên shop (nếu có)
     private Integer discountAmount;
-
-    @Column(name = "min_order_value")
-    private Integer minOrderValue = 0;
-
-    @Column(name = "quantity")
-    private Integer quantity = 0;
-
-    @Column(name = "start_date", nullable = false)
+    private Integer minOrderValue;
+    private Integer quantity;
     private LocalDate startDate;
-
-    @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status")
-    private VoucherStatus status = VoucherStatus.ACTIVE;
-
-    public enum VoucherStatus {
-        ACTIVE,
-        INACTIVE,
-        EXPIRED
-    }
+    private String status;
 
     // Constructors
-    public Vouchers() {
+    public AdminVoucherDetailDTO() {}
+
+    public AdminVoucherDetailDTO(Long id, String code, String description, 
+                                 String shopName, Integer discountAmount,
+                                 Integer minOrderValue, Integer quantity,
+                                 LocalDate startDate, LocalDate endDate,
+                                 String status) {
+        this.id = id;
+        this.code = code;
+        this.description = description;
+        this.shopName = shopName;
+        this.discountAmount = discountAmount;
+        this.minOrderValue = minOrderValue;
+        this.quantity = quantity;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.status = status;
     }
 
     // Getters and Setters
@@ -57,14 +41,6 @@ public class Vouchers {
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public Shop getShop() {
-        return shop;
-    }
-
-    public void setShop(Shop shop) {
-        this.shop = shop;
     }
 
     public String getCode() {
@@ -81,6 +57,14 @@ public class Vouchers {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getShopName() {
+        return shopName;
+    }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName;
     }
 
     public Integer getDiscountAmount() {
@@ -123,21 +107,11 @@ public class Vouchers {
         this.endDate = endDate;
     }
 
-    public VoucherStatus getStatus() {
+    public String getStatus() {
         return status;
     }
 
-    public void setStatus(VoucherStatus status) {
+    public void setStatus(String status) {
         this.status = status;
-    }
-
-    @Override
-    public String toString() {
-        return "Vouchers{" +
-                "id=" + id +
-                ", code='" + code + '\'' +
-                ", discountAmount=" + discountAmount +
-                ", status=" + status +
-                '}';
     }
 }
