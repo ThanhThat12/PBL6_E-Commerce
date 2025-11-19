@@ -1,4 +1,4 @@
-package com.PBL6.Ecommerce.domain.dto;
+package com.PBL6.Ecommerce.domain.dto.admin;
 
 import java.time.LocalDateTime;
 
@@ -26,6 +26,14 @@ public class AdminUserDetailDTO {
     private Double totalSpent;
     private LocalDateTime lastOrderDate;
     private Integer cartItemsCount;
+    
+    // Thông tin địa chỉ chính của BUYER/CUSTOMER
+    private String primaryAddressLabel;
+    private String primaryAddressFullAddress;
+    private String primaryAddressProvince;
+    private String primaryAddressDistrict;
+    private String primaryAddressWard;
+    private String primaryAddressContactPhone;
 
     public AdminUserDetailDTO() {
     }
@@ -68,7 +76,10 @@ public class AdminUserDetailDTO {
     public AdminUserDetailDTO(Long id, String username, String email, String phoneNumber,
                              String role, boolean activated, LocalDateTime createdAt,
                              Integer totalOrders, Double totalSpent, LocalDateTime lastOrderDate,
-                             Integer cartItemsCount) {
+                             Integer cartItemsCount,
+                             String primaryAddressLabel, String primaryAddressFullAddress,
+                             String primaryAddressProvince, String primaryAddressDistrict,
+                             String primaryAddressWard, String primaryAddressContactPhone) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -80,6 +91,12 @@ public class AdminUserDetailDTO {
         this.totalSpent = totalSpent;
         this.lastOrderDate = lastOrderDate;
         this.cartItemsCount = cartItemsCount;
+        this.primaryAddressLabel = primaryAddressLabel;
+        this.primaryAddressFullAddress = primaryAddressFullAddress;
+        this.primaryAddressProvince = primaryAddressProvince;
+        this.primaryAddressDistrict = primaryAddressDistrict;
+        this.primaryAddressWard = primaryAddressWard;
+        this.primaryAddressContactPhone = primaryAddressContactPhone;
     }
 
     // Getters and Setters
@@ -225,5 +242,53 @@ public class AdminUserDetailDTO {
 
     public void setCartItemsCount(Integer cartItemsCount) {
         this.cartItemsCount = cartItemsCount;
+    }
+
+    public String getPrimaryAddressLabel() {
+        return primaryAddressLabel;
+    }
+
+    public void setPrimaryAddressLabel(String primaryAddressLabel) {
+        this.primaryAddressLabel = primaryAddressLabel;
+    }
+
+    public String getPrimaryAddressFullAddress() {
+        return primaryAddressFullAddress;
+    }
+
+    public void setPrimaryAddressFullAddress(String primaryAddressFullAddress) {
+        this.primaryAddressFullAddress = primaryAddressFullAddress;
+    }
+
+    public String getPrimaryAddressProvince() {
+        return primaryAddressProvince;
+    }
+
+    public void setPrimaryAddressProvince(String primaryAddressProvince) {
+        this.primaryAddressProvince = primaryAddressProvince;
+    }
+
+    public String getPrimaryAddressDistrict() {
+        return primaryAddressDistrict;
+    }
+
+    public void setPrimaryAddressDistrict(String primaryAddressDistrict) {
+        this.primaryAddressDistrict = primaryAddressDistrict;
+    }
+
+    public String getPrimaryAddressWard() {
+        return primaryAddressWard;
+    }
+
+    public void setPrimaryAddressWard(String primaryAddressWard) {
+        this.primaryAddressWard = primaryAddressWard;
+    }
+
+    public String getPrimaryAddressContactPhone() {
+        return primaryAddressContactPhone;
+    }
+
+    public void setPrimaryAddressContactPhone(String primaryAddressContactPhone) {
+        this.primaryAddressContactPhone = primaryAddressContactPhone;
     }
 }

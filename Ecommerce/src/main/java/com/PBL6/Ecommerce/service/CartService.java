@@ -154,11 +154,17 @@ public class CartService {
                         .collect(Collectors.toList());
             }
             
+            // Get shop ID and name from product
+            Long shopId = (p.getShop() != null) ? p.getShop().getId() : null;
+            String shopName = (p.getShop() != null) ? p.getShop().getName() : null;
+            
             // Build full CartItemDTO with all information
             return new CartItemDTO(
                 ci.getId(),                    // Cart item ID
                 variant.getId(),               // Variant ID
                 p.getId(),                     // Product ID
+                shopId,                        // Shop ID
+                shopName,                      // Shop name
                 p.getName(),                   // Product name
                 p.getMainImage(),              // Product image URL
                 variant.getSku(),              // SKU

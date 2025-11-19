@@ -39,10 +39,11 @@ public class Order {
     private Shipment shipment;
 
     public enum OrderStatus {
-        PENDING,
-        PROCESSING,
-        COMPLETED,
-        CANCELLED
+        PENDING,      // Chờ xác nhận
+        PROCESSING,   // Đang xử lý
+        SHIPPING,     // Đang giao hàng
+        COMPLETED,    // Hoàn thành
+        CANCELLED     // Đã hủy
     }
     @Enumerated(EnumType.STRING)
     private OrderStatus status = OrderStatus.PENDING;

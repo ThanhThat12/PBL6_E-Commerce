@@ -85,7 +85,20 @@ public class ProductVariant {
         return productVariantValues;
     }
 
-    public void setProductVariantValues(List<ProductVariantValue> productVariantValues) {
-        this.productVariantValues = productVariantValues;
+    public void addVariantValue(ProductVariantValue variantValue) {
+    if (this.productVariantValues == null) {
+        this.productVariantValues = new ArrayList<>();
     }
+    this.productVariantValues.add(variantValue);
+    variantValue.setVariant(this);
+}
+
+public void setProductVariantValues(List<ProductVariantValue> productVariantValues) {
+    this.productVariantValues = productVariantValues;
+    if (productVariantValues != null) {
+        for (ProductVariantValue value : productVariantValues) {
+            value.setVariant(this);
+        }
+    }
+}
 }

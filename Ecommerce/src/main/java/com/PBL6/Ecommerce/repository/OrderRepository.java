@@ -5,6 +5,7 @@ import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Repository;
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
+import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
@@ -133,5 +135,43 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "ORDER BY SUM(o.totalAmount) DESC")
     List<TopBuyerDTO> findTopBuyersByShopWithLimit(@Param("shopId") Long shopId, Pageable pageable);
     
+
+
+    
+    /**
+     * Đếm số đơn hàng đã hoàn thành của user
+     */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.user.id = :userId AND o.status = 'COMPLETED'")
+    long countCompletedOrdersByUserId(@Param("userId") Long userId);
+    
+    /**
+     * Tính tổng tiền đã chi tiêu của user (chỉ đơn COMPLETED)
+     */
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0.0) FROM Order o WHERE o.user.id = :userId AND o.status = 'COMPLETED'")
+    Double getTotalSpentByUserId(@Param("userId") Long userId);
+    
+    /**
+     * Lấy ngày đặt hàng gần nhất của user (chỉ đơn COMPLETED)
+     */
+    @Query("SELECT MAX(o.createdAt) FROM Order o WHERE o.user.id = :userId AND o.status = 'COMPLETED'")
+    Optional<LocalDateTime> getLastCompletedOrderDateByUserId(@Param("userId") Long userId);
+    
+    /**
+     * Tính tổng doanh thu từ tất cả đơn hàng COMPLETED (cho Admin Dashboard Stats)
+     */
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0.0) FROM Order o WHERE o.status = 'COMPLETED'")
+    Double getTotalRevenueFromCompletedOrders();
+    
+    /**
+     * Tìm tất cả đơn hàng theo status
+     * Dùng để lấy danh sách SHIPPING orders cho auto-complete
+     */
+    List<Order> findByStatus(Order.OrderStatus status);
+    
+//     /**
+//      * Lấy ngày đặt hàng gần nhất của user (tất cả trạng thái)
+//      */
+//     @Query("SELECT MAX(o.createdAt) FROM Order o WHERE o.user.id = :userId")
+//     Optional<LocalDateTime> getLastOrderDateByUserId(@Param("userId") Long userId);
 }
 

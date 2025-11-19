@@ -279,6 +279,16 @@ public class GhnService {
             if (payload.containsKey("shop_id")) {
                 shopId = Long.valueOf(String.valueOf(payload.get("shop_id")));
             }
+        }
+        
+        // Generate unique GHN order code using timestamp
+        String customOrderCode = "GHN" + System.currentTimeMillis();
+        s.setGhnOrderCode(customOrderCode);
+        
+        // Extract data from GHN response
+        Object data = resp.get("data");
+        if (data instanceof Map) {
+            Map<String,Object> dataMap = (Map<String,Object>) data;
             
             // Gọi GHN API để tạo đơn
             Map<String, Object> ghnResponse = createShippingOrder(payload, shopId);

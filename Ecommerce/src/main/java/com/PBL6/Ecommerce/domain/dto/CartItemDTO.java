@@ -7,6 +7,8 @@ public class CartItemDTO {
     private Long id;                          // Cart item ID
     private Long variantId;                   // Product variant ID (renamed from productId)
     private Long productId;                   // Actual product ID (new field)
+    private Long shopId;                      // Shop ID (for multi-shop order detection)
+    private String shopName;                  // Shop name (for displaying in cart)
     private String productName;               // Product name
     private String productImage;              // Product main image URL (NEW)
     private String sku;                       // Variant SKU (NEW)
@@ -30,12 +32,14 @@ public class CartItemDTO {
     }
 
     // Full constructor with all fields
-    public CartItemDTO(Long id, Long variantId, Long productId, String productName, String productImage, 
+    public CartItemDTO(Long id, Long variantId, Long productId, Long shopId, String shopName, String productName, String productImage, 
                        String sku, List<AttributeDTO> variantAttributes, BigDecimal unitPrice, 
                        int quantity, int stockAvailable, BigDecimal subTotal) {
         this.id = id;
         this.variantId = variantId;
         this.productId = productId;
+        this.shopId = shopId;
+        this.shopName = shopName;
         this.productName = productName;
         this.productImage = productImage;
         this.sku = sku;
@@ -55,6 +59,12 @@ public class CartItemDTO {
     
     public Long getProductId() { return productId; }
     public void setProductId(Long productId) { this.productId = productId; }
+    
+    public Long getShopId() { return shopId; }
+    public void setShopId(Long shopId) { this.shopId = shopId; }
+    
+    public String getShopName() { return shopName; }
+    public void setShopName(String shopName) { this.shopName = shopName; }
     
     public String getProductName() { return productName; }
     public void setProductName(String productName) { this.productName = productName; }

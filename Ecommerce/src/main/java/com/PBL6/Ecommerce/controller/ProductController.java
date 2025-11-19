@@ -286,14 +286,13 @@ public class ProductController {
         }
     }
 
-    // 🆕 Lấy sản phẩm đã duyệt của shop của user hiện tại (có phân trang)
-    @GetMapping("/my-shop/approved")
+ @GetMapping("/my-shop/approved")
     @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
     public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getMyShopApprovedProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir,
             Authentication authentication) {
         try {
             Sort sort = sortDir.equalsIgnoreCase("desc") ? 
@@ -301,12 +300,13 @@ public class ProductController {
             Pageable pageable = PageRequest.of(page, size, sort);
             
             Page<ProductDTO> products = productService.getMyShopApprovedProducts(authentication, pageable);
-            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(200, null, "Lấy sản phẩm đã duyệt của shop thành công", products);
+            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(200, null, "Lấy sản phẩm đã duyệt thành công", products);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(400, "BAD_REQUEST", "Lỗi khi lấy sản phẩm đã duyệt: " + e.getMessage(), null);
+            ResponseDTO<Page<ProductDTO>> response = new ResponseDTO<>(400, "BAD_REQUEST", "Lỗi: " + e.getMessage(), null);
             return ResponseEntity.badRequest().body(response);
         }
     }
+
     
 }

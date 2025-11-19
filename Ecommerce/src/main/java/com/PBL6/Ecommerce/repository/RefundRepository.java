@@ -1,8 +1,8 @@
 package com.PBL6.Ecommerce.repository;
 
+import com.PBL6.Ecommerce.constant.RefundStatus;
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.Refund;
-import com.PBL6.Ecommerce.domain.Refund.RefundStatus;
 import com.PBL6.Ecommerce.domain.WalletTransaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
