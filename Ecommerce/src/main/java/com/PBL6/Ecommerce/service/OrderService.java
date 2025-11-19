@@ -35,6 +35,7 @@ import com.PBL6.Ecommerce.repository.OrderItemRepository;
 import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ProductVariantRepository;
+import com.PBL6.Ecommerce.constant.TypeAddress;
 
 
 @Service
@@ -162,16 +163,11 @@ public class OrderService {
                     Shop s = firstVariant.getProduct().getShop();
                     if (s != null) {
                         shopId = s.getId();
-                        // prefer shop.pickupAddress
-                        if (s.getPickupAddress() != null) {
-                            var pa = s.getPickupAddress();
-                            if (pa.getDistrictId() != null) feePayload.put("from_district_id", pa.getDistrictId());
-                            if (pa.getWardCode() != null) feePayload.put("from_ward_code", pa.getWardCode());
-                        } else if (s.getOwner() != null) {
-                            Long ownerId = s.getOwner().getId();
-                            var ownerPrimary = addressRepository.findByUserIdAndPrimaryAddressTrue(ownerId);
-                            if (ownerPrimary.isPresent()) {
-                                var pa = ownerPrimary.get();
+                        // resolve pickup address from shop owner (Shop has no Address relation)
+                        if (s.getOwner() != null && s.getOwner().getId() != null) {
+                            var ownerPickup = addressRepository.findFirstByUserIdAndTypeAddress(s.getOwner().getId(), TypeAddress.STORE);
+                            if (ownerPickup.isPresent()) {
+                                var pa = ownerPickup.get();
                                 if (pa.getDistrictId() != null) feePayload.put("from_district_id", pa.getDistrictId());
                                 if (pa.getWardCode() != null) feePayload.put("from_ward_code", pa.getWardCode());
                             }
@@ -188,9 +184,9 @@ public class OrderService {
                 if (req.getToWardCode() != null && !req.getToWardCode().isBlank()) toWard = req.getToWardCode();
 
                 if (toDistrict == null || toWard == null) {
-                    var buyerPrimary = addressRepository.findByUserIdAndPrimaryAddressTrue(user.getId());
-                    if (buyerPrimary.isPresent()) {
-                        var ba = buyerPrimary.get();
+                    var buyerAddr = addressRepository.findFirstByUserIdAndTypeAddress(user.getId(), TypeAddress.HOME);
+                    if (buyerAddr.isPresent()) {
+                        var ba = buyerAddr.get();
                         if (toDistrict == null && ba.getDistrictId() != null) toDistrict = ba.getDistrictId();
                         if (toWard == null && ba.getWardCode() != null) toWard = ba.getWardCode();
                     }

@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.security.oauth2.jwt.Jwt;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
@@ -26,8 +26,10 @@ import java.util.HashMap;
 import java.util.Map;
 import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
 import com.PBL6.Ecommerce.domain.dto.GhnServiceSelectionDTO;
+import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
 
 import jakarta.validation.Valid;
+import jakarta.transaction.Transactional;
 
 @RestController
 @RequestMapping("/api")
@@ -238,30 +240,22 @@ public class ShopController {
      */
     @PutMapping("/shops/{shopId}/ghn-credentials")
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ResponseDTO<com.PBL6.Ecommerce.domain.dto.ShopDTO>> updateGhnCredentials(
+    @Transactional
+    public ResponseEntity<ResponseDTO<Shop>> updateGhnCredentials(
             @PathVariable Long shopId,
-            @RequestBody GhnCredentialsDTO creds) {
+            @Valid @RequestBody GhnCredentialsDTO dto,
+            Authentication authentication) {
         try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
-
-            com.PBL6.Ecommerce.domain.Shop shop = shopService.getShopByIdAndOwner(shopId, user);
-
-            if (creds.getGhnToken() != null) shop.setGhnToken(creds.getGhnToken());
-            if (creds.getGhnShopId() != null) shop.setGhnShopId(creds.getGhnShopId());
-            if (creds.getGhnServiceId() != null) shop.setGhnServiceId(creds.getGhnServiceId());
-            if (creds.getGhnServiceTypeId() != null) shop.setGhnServiceTypeId(creds.getGhnServiceTypeId());
-
-            Shop saved = shopService.saveShop(shop);
-            com.PBL6.Ecommerce.domain.dto.ShopDTO dto = shopService.toDTO(saved);
-
-            return ResponseEntity.ok(new ResponseDTO<>(200, null, "Cập nhật GHN credentials thành công", dto));
-        } catch (RuntimeException e) {
-            String msg = e.getMessage();
-            int code = msg != null && msg.contains("không có quyền") ? 403 : 400;
-            return ResponseEntity.status(code).body(new ResponseDTO<>(code, msg, "Cập nhật thất bại", null));
-        } catch (Exception ex) {
-            return ResponseEntity.status(500).body(new ResponseDTO<>(500, ex.getMessage(), "Lỗi hệ thống", null));
+            Jwt jwt = (Jwt) authentication.getPrincipal();
+            Long userId = Long.valueOf(jwt.getSubject());
+            
+            // Gọi qua ShopService thay vì ShopRepository
+            Shop updated = shopService.updateGhnCredentials(shopId, userId, dto);
+            
+            return ResponseDTO.ok(updated, "Cập nhật GHN credentials thành công");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(new ResponseDTO<>(400, e.getMessage(), "Lỗi", null));
         }
     }
 
@@ -349,56 +343,44 @@ public class ShopController {
         }
     }
     /**
-     * Đăng ký seller (Shopee-style: Buyer upgrade to Seller)
+     * Đăng ký seller (Buyer upgrade to Seller) - sử dụng ShopRegistrationDTO duy nhất
      * POST /api/seller/register
-     * 
-     * Requirements:
-     * - Must be BUYER role
-     * - Must not have existing shop
-     * - Auto-approved for simplicity (student project)
-     * 
-     * @param registrationDTO Shop registration data
-     * @return Shop creation response
      */
     @PostMapping("/seller/register")
     @PreAuthorize("hasRole('BUYER')")
-    public ResponseEntity<ResponseDTO<com.PBL6.Ecommerce.dto.seller.SellerRegistrationResponseDTO>> registerAsSeller(
-            @Valid @RequestBody com.PBL6.Ecommerce.dto.seller.SellerRegistrationDTO registrationDTO) {
+    public ResponseEntity<ResponseDTO<ShopDTO>> registerAsSeller(
+            @Valid @RequestBody ShopRegistrationDTO registrationDTO) {
         try {
             // Get current authenticated user
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
-            
+
             // Create shop and upgrade to seller (auto-approval)
             Shop shop = shopService.createShopFromSellerRegistration(user, registrationDTO);
-            
-            // Build success response
-            com.PBL6.Ecommerce.dto.seller.SellerRegistrationResponseDTO response = 
-                com.PBL6.Ecommerce.dto.seller.SellerRegistrationResponseDTO.success(
-                    shop.getId(),
-                    shop.getName()
-                );
-            
+
+            ShopDTO dto = shopService.toDTO(shop);
+
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                new ResponseDTO<>(201, null, "Đăng ký seller thành công! Role đã được nâng cấp.", response)
+                new ResponseDTO<>(201, null, "Đăng ký seller thành công! Role đã được nâng cấp.", dto)
             );
-            
+
         } catch (RuntimeException e) {
-            // Handle business logic errors
             String errorMessage = e.getMessage();
             int statusCode;
-            
+
             if (errorMessage.contains("Chỉ BUYER")) {
-                statusCode = 403; // Forbidden
+                statusCode = 403;
             } else if (errorMessage.contains("đã tồn tại") || errorMessage.contains("đã có shop")) {
-                statusCode = 409; // Conflict
+                statusCode = 409;
             } else {
-                statusCode = 400; // Bad Request
+                statusCode = 400;
             }
-            
+
             return ResponseEntity.status(statusCode).body(
                 new ResponseDTO<>(statusCode, errorMessage, "Đăng ký seller thất bại", null)
             );
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(new ResponseDTO<>(500, ex.getMessage(), "Lỗi hệ thống", null));
         }
     }
     

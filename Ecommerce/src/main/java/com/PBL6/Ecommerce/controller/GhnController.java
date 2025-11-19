@@ -62,8 +62,9 @@ public class GhnController {
     }
 
     @GetMapping("/detail/{orderCode}")
-    public ResponseEntity<?> detail(@PathVariable String orderCode) {
-        return ResponseEntity.ok(ghnService.getOrderDetail(orderCode));
+    public ResponseEntity<?> detail(@PathVariable String orderCode,
+                                    @RequestParam(name = "shopId", required = false) Long shopId) {
+        return ResponseEntity.ok(ghnService.getOrderDetail(orderCode, shopId));
     }
 
     /**
@@ -110,4 +111,3 @@ public class GhnController {
         return ResponseEntity.ok(resp);
     }
 }
-// ...existing code...

@@ -2,7 +2,7 @@ package com.PBL6.Ecommerce.constant;
 
 public enum TypeAddress {
     HOME("Home"),
-    WORK("Work"),
+    STORE("Store"),
     SHIPPING("Shipping"),
     BILLING("Billing"),
     OTHER("Other");
