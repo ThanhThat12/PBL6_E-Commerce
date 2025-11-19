@@ -23,15 +23,15 @@ import java.time.ZoneId;
  */
 @Service
 @Transactional
-public class CheckoutServiceImpl implements CheckoutService {
+public class MoMoServiceIpl implements MoMoService {
     
-    private static final Logger logger = LoggerFactory.getLogger(CheckoutServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(MoMoServiceIpl.class);
     
     private final MoMoPaymentService momoPaymentService;
     private final OrderRepository orderRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
 
-    public CheckoutServiceImpl(MoMoPaymentService momoPaymentService,
+    public MoMoServiceIpl(MoMoPaymentService momoPaymentService,
                               OrderRepository orderRepository,
                               PaymentTransactionRepository paymentTransactionRepository) {
         this.momoPaymentService = momoPaymentService;

@@ -8,7 +8,7 @@ import com.PBL6.Ecommerce.dto.PaymentResponseDTO;
 import com.PBL6.Ecommerce.exception.MoMoPaymentException;
 import com.PBL6.Ecommerce.exception.OrderNotFoundException;
 import com.PBL6.Ecommerce.repository.OrderRepository;
-import com.PBL6.Ecommerce.service.CheckoutService;
+import com.PBL6.Ecommerce.service.MoMoService;
 import com.PBL6.Ecommerce.service.PaymentTransactionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,11 +33,11 @@ public class MoMoPaymentController {
     
     private static final Logger logger = LoggerFactory.getLogger(MoMoPaymentController.class);
     
-    private final CheckoutService checkoutService;
+    private final MoMoService checkoutService;
     private final PaymentTransactionService paymentTransactionService;
     private final OrderRepository orderRepository;
 
-    public MoMoPaymentController(CheckoutService checkoutService,
+    public MoMoPaymentController(MoMoService checkoutService,
                                 PaymentTransactionService paymentTransactionService,
                                 OrderRepository orderRepository) {
         this.checkoutService = checkoutService;
