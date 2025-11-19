@@ -57,6 +57,21 @@ public class Product {
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> productImages = new ArrayList<>();
 
+    // Product-level shipping dimensions (preferred storage place)
+    // Trọng lượng 1 đơn vị (gram)
+    @Column(name = "weight_grams")
+    private Integer weightGrams;
+
+    // Kích thước (cm) để tính volumetric nếu cần
+    @Column(name = "length_cm")
+    private Integer lengthCm;
+
+    @Column(name = "width_cm")
+    private Integer widthCm;
+
+    @Column(name = "height_cm")
+    private Integer heightCm;
+
      // 🆕 Helper methods để quản lý images
     public void addProductImage(ProductImage image) {
         productImages.add(image);
@@ -177,5 +192,37 @@ public class Product {
 
     public void setProductImages(List<ProductImage> productImages) {
         this.productImages = productImages;
+    }
+
+    public Integer getWeightGrams() {
+        return weightGrams;
+    }
+
+    public void setWeightGrams(Integer weightGrams) {
+        this.weightGrams = weightGrams;
+    }
+
+    public Integer getLengthCm() {
+        return lengthCm;
+    }
+
+    public void setLengthCm(Integer lengthCm) {
+        this.lengthCm = lengthCm;
+    }
+
+    public Integer getWidthCm() {
+        return widthCm;
+    }
+
+    public void setWidthCm(Integer widthCm) {
+        this.widthCm = widthCm;
+    }
+
+    public Integer getHeightCm() {
+        return heightCm;
+    }
+
+    public void setHeightCm(Integer heightCm) {
+        this.heightCm = heightCm;
     }
 }

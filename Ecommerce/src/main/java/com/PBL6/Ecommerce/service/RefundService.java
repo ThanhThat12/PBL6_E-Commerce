@@ -9,6 +9,9 @@ import com.PBL6.Ecommerce.domain.Wallet;
 import com.PBL6.Ecommerce.domain.PaymentTransaction;
 import com.PBL6.Ecommerce.repository.RefundRepository;
 import com.PBL6.Ecommerce.repository.RefundItemRepository;
+import com.PBL6.Ecommerce.repository.AddressRepository;
+import com.PBL6.Ecommerce.domain.Address;
+import com.PBL6.Ecommerce.constant.TypeAddress;
 import com.PBL6.Ecommerce.repository.OrderItemRepository;
 import com.PBL6.Ecommerce.repository.WalletRepository;
 import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
@@ -17,7 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.PBL6.Ecommerce.dto.RefundDTO;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,7 @@ public class RefundService {
     private final OrderItemRepository orderItemRepository;
     private final WalletRepository walletRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final AddressRepository addressRepository;
     
     @Autowired
     private WalletService walletService;
@@ -42,12 +46,14 @@ public class RefundService {
                         RefundItemRepository refundItemRepository,
                         OrderItemRepository orderItemRepository,
                         WalletRepository walletRepository,
-                        PaymentTransactionRepository paymentTransactionRepository) {
+                        PaymentTransactionRepository paymentTransactionRepository,
+                        AddressRepository addressRepository) {
         this.refundRepository = refundRepository;
         this.refundItemRepository = refundItemRepository;
         this.orderItemRepository = orderItemRepository;
         this.walletRepository = walletRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
+        this.addressRepository = addressRepository;
     }
 
     /**
@@ -406,14 +412,27 @@ public class RefundService {
     /**
      * Convert Refund entity to DTO
      */
-    public com.PBL6.Ecommerce.dto.RefundDTO convertToDTO(Refund refund) {
-        com.PBL6.Ecommerce.dto.RefundDTO dto = new com.PBL6.Ecommerce.dto.RefundDTO(refund);
-        
-        // Get shop address for return shipping
+    public RefundDTO convertToDTO(Refund refund) {
+        RefundDTO dto = new RefundDTO(refund);
+
+        // Lấy địa chỉ shop từ bảng addresses theo type_address = STORE
         if (refund.getOrder() != null && refund.getOrder().getShop() != null) {
-            dto.setShopAddress(refund.getOrder().getShop().getAddress());
+            var shop = refund.getOrder().getShop();
+            var shopOwner = shop.getOwner();
+            if (shopOwner != null) {
+                var shopAddress = addressRepository.findFirstByUserIdAndTypeAddress(shopOwner.getId(), TypeAddress.STORE)
+                    .or(() -> addressRepository.findByUserIdAndPrimaryAddressTrue(shopOwner.getId()))
+                    .orElse(null);
+                if (shopAddress != null) {
+                    dto.setShopAddress(shopAddress.getFullAddress());
+                } else {
+                    dto.setShopAddress("Chưa cập nhật");
+                }
+            } else {
+                dto.setShopAddress("Chưa cập nhật");
+            }
         }
-        
+
         // Get first order item for display
         if (refund.getOrder() != null && refund.getOrder().getOrderItems() != null 
                 && !refund.getOrder().getOrderItems().isEmpty()) {
@@ -422,7 +441,7 @@ public class RefundService {
             var product = variant != null ? variant.getProduct() : null;
             
             if (product != null) {
-                com.PBL6.Ecommerce.dto.RefundDTO.OrderItemDTO itemDTO = new com.PBL6.Ecommerce.dto.RefundDTO.OrderItemDTO(
+                RefundDTO.OrderItemDTO itemDTO = new RefundDTO.OrderItemDTO(
                     orderItem.getId(),
                     product.getName(),
                     product.getMainImage(),

@@ -198,7 +198,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                 order.setPaymentStatus(Order.PaymentStatus.PAID);
                 order.setMethod("MOMO");
                 order.setMomoTransId(transaction.getTransId());
-                order.setPaidAt(LocalDateTime.now());
+                order.setPaidAt(new java.util.Date());
                 orderRepository.save(order);
                 logger.info("Order payment status updated successfully for order: {} (status=PENDING, paymentStatus=PAID)", order.getId());
                 

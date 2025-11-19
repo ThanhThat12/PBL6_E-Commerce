@@ -77,7 +77,7 @@ public class AdminUserDetailDTO {
                              String role, boolean activated, LocalDateTime createdAt,
                              Integer totalOrders, Double totalSpent, LocalDateTime lastOrderDate,
                              Integer cartItemsCount,
-                             String primaryAddressLabel, String primaryAddressFullAddress,
+                             String primaryAddressFullAddress,
                              String primaryAddressProvince, String primaryAddressDistrict,
                              String primaryAddressWard, String primaryAddressContactPhone) {
         this.id = id;
@@ -91,7 +91,6 @@ public class AdminUserDetailDTO {
         this.totalSpent = totalSpent;
         this.lastOrderDate = lastOrderDate;
         this.cartItemsCount = cartItemsCount;
-        this.primaryAddressLabel = primaryAddressLabel;
         this.primaryAddressFullAddress = primaryAddressFullAddress;
         this.primaryAddressProvince = primaryAddressProvince;
         this.primaryAddressDistrict = primaryAddressDistrict;
@@ -242,14 +241,6 @@ public class AdminUserDetailDTO {
 
     public void setCartItemsCount(Integer cartItemsCount) {
         this.cartItemsCount = cartItemsCount;
-    }
-
-    public String getPrimaryAddressLabel() {
-        return primaryAddressLabel;
-    }
-
-    public void setPrimaryAddressLabel(String primaryAddressLabel) {
-        this.primaryAddressLabel = primaryAddressLabel;
     }
 
     public String getPrimaryAddressFullAddress() {

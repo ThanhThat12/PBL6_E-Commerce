@@ -10,10 +10,10 @@ VALUES
 -- =========================================
 -- 2) SHOPS (owner_id references users.id)
 -- =========================================
-INSERT INTO `shops` (id, name, description, address, phone, email, status, rating, review_count, owner_id)
+INSERT INTO `shops` (id, name, description, phone, email, status, rating, review_count, owner_id)
 VALUES
-(1, 'TechZone',  'Electronics & Gadgets',      '123 Nguyen Van Linh, Da Nang', '0987000002', 'shop-tech@ecom.com', 'ACTIVE', 4.70, 12, 2),
-(2, 'HomeStyle', 'Home & Kitchen Essentials',  '45 Tran Hung Dao, Ha Noi',     '0987000003', 'shop-home@ecom.com', 'ACTIVE', 4.50, 8, 3);
+(1, 'TechZone',  'Electronics & Gadgets',      '0987000002', 'shop-tech@ecom.com', 'ACTIVE', 4.70, 12, 2),
+(2, 'HomeStyle', 'Home & Kitchen Essentials',  '0987000003', 'shop-home@ecom.com', 'ACTIVE', 4.50, 8, 3);
 
 -- =========================================
 -- 3) CATEGORIES (already present in your schema; include safe inserts in case missing)

@@ -94,7 +94,6 @@ CREATE TABLE `refresh_tokens` (
 CREATE TABLE `addresses` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) NOT NULL,
-  `label` varchar(100) DEFAULT NULL COMMENT 'Nhà riêng, Văn phòng, etc.',
   `full_address` varchar(500) DEFAULT NULL COMMENT 'Số nhà, tên đường',
   `province_id` int(11) DEFAULT NULL COMMENT 'GHN Province ID',
   `district_id` int(11) DEFAULT NULL COMMENT 'GHN District ID',
@@ -121,7 +120,6 @@ CREATE TABLE `shops` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `description` text,
-  `address` varchar(255) DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL COMMENT 'SĐT liên hệ',
   `email` varchar(100) DEFAULT NULL COMMENT 'Email shop',
   `status` enum('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',

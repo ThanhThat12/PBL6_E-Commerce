@@ -60,7 +60,7 @@ public class BuyerOrderController {
             order.getId(),
             order.getStatus() != null ? order.getStatus().name() : null,
             order.getTotalAmount(),
-            order.getCreatedAt(),
+            order.getCreatedAt() != null ? java.time.LocalDateTime.ofInstant(order.getCreatedAt().toInstant(), java.time.ZoneId.systemDefault()) : null,
             null // GHN info if needed
         );
         
