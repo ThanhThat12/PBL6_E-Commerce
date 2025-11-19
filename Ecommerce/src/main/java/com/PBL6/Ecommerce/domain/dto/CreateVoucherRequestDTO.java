@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.domain.dto;
 
+import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,9 +15,8 @@ public class CreateVoucherRequestDTO {
     @NotBlank(message = "Mô tả không được để trống")
     private String description;
 
-    @NotBlank(message = "Loại giảm giá không được để trống")
-    @Pattern(regexp = "PERCENTAGE|FIXED_AMOUNT", message = "Loại giảm giá phải là PERCENTAGE hoặc FIXED_AMOUNT")
-    private String discountType;
+    @NotNull(message = "Loại giảm giá không được để trống")
+    private DiscountType discountType;
 
     @NotNull(message = "Giá trị giảm không được để trống")
     @DecimalMin(value = "0.0", inclusive = false, message = "Giá trị giảm phải lớn hơn 0")
@@ -57,8 +57,8 @@ public class CreateVoucherRequestDTO {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public String getDiscountType() { return discountType; }
-    public void setDiscountType(String discountType) { this.discountType = discountType; }
+    public DiscountType getDiscountType() { return discountType; }
+    public void setDiscountType(DiscountType discountType) { this.discountType = discountType; }
 
     public BigDecimal getDiscountValue() { return discountValue; }
     public void setDiscountValue(BigDecimal discountValue) { this.discountValue = discountValue; }

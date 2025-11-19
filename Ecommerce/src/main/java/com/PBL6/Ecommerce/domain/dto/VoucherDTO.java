@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.domain.dto;
 
+import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,7 +11,7 @@ public class VoucherDTO {
     private String description;
     private Long shopId;
     private String shopName;
-    private String discountType;
+    private DiscountType discountType;
     private BigDecimal discountValue;
     private BigDecimal minOrderValue;
     private BigDecimal maxDiscountAmount;
@@ -42,8 +43,8 @@ public class VoucherDTO {
     public String getShopName() { return shopName; }
     public void setShopName(String shopName) { this.shopName = shopName; }
 
-    public String getDiscountType() { return discountType; }
-    public void setDiscountType(String discountType) { this.discountType = discountType; }
+    public DiscountType getDiscountType() { return discountType; }
+    public void setDiscountType(DiscountType discountType) { this.discountType = discountType; }
 
     public BigDecimal getDiscountValue() { return discountValue; }
     public void setDiscountValue(BigDecimal discountValue) { this.discountValue = discountValue; }

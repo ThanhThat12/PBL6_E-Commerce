@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.domain.*;
+import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
 import com.PBL6.Ecommerce.domain.dto.CreateVoucherRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherApplicationResultDTO;
@@ -73,7 +74,7 @@ public class VoucherService {
         }
         
         // Validate discount value
-        if ("PERCENTAGE".equals(request.getDiscountType())) {
+        if (Vouchers.DiscountType.PERCENTAGE.equals(request.getDiscountType())) {
             if (request.getDiscountValue().doubleValue() > 100) {
                 throw new RuntimeException("Giá trị giảm giá phần trăm không được vượt quá 100%");
             }
@@ -313,7 +314,7 @@ public class VoucherService {
         }
         
         BigDecimal discountAmount;
-        if ("PERCENTAGE".equals(voucher.getDiscountType())) {
+        if (DiscountType.PERCENTAGE.equals(voucher.getDiscountType())) {
             discountAmount = cartTotal.multiply(voucher.getDiscountValue().divide(BigDecimal.valueOf(100)));
             if (voucher.getMaxDiscountAmount() != null) {
                 discountAmount = discountAmount.min(voucher.getMaxDiscountAmount());
@@ -408,7 +409,7 @@ public class VoucherService {
         }
         
         BigDecimal discountAmount;
-        if ("PERCENTAGE".equals(voucher.getDiscountType())) {
+        if (DiscountType.PERCENTAGE.equals(voucher.getDiscountType())) {
             discountAmount = cartTotal.multiply(voucher.getDiscountValue().divide(BigDecimal.valueOf(100)));
             if (voucher.getMaxDiscountAmount() != null) {
                 discountAmount = discountAmount.min(voucher.getMaxDiscountAmount());
