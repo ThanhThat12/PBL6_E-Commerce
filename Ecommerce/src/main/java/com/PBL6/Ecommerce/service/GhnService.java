@@ -90,27 +90,48 @@ public class GhnService {
         try {
             Shop shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new RuntimeException("Shop not found"));
-            
+
+            // MOCK LOGIC: If token is 'DUMMY_TOKEN', return mock data
+            if ("DUMMY_TOKEN".equals(shop.getGhnToken())) {
+                System.out.println("[MOCK] Returning mock GHN available services for shopId=" + shopId);
+                List<Map<String, Object>> mockServices = new ArrayList<>();
+                Map<String, Object> service1 = new HashMap<>();
+                service1.put("service_id", 53320);
+                service1.put("short_name", "GHN Express");
+                service1.put("service_type_id", 1);
+                service1.put("service_name", "GHN Nhanh");
+                service1.put("description", "Giao hàng nhanh trong ngày");
+                mockServices.add(service1);
+                Map<String, Object> service2 = new HashMap<>();
+                service2.put("service_id", 53321);
+                service2.put("short_name", "GHN Saver");
+                service2.put("service_type_id", 2);
+                service2.put("service_name", "GHN Tiết kiệm");
+                service2.put("description", "Giao hàng tiết kiệm 2-3 ngày");
+                mockServices.add(service2);
+                return mockServices;
+            }
+
             HttpHeaders headers = getGhnHeaders(shop);
-            
+
             // Chuẩn hóa payload
             Map<String, Object> normalizedPayload = normalizePayload(payload, shop);
-            
+
             System.out.println("========== GHN AVAILABLE SERVICES REQUEST ==========");
             System.out.println("URL: " + ghnApiUrl + "/v2/shipping-order/available-services");
             System.out.println("Headers: " + headers);
             System.out.println("Body: " + normalizedPayload);
             System.out.println("===================================================");
-            
+
             HttpEntity<Map<String,Object>> request = new HttpEntity<>(normalizedPayload, headers);
-            
+
             String url = ghnApiUrl + "/v2/shipping-order/available-services";
-            
+
             ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
-            
+
             Map<String,Object> body = response.getBody();
             System.out.println("GHN Response: " + body);
-            
+
             if (body != null && body.get("data") instanceof List) {
                 return (List<Map<String,Object>>) body.get("data");
             }
