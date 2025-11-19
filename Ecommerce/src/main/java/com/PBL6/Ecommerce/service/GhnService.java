@@ -60,17 +60,38 @@ public class GhnService {
     String url = ghnApiUrl + "/v2/shipping-order/create";
     // copy payload to mutable map to avoid UnsupportedOperationException when incoming map is immutable
     Map<String,Object> body = new HashMap<>(payload == null ? Map.of() : payload);
+    
+    // Add shop_id
     if (!body.containsKey("shop_id") && ghnShopId != null && !ghnShopId.isBlank()) {
-        try { body.put("shop_id", Long.parseLong(ghnShopId)); }
-        catch (NumberFormatException ex) { body.put("shop_id", ghnShopId); }
+        try { body.put("shop_id", Integer.parseInt(ghnShopId)); }
+        catch (NumberFormatException ex) { 
+            throw new RuntimeException("GHN Shop ID không hợp lệ: " + ghnShopId);
+        }
+    }
+    
+    // Validate shop_id is present
+    if (!body.containsKey("shop_id")) {
+        throw new RuntimeException("Thiếu shop_id trong cấu hình GHN. Vui lòng kiểm tra application.properties");
     }
     // Add sender's district and ward code (required by GHN)
-    if (!body.containsKey("from_district_id") && ghnFromDistrictId != null && !ghnFromDistrictId.isBlank()) {
-        try { body.put("from_district_id", Integer.parseInt(ghnFromDistrictId)); }
-        catch (NumberFormatException ex) { body.put("from_district_id", ghnFromDistrictId); }
+    if (!body.containsKey("from_district_id")) {
+        if (ghnFromDistrictId != null && !ghnFromDistrictId.isBlank()) {
+            try { 
+                body.put("from_district_id", Integer.parseInt(ghnFromDistrictId)); 
+            } catch (NumberFormatException ex) { 
+                throw new RuntimeException("GHN from_district_id không hợp lệ: " + ghnFromDistrictId);
+            }
+        } else {
+            throw new RuntimeException("Thiếu from_district_id (mã quận kho hàng). Vui lòng cấu hình trong application.properties");
+        }
     }
-    if (!body.containsKey("from_ward_code") && ghnFromWardCode != null && !ghnFromWardCode.isBlank()) {
-        body.put("from_ward_code", ghnFromWardCode);
+    
+    if (!body.containsKey("from_ward_code")) {
+        if (ghnFromWardCode != null && !ghnFromWardCode.isBlank()) {
+            body.put("from_ward_code", ghnFromWardCode);
+        } else {
+            throw new RuntimeException("Thiếu from_ward_code (mã phường kho hàng). Vui lòng cấu hình trong application.properties");
+        }
     }
     // ensure required_note present (GHN requires this field)
     if (!body.containsKey("required_note")) {
@@ -96,10 +117,43 @@ public class GhnService {
             body.put("payment_type_id", cod > 0 ? 2 : 1);
         }
 
+    // Log payload before sending to GHN for debugging
+    System.out.println("🚀 Creating GHN shipment with payload: " + toJson(body));
+    
     HttpEntity<Map<String,Object>> req = new HttpEntity<>(body, baseHeaders());
-    ResponseEntity<Map> resp = restTemplate.postForEntity(url, req, Map.class);
-    if (!resp.getStatusCode().is2xxSuccessful()) throw new RuntimeException("GHN create shipment failed: " + resp.getStatusCode());
-    return resp.getBody();
+    
+    try {
+        ResponseEntity<Map> resp = restTemplate.postForEntity(url, req, Map.class);
+        
+        if (!resp.getStatusCode().is2xxSuccessful()) {
+            String errorMsg = "GHN API trả về lỗi: " + resp.getStatusCode();
+            if (resp.getBody() != null) {
+                errorMsg += ". Chi tiết: " + toJson(resp.getBody());
+            }
+            throw new RuntimeException(errorMsg);
+        }
+        
+        Map<String, Object> responseBody = resp.getBody();
+        if (responseBody != null) {
+            // Check if GHN response contains error code
+            Object code = responseBody.get("code");
+            if (code != null && !"200".equals(code.toString())) {
+                String message = responseBody.get("message") != null ? responseBody.get("message").toString() : "Unknown error";
+                throw new RuntimeException("GHN API error (code " + code + "): " + message);
+            }
+        }
+        
+        System.out.println("✅ GHN shipment created successfully: " + toJson(responseBody));
+        return responseBody;
+        
+    } catch (org.springframework.web.client.HttpClientErrorException | org.springframework.web.client.HttpServerErrorException ex) {
+        String errorBody = ex.getResponseBodyAsString();
+        System.err.println("❌ GHN API Error Response: " + errorBody);
+        throw new RuntimeException("GHN API error: " + ex.getMessage() + ". Response: " + errorBody);
+    } catch (Exception ex) {
+        System.err.println("❌ Error calling GHN API: " + ex.getMessage());
+        throw new RuntimeException("Lỗi kết nối GHN API: " + ex.getMessage());
+    }
 }
 
     public Map<String,Object> getOrderDetail(String orderCode) {

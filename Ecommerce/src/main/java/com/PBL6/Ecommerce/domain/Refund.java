@@ -3,6 +3,8 @@ package com.PBL6.Ecommerce.domain;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "refunds")
@@ -37,6 +39,10 @@ public class Refund {
     // Cờ đánh dấu có cần trả hàng không
     @Column(name = "requires_return")
     private Boolean requiresReturn = false;
+
+    // Danh sách món hàng được refund
+    @OneToMany(mappedBy = "refund", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RefundItem> refundItems = new ArrayList<>();
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -142,6 +148,24 @@ public class Refund {
 
     public void setRequiresReturn(Boolean requiresReturn) {
         this.requiresReturn = requiresReturn;
+    }
+
+    public List<RefundItem> getRefundItems() {
+        return refundItems;
+    }
+
+    public void setRefundItems(List<RefundItem> refundItems) {
+        this.refundItems = refundItems;
+    }
+
+    public void addRefundItem(RefundItem item) {
+        refundItems.add(item);
+        item.setRefund(this);
+    }
+
+    public void removeRefundItem(RefundItem item) {
+        refundItems.remove(item);
+        item.setRefund(null);
     }
 
     @PreUpdate

@@ -165,17 +165,47 @@ public class OrderService {
         for (OrderItem oi : items) oi.setOrder(saved);
         orderItemRepository.saveAll(items);
 
+        // Validate required GHN fields before creating payload
+        if (req.getReceiverName() == null || req.getReceiverName().isBlank()) {
+            throw new IllegalArgumentException("Tên người nhận không được để trống");
+        }
+        if (req.getReceiverPhone() == null || req.getReceiverPhone().isBlank()) {
+            throw new IllegalArgumentException("Số điện thoại người nhận không được để trống");
+        }
+        if (req.getReceiverAddress() == null || req.getReceiverAddress().isBlank()) {
+            throw new IllegalArgumentException("Địa chỉ giao hàng không được để trống");
+        }
+        if (req.getToDistrictId() == null || req.getToDistrictId().isBlank()) {
+            throw new IllegalArgumentException("Mã quận/huyện không hợp lệ");
+        }
+        if (req.getToWardCode() == null || req.getToWardCode().isBlank()) {
+            throw new IllegalArgumentException("Mã phường/xã không hợp lệ");
+        }
+        
         // prepare GHN payload
         Map<String,Object> ghnPayload = new HashMap<>();
         ghnPayload.put("to_name", req.getReceiverName());
         ghnPayload.put("to_phone", req.getReceiverPhone());
-        ghnPayload.put("to_district_id", Integer.parseInt(req.getToDistrictId()));
+        
+        // Parse district ID as integer (GHN requires integer)
+        try {
+            ghnPayload.put("to_district_id", Integer.parseInt(req.getToDistrictId()));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Mã quận/huyện phải là số: " + req.getToDistrictId());
+        }
+        
         ghnPayload.put("to_ward_code", req.getToWardCode());
         ghnPayload.put("to_address", req.getReceiverAddress());
+        
+        // Store province/district/ward names for reference (not sent to GHN API)
         ghnPayload.put("province", req.getProvince());
         ghnPayload.put("district", req.getDistrict());
         ghnPayload.put("ward", req.getWard());
-        ghnPayload.put("weight", req.getWeightGrams());
+        
+        ghnPayload.put("weight", req.getWeightGrams() != null ? req.getWeightGrams() : 200); // Default 200g
+        ghnPayload.put("length", 15); // Default dimensions (cm)
+        ghnPayload.put("width", 15);
+        ghnPayload.put("height", 15);
         ghnPayload.put("client_order_code", "ORDER_" + saved.getId());
         ghnPayload.put("cod_amount", req.getCodAmount() != null ? req.getCodAmount().intValue() : 0);
         ghnPayload.put("shipping_fee", shippingFee); // Pass frontend-calculated shipping fee
@@ -187,6 +217,9 @@ public class OrderService {
             m.put("price", pv.getPrice().intValue());
             return m;
         }).collect(Collectors.toList()));
+        
+        logger.info("📦 GHN Payload for order #{}: to_district_id={}, to_ward_code={}, to_address={}", 
+            saved.getId(), ghnPayload.get("to_district_id"), ghnPayload.get("to_ward_code"), ghnPayload.get("to_address"));
 
         // Create shipment based on payment method
         // COD: Tạo shipment ngay, nếu GHN fail thì rollback toàn bộ order
@@ -205,7 +238,12 @@ public class OrderService {
             } catch (Exception ex) {
                 // Với COD, GHN fail là không thể tiếp tục → rollback order
                 logger.error("❌ GHN shipment creation failed for COD order: {}", ex.getMessage());
-                throw new RuntimeException("Không thể tạo vận đơn giao hàng: " + ex.getMessage());
+                logger.error("GHN Payload: to_district_id={}, to_ward_code={}, to_address={}", 
+                    ghnPayload.get("to_district_id"), ghnPayload.get("to_ward_code"), ghnPayload.get("to_address"));
+                throw new RuntimeException("Không thể tạo vận đơn giao hàng. Vui lòng kiểm tra: " +
+                    "1) Địa chỉ giao hàng đầy đủ và chính xác, " +
+                    "2) Mã quận/huyện và phường/xã hợp lệ. " +
+                    "Chi tiết lỗi: " + ex.getMessage());
             }
             
             // Xóa cart cho COD ngay sau khi tạo order thành công

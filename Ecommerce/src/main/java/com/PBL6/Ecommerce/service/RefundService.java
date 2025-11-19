@@ -1,11 +1,15 @@
 package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.domain.Order;
+import com.PBL6.Ecommerce.domain.OrderItem;
 import com.PBL6.Ecommerce.domain.Refund;
+import com.PBL6.Ecommerce.domain.RefundItem;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.Wallet;
 import com.PBL6.Ecommerce.domain.PaymentTransaction;
 import com.PBL6.Ecommerce.repository.RefundRepository;
+import com.PBL6.Ecommerce.repository.RefundItemRepository;
+import com.PBL6.Ecommerce.repository.OrderItemRepository;
 import com.PBL6.Ecommerce.repository.WalletRepository;
 import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
 import org.slf4j.Logger;
@@ -16,12 +20,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class RefundService {
     private static final Logger logger = LoggerFactory.getLogger(RefundService.class);
     
     private final RefundRepository refundRepository;
+    private final RefundItemRepository refundItemRepository;
+    private final OrderItemRepository orderItemRepository;
     private final WalletRepository walletRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
     
@@ -31,10 +38,14 @@ public class RefundService {
     @Autowired
     private MoMoPaymentService momoPaymentService;
 
-    public RefundService(RefundRepository refundRepository, 
+    public RefundService(RefundRepository refundRepository,
+                        RefundItemRepository refundItemRepository,
+                        OrderItemRepository orderItemRepository,
                         WalletRepository walletRepository,
                         PaymentTransactionRepository paymentTransactionRepository) {
         this.refundRepository = refundRepository;
+        this.refundItemRepository = refundItemRepository;
+        this.orderItemRepository = orderItemRepository;
         this.walletRepository = walletRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
     }
@@ -54,6 +65,67 @@ public class RefundService {
         refund.setImageUrl(imageUrl); // Ảnh bằng chứng từ khách
         refund.setStatus(Refund.RefundStatus.PENDING);
         refund.setRequiresReturn(false); // Mặc định không cần trả hàng
+        
+        return refundRepository.save(refund);
+    }
+    
+    /**
+     * Bước 1 (Mới): Tạo refund request với danh sách món hàng cụ thể
+     * @param order Đơn hàng
+     * @param refundItemsData Map<OrderItemId, Quantity> - Danh sách món và số lượng cần refund
+     * @param reason Lý do refund
+     * @param imageUrl Ảnh bằng chứng
+     * @return Refund object đã tạo
+     */
+    @Transactional
+    public Refund createRefundRequestWithItems(Order order, Map<Long, Integer> refundItemsData, 
+                                                String reason, String imageUrl) {
+        logger.info("Creating refund request with specific items for order: {}", order.getId());
+        
+        // Tính tổng số tiền refund
+        BigDecimal totalRefundAmount = BigDecimal.ZERO;
+        
+        Refund refund = new Refund();
+        refund.setOrder(order);
+        refund.setReason(reason);
+        refund.setImageUrl(imageUrl);
+        refund.setStatus(Refund.RefundStatus.PENDING);
+        refund.setRequiresReturn(false);
+        
+        // Tạo refund items
+        for (Map.Entry<Long, Integer> entry : refundItemsData.entrySet()) {
+            Long orderItemId = entry.getKey();
+            Integer refundQuantity = entry.getValue();
+            
+            // Lấy OrderItem
+            OrderItem orderItem = orderItemRepository.findById(orderItemId)
+                .orElseThrow(() -> new RuntimeException("OrderItem not found: " + orderItemId));
+            
+            // Validate số lượng
+            if (refundQuantity > orderItem.getQuantity()) {
+                throw new IllegalArgumentException(
+                    "Refund quantity cannot exceed ordered quantity for item: " + orderItemId);
+            }
+            
+            // Tính số tiền refund cho món này
+            BigDecimal itemRefundAmount = orderItem.getPrice()
+                .multiply(BigDecimal.valueOf(refundQuantity));
+            
+            // Tạo RefundItem
+            RefundItem refundItem = new RefundItem();
+            refundItem.setRefund(refund);
+            refundItem.setOrderItem(orderItem);
+            refundItem.setQuantity(refundQuantity);
+            refundItem.setRefundAmount(itemRefundAmount);
+            
+            refund.addRefundItem(refundItem);
+            totalRefundAmount = totalRefundAmount.add(itemRefundAmount);
+        }
+        
+        refund.setAmount(totalRefundAmount);
+        
+        logger.info("Refund request created with {} items, total amount: {}", 
+            refund.getRefundItems().size(), totalRefundAmount);
         
         return refundRepository.save(refund);
     }
@@ -230,8 +302,66 @@ public class RefundService {
             refund.setStatus(Refund.RefundStatus.COMPLETED);
             refundRepository.save(refund);
             
-            // Cập nhật trạng thái order
-            order.setStatus(Order.OrderStatus.CANCELLED);
+            // Chỉ hủy đơn hàng nếu refund toàn bộ giá trị đơn hàng
+            // Kiểm tra 2 cách:
+            // 1. So sánh refund.amount với order.totalAmount
+            // 2. Kiểm tra xem có refund items không và tất cả items có được refund hết không
+            
+            boolean isFullRefund = false;
+            
+            if (refund.getRefundItems() != null && !refund.getRefundItems().isEmpty()) {
+                // Có refund items cụ thể → kiểm tra xem tất cả items có được refund hết không
+                List<OrderItem> allOrderItems = order.getOrderItems();
+                int totalRefundedItems = 0;
+                int totalRefundedQuantity = 0;
+                
+                for (RefundItem refundItem : refund.getRefundItems()) {
+                    totalRefundedItems++;
+                    totalRefundedQuantity += refundItem.getQuantity();
+                }
+                
+                // Tính tổng số lượng trong đơn hàng
+                int totalOrderQuantity = 0;
+                for (OrderItem oi : allOrderItems) {
+                    totalOrderQuantity += oi.getQuantity();
+                }
+                
+                // Nếu refund hết tất cả items và số lượng → full refund
+                isFullRefund = (totalRefundedItems == allOrderItems.size()) && 
+                               (totalRefundedQuantity >= totalOrderQuantity);
+                
+                logger.info("Refund items check: refunded {}/{} items, {}/{} quantity", 
+                    totalRefundedItems, allOrderItems.size(), 
+                    totalRefundedQuantity, totalOrderQuantity);
+            } else {
+                // Không có refund items → so sánh số tiền
+                BigDecimal orderTotal = order.getTotalAmount();
+                BigDecimal refundAmount = refund.getAmount();
+                
+                // Cho phép sai số nhỏ (± 1000 VND) do làm tròn
+                isFullRefund = refundAmount.compareTo(orderTotal) >= 0 || 
+                               orderTotal.subtract(refundAmount).abs().compareTo(new BigDecimal("1000")) <= 0;
+                
+                logger.info("Amount check: refund {}/{}", refundAmount, orderTotal);
+            }
+            
+            if (isFullRefund) {
+                // Hoàn tiền toàn bộ → Hủy đơn hàng
+                order.setStatus(Order.OrderStatus.CANCELLED);
+                logger.info("Full refund - Order {} cancelled", order.getId());
+            } else {
+                // Hoàn tiền một phần → Giữ nguyên trạng thái đơn hàng
+                // Đánh dấu là PARTIALLY_REFUNDED nếu đã COMPLETED
+                if (order.getStatus() == Order.OrderStatus.COMPLETED) {
+                    // Có thể thêm enum PARTIALLY_REFUNDED vào OrderStatus nếu muốn
+                    // order.setStatus(Order.OrderStatus.PARTIALLY_REFUNDED);
+                }
+                logger.info("Partial refund - Order {} remains in current status. " +
+                           "Refunded {} items with total amount: {}", 
+                    order.getId(), 
+                    refund.getRefundItems() != null ? refund.getRefundItems().size() : 0,
+                    refund.getAmount());
+            }
             
             logger.info("Refund completed successfully: {}", refund.getId());
             
