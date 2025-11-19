@@ -7,6 +7,8 @@ package com.PBL6.Ecommerce.domain.dto;
 public class UpdateShopDTO {
     private String name;
     private String address;
+    // Optional: allow selecting existing address id instead of plain string
+    private Long pickupAddressId;
     private String description;
     private String status;
 
@@ -34,6 +36,14 @@ public class UpdateShopDTO {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public Long getPickupAddressId() {
+        return pickupAddressId;
+    }
+
+    public void setPickupAddressId(Long pickupAddressId) {
+        this.pickupAddressId = pickupAddressId;
     }
 
     public String getDescription() {

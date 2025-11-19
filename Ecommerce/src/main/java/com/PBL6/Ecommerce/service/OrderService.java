@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.Optional;
 import com.PBL6.Ecommerce.repository.ShopRepository;
@@ -42,8 +43,10 @@ import com.PBL6.Ecommerce.exception.ShopNotFoundException;
 import com.PBL6.Ecommerce.exception.UnauthorizedOrderAccessException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
 import com.PBL6.Ecommerce.repository.OrderItemRepository;
+import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ProductVariantRepository;
+import com.PBL6.Ecommerce.constant.TypeAddress;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
 import com.PBL6.Ecommerce.domain.Cart;
@@ -55,6 +58,7 @@ import org.slf4j.LoggerFactory;
 @Transactional
 public class OrderService {
     
+    // ...existing code...
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
     
     private final ProductVariantRepository productVariantRepository;
@@ -62,6 +66,8 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
     private final ShopRepository shopRepository;
+    private final AddressRepository addressRepository;
+    private final ProductRepository productRepository;
     private final GhnService ghnService;
     @Autowired
     private RefundRepository refundRepository;
@@ -81,6 +87,7 @@ public class OrderService {
                         OrderItemRepository orderItemRepository,
                         UserRepository userRepository,
                         ShopRepository shopRepository,
+                        AddressRepository addressRepository,
                         GhnService ghnService) {
         // ...existing code...
         this.productVariantRepository = productVariantRepository;
@@ -88,8 +95,51 @@ public class OrderService {
         this.orderItemRepository = orderItemRepository;
         this.userRepository = userRepository;
         this.shopRepository = shopRepository;
+        this.addressRepository = addressRepository;
+        this.productRepository = productRepository;
         this.ghnService = ghnService;
     }
+// ...existing code...
+    // ...existing code...
+    public int calculateTotalChargeableWeightGrams(List<OrderItem> items) {
+        if (items == null || items.isEmpty()) return 0;
+        final double divisor = 5000.0;
+        int total = 0;
+        for (OrderItem item : items) {
+            if (item == null) continue;
+            int qty = item.getQuantity() == null ? 1 : item.getQuantity();
+
+            // Lấy product (từ variant->product hoặc trực tiếp từ productRepository)
+            com.PBL6.Ecommerce.domain.Product product = null;
+            ProductVariant variant = item.getVariant();
+            if (variant != null && variant.getProduct() != null) {
+                product = variant.getProduct();
+            } else if (item.getProductId() != null) {
+                try {
+                    var op = productRepository.findById(item.getProductId());
+                    if (op.isPresent()) product = op.get();
+                } catch (Exception ignored) {}
+            }
+
+            int actual = 0;
+            int volumetric = 0;
+
+            // Chỉ sử dụng thông số từ Product; nếu không có product thì bỏ qua
+            if (product != null) {
+                if (product.getWeightGrams() != null) actual = product.getWeightGrams();
+                if (product.getLengthCm() != null && product.getWidthCm() != null && product.getHeightCm() != null) {
+                    double volKg = (product.getLengthCm() * (double) product.getWidthCm() * product.getHeightCm()) / divisor;
+                    volumetric = (int) Math.ceil(volKg * 1000.0);
+                }
+            }
+
+            int unit = Math.max(actual, volumetric);
+            total += unit * qty;
+        }
+        return total;
+    }
+
+
 @Transactional
     public Order createOrder(CreateOrderRequestDTO req) {
         var user = userRepository.findById(req.getUserId())
@@ -102,7 +152,6 @@ public class OrderService {
         Map<Long, ProductVariant> variantMap = productVariantRepository.findAllById(variantIds)
                 .stream().collect(Collectors.toMap(ProductVariant::getId, v -> v));
 
-        // Calculate subtotal (product prices only)
         BigDecimal subtotal = BigDecimal.ZERO;
         List<OrderItem> items = new ArrayList<>();
 
@@ -115,7 +164,7 @@ public class OrderService {
             v.setStock(v.getStock() - it.getQuantity());
             productVariantRepository.save(v);
 
-            BigDecimal unitPrice = v.getPrice();
+            BigDecimal unitPrice = v.getPrice() == null ? BigDecimal.ZERO : v.getPrice();
             BigDecimal line = unitPrice.multiply(BigDecimal.valueOf(it.getQuantity()));
             subtotal = subtotal.add(line);
 
@@ -128,93 +177,125 @@ public class OrderService {
             items.add(oi);
         }
 
-        // Get shipping fee and voucher from request (calculated by frontend)
-        BigDecimal shippingFee = req.getShippingFee() != null ? req.getShippingFee() : BigDecimal.ZERO;
+        BigDecimal shippingFee = req.getShippingFee() != null ? req.getShippingFee() : null;
         BigDecimal voucherDiscount = req.getVoucherDiscount() != null ? req.getVoucherDiscount() : BigDecimal.ZERO;
-        
-        // Calculate final total: subtotal + shipping - voucher
-        BigDecimal finalTotal = subtotal.add(shippingFee).subtract(voucherDiscount);
-        
-        // Ensure final total is not negative
-        if (finalTotal.compareTo(BigDecimal.ZERO) < 0) {
-            finalTotal = BigDecimal.ZERO;
+
+        // If frontend did not provide shippingFee, call GHN /fee to estimate
+        if (shippingFee == null) {
+            try {
+                int totalWeight = calculateTotalChargeableWeightGrams(items);
+                Map<String, Object> feePayload = new HashMap<>();
+
+                // Resolve seller pickup address (from shop -> owner -> addresses)
+                Long shopId = null;
+                if (!items.isEmpty() && !variantMap.isEmpty()) {
+                    ProductVariant firstVariant = variantMap.values().iterator().next();
+                    Shop s = firstVariant.getProduct().getShop();
+                    if (s != null) {
+                        shopId = s.getId();
+                        // resolve pickup address from shop owner (Shop has no Address relation)
+                        if (s.getOwner() != null && s.getOwner().getId() != null) {
+                            var ownerPickup = addressRepository.findFirstByUserIdAndTypeAddress(s.getOwner().getId(), TypeAddress.STORE);
+                            if (ownerPickup.isPresent()) {
+                                var pa = ownerPickup.get();
+                                if (pa.getDistrictId() != null) feePayload.put("from_district_id", pa.getDistrictId());
+                                if (pa.getWardCode() != null) feePayload.put("from_ward_code", pa.getWardCode());
+                            }
+                        }
+                    }
+                }
+
+                // Resolve buyer address: prefer DTO values, otherwise buyer primary address
+                Integer toDistrict = null;
+                String toWard = null;
+                try {
+                    if (req.getToDistrictId() != null) toDistrict = Integer.parseInt(req.getToDistrictId());
+                } catch (Exception ignored) {}
+                if (req.getToWardCode() != null && !req.getToWardCode().isBlank()) toWard = req.getToWardCode();
+
+                if (toDistrict == null || toWard == null) {
+                    var buyerAddr = addressRepository.findFirstByUserIdAndTypeAddress(user.getId(), TypeAddress.HOME);
+                    if (buyerAddr.isPresent()) {
+                        var ba = buyerAddr.get();
+                        if (toDistrict == null && ba.getDistrictId() != null) toDistrict = ba.getDistrictId();
+                        if (toWard == null && ba.getWardCode() != null) toWard = ba.getWardCode();
+                    }
+                }
+
+                if (toDistrict != null) feePayload.put("to_district_id", toDistrict);
+                if (toWard != null) feePayload.put("to_ward_code", toWard);
+
+                feePayload.put("weight", totalWeight);
+                feePayload.put("insurance_value", subtotal.intValue());
+                feePayload.put("cod_amount", req.getCodAmount() != null ? req.getCodAmount().intValue() : 0);
+
+                Map<String, Object> feeResp = ghnService.calculateFee(feePayload, shopId);
+                if (feeResp != null && feeResp.get("code") != null && Integer.valueOf(String.valueOf(feeResp.get("code"))) == 200) {
+                    Object data = feeResp.get("data");
+                    if (data instanceof Map) {
+                        Object totalFee = ((Map<?, ?>) data).get("total_fee");
+                        if (totalFee instanceof Number) shippingFee = BigDecimal.valueOf(((Number) totalFee).doubleValue());
+                        else if (totalFee != null) {
+                            try { shippingFee = new BigDecimal(String.valueOf(totalFee)); } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+                // fallback to zero if GHN fee fails
+            }
         }
 
-        // Get shop from first product variant's shop
+        if (shippingFee == null) shippingFee = BigDecimal.ZERO;
+
+        BigDecimal finalTotal = subtotal.add(shippingFee).subtract(voucherDiscount);
+        if (finalTotal.compareTo(BigDecimal.ZERO) < 0) finalTotal = BigDecimal.ZERO;
+
         Shop shop = null;
-        if (!items.isEmpty() && variantMap.size() > 0) {
+        if (!items.isEmpty() && !variantMap.isEmpty()) {
             ProductVariant firstVariant = variantMap.values().iterator().next();
             shop = firstVariant.getProduct().getShop();
         }
 
-    Order order = new Order();
-    order.setUser(user);
-    order.setShop(shop);
-    order.setStatus(Order.OrderStatus.PENDING);
-    order.setTotalAmount(finalTotal); // Use finalTotal (subtotal + shipping - voucher)
-    // Set payment method from request (fix missing method field)
-        // Bắt buộc frontend phải truyền method (COD, MOMO, BANK_TRANSFER...)
+        Order order = new Order();
+        order.setUser(user);
+        order.setShop(shop);
+        order.setStatus(Order.OrderStatus.PENDING);
+        order.setTotalAmount(finalTotal);
         if (req.getMethod() == null || req.getMethod().isBlank()) {
             throw new IllegalArgumentException("Phải chọn phương thức thanh toán (method)!");
         }
         order.setMethod(req.getMethod());
-    // Order does not expose setItems(List<OrderItem>); associate items after saving the order.
-    // order.setItems(items);
 
         Order saved = orderRepository.save(order);
         for (OrderItem oi : items) oi.setOrder(saved);
         orderItemRepository.saveAll(items);
 
-        // Validate required GHN fields before creating payload
-        if (req.getReceiverName() == null || req.getReceiverName().isBlank()) {
-            throw new IllegalArgumentException("Tên người nhận không được để trống");
-        }
-        if (req.getReceiverPhone() == null || req.getReceiverPhone().isBlank()) {
-            throw new IllegalArgumentException("Số điện thoại người nhận không được để trống");
-        }
-        if (req.getReceiverAddress() == null || req.getReceiverAddress().isBlank()) {
-            throw new IllegalArgumentException("Địa chỉ giao hàng không được để trống");
-        }
-        if (req.getToDistrictId() == null || req.getToDistrictId().isBlank()) {
-            throw new IllegalArgumentException("Mã quận/huyện không hợp lệ");
-        }
-        if (req.getToWardCode() == null || req.getToWardCode().isBlank()) {
-            throw new IllegalArgumentException("Mã phường/xã không hợp lệ");
-        }
-        
-        // prepare GHN payload
-        Map<String,Object> ghnPayload = new HashMap<>();
+        // prepare GHN payload for creating shipment (async best-effort)
+        Map<String, Object> ghnPayload = new HashMap<>();
         ghnPayload.put("to_name", req.getReceiverName());
         ghnPayload.put("to_phone", req.getReceiverPhone());
-        
-        // Parse district ID as integer (GHN requires integer)
-        try {
-            ghnPayload.put("to_district_id", Integer.parseInt(req.getToDistrictId()));
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Mã quận/huyện phải là số: " + req.getToDistrictId());
-        }
-        
-        ghnPayload.put("to_ward_code", req.getToWardCode());
+        try { ghnPayload.put("to_district_id", Integer.parseInt(req.getToDistrictId())); } catch (Exception ignored) {}
+        if (req.getToWardCode() != null) ghnPayload.put("to_ward_code", req.getToWardCode());
         ghnPayload.put("to_address", req.getReceiverAddress());
         
         // Store province/district/ward names for reference (not sent to GHN API)
         ghnPayload.put("province", req.getProvince());
         ghnPayload.put("district", req.getDistrict());
         ghnPayload.put("ward", req.getWard());
-        
-        ghnPayload.put("weight", req.getWeightGrams() != null ? req.getWeightGrams() : 200); // Default 200g
-        ghnPayload.put("length", 15); // Default dimensions (cm)
-        ghnPayload.put("width", 15);
-        ghnPayload.put("height", 15);
+
+    int weightToSend = calculateTotalChargeableWeightGrams(items);
+        ghnPayload.put("weight", weightToSend);
         ghnPayload.put("client_order_code", "ORDER_" + saved.getId());
         ghnPayload.put("cod_amount", req.getCodAmount() != null ? req.getCodAmount().intValue() : 0);
-        ghnPayload.put("shipping_fee", shippingFee); // Pass frontend-calculated shipping fee
+    if (req.getServiceId() != null) ghnPayload.put("service_id", req.getServiceId());
+    if (req.getServiceTypeId() != null) ghnPayload.put("service_type_id", req.getServiceTypeId());
+        ghnPayload.put("shipping_fee", shippingFee);
         ghnPayload.put("items", req.getItems().stream().map(i -> {
             ProductVariant pv = variantMap.get(i.getVariantId());
-            Map<String,Object> m = new HashMap<>();
+            Map<String, Object> m = new HashMap<>();
             m.put("name", pv.getProduct().getName());
             m.put("quantity", i.getQuantity());
-            m.put("price", pv.getPrice().intValue());
+            m.put("price", pv.getPrice() != null ? pv.getPrice().intValue() : 0);
             return m;
         }).collect(Collectors.toList()));
         

@@ -15,7 +15,10 @@ public class ResponseDTO<T> {
         this.message = message;
         this.data = data;
     }
-
+// Static factory methods
+    public static <T> ResponseEntity<ResponseDTO<T>> ok(T data, String message) {
+        return ResponseEntity.ok(new ResponseDTO<>(200, message, null, data));
+    }
     // ===== Factory Methods =====
     
     /**

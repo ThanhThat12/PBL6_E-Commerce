@@ -11,14 +11,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.Address;
+import com.PBL6.Ecommerce.constant.TypeAddress;
 import com.PBL6.Ecommerce.domain.dto.MonthlyRevenueDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
+import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.repository.AddressRepository;
 
 @Service
 public class ShopService {
@@ -28,6 +32,9 @@ public class ShopService {
     
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AddressRepository addressRepository;
 
     private final OrderRepository orderRepository;
 
@@ -57,7 +64,6 @@ public class ShopService {
         Shop shop = shopRepository.findByOwner(user)
             .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
 
-        // Convert sang DTO
         return convertToDTO(shop);
     }
 
@@ -86,8 +92,19 @@ public class ShopService {
             shop.setName(updateShopDTO.getName().trim());
         }
 
-        if (updateShopDTO.getAddress() != null && !updateShopDTO.getAddress().trim().isEmpty()) {
-            shop.setAddress(updateShopDTO.getAddress().trim());
+        if (updateShopDTO.getPickupAddressId() != null) {
+            // validate ownership of address
+            Address addr = addressRepository.findByIdAndUserId(updateShopDTO.getPickupAddressId(), user.getId())
+                .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
+            // ensure type = STORE
+            addr.setTypeAddress(TypeAddress.STORE);
+            addressRepository.save(addr);
+        } else if (updateShopDTO.getAddress() != null && !updateShopDTO.getAddress().trim().isEmpty()) {
+            Address addr = new Address();
+            addr.setUser(user);
+            addr.setFullAddress(updateShopDTO.getAddress().trim());
+            addr.setTypeAddress(TypeAddress.STORE); // mark as store pickup
+            Address savedAddr = addressRepository.save(addr);
         }
 
         if (updateShopDTO.getDescription() != null && !updateShopDTO.getDescription().trim().isEmpty()) {
@@ -106,8 +123,6 @@ public class ShopService {
 
         // Lưu vào database
         Shop updatedShop = shopRepository.save(shop);
-
-        // Convert sang DTO và trả về
         return convertToDTO(updatedShop);
     }
 
@@ -118,11 +133,22 @@ public class ShopService {
         ShopDTO dto = new ShopDTO();
         dto.setId(shop.getId());
         dto.setName(shop.getName());
-        dto.setAddress(shop.getAddress());
+        // try shop.pickup first, else find address of owner with TypeAddress.STORE
+        Address pickup = null;
+        if (pickup == null && shop.getOwner() != null) {
+            pickup = addressRepository.findFirstByUserIdAndTypeAddress(shop.getOwner().getId(), TypeAddress.STORE)
+                    .orElse(null);
+        }
+        dto.setAddress(pickup != null ? pickup.getFullAddress() : null);
         dto.setDescription(shop.getDescription());
         dto.setStatus(shop.getStatus() != null ? shop.getStatus().name() : null);
         dto.setCreatedAt(shop.getCreatedAt());
         return dto;
+    }
+    
+    // Public helper to convert Shop -> ShopDTO for controllers
+    public ShopDTO toDTO(Shop shop) {
+        return convertToDTO(shop);
     }
 
     /**
@@ -187,39 +213,67 @@ public class ShopService {
         // Tạo DTO kết quả
         return new ShopAnalyticsDTO(totalRevenue, totalCompletedOrders, fullYearData);
     }
-    @Transactional
-    public Shop registerShop(Long userId, ShopRegistrationDTO shopRegistrationDTO) {
-        // Tìm user theo ID
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+    // @Transactional
+    // public Shop registerShop(Long userId, ShopRegistrationDTO shopRegistrationDTO) {
+    //     // Tìm user theo ID
+    //     User user = userRepository.findById(userId)
+    //         .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
         
-        // Kiểm tra xem user đã có shop chưa
-        if (shopRepository.existsByOwner(user)) {
-            throw new RuntimeException("Người dùng đã có shop");
-        }
+    //     // Kiểm tra xem user đã có shop chưa
+    //     if (shopRepository.existsByOwner(user)) {
+    //         throw new RuntimeException("Người dùng đã có shop");
+    //     }
         
-        // Kiểm tra tên shop đã tồn tại chưa
-        if (shopRepository.existsByName(shopRegistrationDTO.getName())) {
-            throw new RuntimeException("Tên shop đã tồn tại");
-        }
+    //     // Kiểm tra tên shop đã tồn tại chưa
+    //     if (shopRepository.existsByName(shopRegistrationDTO.getName())) {
+    //         throw new RuntimeException("Tên shop đã tồn tại");
+    //     }
         
-        // Tạo shop mới
-        Shop shop = new Shop();
-        shop.setOwner(user);
-        shop.setName(shopRegistrationDTO.getName());
-        shop.setAddress(shopRegistrationDTO.getAddress());
-        shop.setDescription(shopRegistrationDTO.getDescription());
-        shop.setStatus(Shop.ShopStatus.ACTIVE);
-        shop.setCreatedAt(LocalDateTime.now());
+    //     // Tạo shop mới
+    //     Shop shop = new Shop();
+    //     shop.setOwner(user);
+    //     shop.setName(shopRegistrationDTO.getName());
+    //     if (shopRegistrationDTO.getPickupAddressId() != null) {
+    //         Address addr = addressRepository.findByIdAndUserId(shopRegistrationDTO.getPickupAddressId(), user.getId())
+    //             .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
+    //         addr.setTypeAddress(TypeAddress.STORE);
+    //         addressRepository.save(addr);
+    //     } else if (shopRegistrationDTO.getAddress() != null && !shopRegistrationDTO.getAddress().trim().isEmpty()) {
+    //         Address addr = new Address();
+    //         addr.setUser(user);
+    //         addr.setFullAddress(shopRegistrationDTO.getAddress().trim());
+    //         addr.setTypeAddress(TypeAddress.STORE);
+    //         Address savedAddr = addressRepository.save(addr);
+    //     }
+    //     shop.setDescription(shopRegistrationDTO.getDescription());
+    //     shop.setStatus(Shop.ShopStatus.ACTIVE);
+    //     shop.setCreatedAt(LocalDateTime.now());
         
-        return shopRepository.save(shop);
-    }
+    //     return shopRepository.save(shop);
+    // }
     
     public Shop getShopByUserId(Long userId) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
         
         return shopRepository.findByOwner(user).orElse(null);
+    }
+
+    public Shop getShopByIdAndOwner(Long shopId, User user) {
+        Shop shop = shopRepository.findById(shopId)
+            .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
+        if (shop.getOwner() == null || !shop.getOwner().getId().equals(user.getId())) {
+            throw new RuntimeException("Bạn không có quyền trên shop này");
+        }
+        return shop;
+    }
+
+    public Shop saveShop(Shop shop) {
+        return shopRepository.save(shop);
+    }
+
+    public Shop getShopById(Long shopId) {
+        return shopRepository.findById(shopId).orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
     }
     
     public boolean hasShop(Long userId) {
@@ -248,42 +302,88 @@ public class ShopService {
      * @return Created shop
      */
     @Transactional
-    public Shop createShopFromSellerRegistration(User user, com.PBL6.Ecommerce.dto.seller.SellerRegistrationDTO registrationDTO) {
-        // Validate user is BUYER
+    public Shop createShopFromSellerRegistration(User user, ShopRegistrationDTO registrationDTO) {
+        // validate role / uniqueness omitted for brevity (keep existing checks)
         if (user.getRole() != com.PBL6.Ecommerce.domain.Role.BUYER) {
             throw new RuntimeException("Chỉ BUYER mới có thể đăng ký seller");
         }
-        
-        // Validate no existing shop
         if (shopRepository.existsByOwner(user)) {
             throw new RuntimeException("User đã có shop");
         }
-        
-        // Validate phone uniqueness among sellers
-        if (existsByPhone(registrationDTO.getShopPhone())) {
-            throw new RuntimeException("Số điện thoại đã được sử dụng bởi seller khác");
+        if (registrationDTO.getName() == null || registrationDTO.getName().trim().isEmpty()) {
+            throw new RuntimeException("Tên shop không được để trống");
         }
-        
-        // Validate shop name uniqueness
-        if (shopRepository.existsByName(registrationDTO.getShopName())) {
+        if (shopRepository.existsByName(registrationDTO.getName())) {
             throw new RuntimeException("Tên shop đã tồn tại");
         }
-        
-        // Create shop
+
         Shop shop = new Shop();
         shop.setOwner(user);
-        shop.setName(registrationDTO.getShopName());
-        shop.setAddress(registrationDTO.getShopAddress());
-        shop.setDescription(registrationDTO.getShopDescription());
+        shop.setName(registrationDTO.getName().trim());
+        shop.setDescription(registrationDTO.getDescription());
         shop.setStatus(Shop.ShopStatus.ACTIVE);
         shop.setCreatedAt(LocalDateTime.now());
-        
         Shop savedShop = shopRepository.save(shop);
-        
-        // Update user role to SELLER (auto-approval)
+
+        // address handling: chọn addressId (của chính user) hoặc tạo mới với đầy đủ trường
+        if (registrationDTO.getAddressId() != null) {
+            Address addr = addressRepository.findByIdAndUserId(registrationDTO.getAddressId(), user.getId())
+                    .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
+            addr.setTypeAddress(TypeAddress.STORE);
+            addressRepository.save(addr);
+        } else if (registrationDTO.getFullAddress() != null && !registrationDTO.getFullAddress().trim().isEmpty()) {
+            Address addr = new Address();
+            addr.setUser(user);
+            addr.setFullAddress(registrationDTO.getFullAddress().trim());
+            addr.setProvinceId(registrationDTO.getProvinceId());
+            addr.setDistrictId(registrationDTO.getDistrictId());
+            addr.setWardCode(registrationDTO.getWardCode());
+            addr.setProvinceName(registrationDTO.getProvinceName());
+            addr.setDistrictName(registrationDTO.getDistrictName());
+            addr.setWardName(registrationDTO.getWardName());
+            addr.setContactPhone(registrationDTO.getContactPhone());
+            addr.setContactName(registrationDTO.getContactName());
+            addr.setPrimaryAddress(Boolean.TRUE.equals(registrationDTO.getPrimaryAddress()));
+            addr.setTypeAddress(TypeAddress.STORE);
+            addressRepository.save(addr);
+        }
+
+        // upgrade role to SELLER
         user.setRole(com.PBL6.Ecommerce.domain.Role.SELLER);
         userRepository.save(user);
-        
+
         return savedShop;
+    }
+
+    /**
+     * Cập nhật GHN credentials cho shop
+     * @param shopId - ID của shop
+     * @param userId - ID của user (để verify ownership)
+     * @param dto - GHN credentials
+     * @return Shop đã cập nhật
+     */
+    @Transactional
+    public Shop updateGhnCredentials(Long shopId, Long userId, GhnCredentialsDTO dto) {
+        Shop shop = shopRepository.findById(shopId)
+            .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
+        
+        // Kiểm tra quyền sở hữu
+        if (!shop.getOwner().getId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền cập nhật shop này");
+        }
+        
+        // Validate GHN token format nếu cần
+        if (dto.getGhnToken() == null || dto.getGhnToken().trim().isEmpty()) {
+            throw new RuntimeException("GHN Token không được để trống");
+        }
+        
+        if (dto.getGhnShopId() == null || dto.getGhnShopId().trim().isEmpty()) {
+            throw new RuntimeException("GHN Shop ID không được để trống");
+        }
+        
+        shop.setGhnToken(dto.getGhnToken());
+        shop.setGhnShopId(dto.getGhnShopId());
+        
+        return shopRepository.save(shop);
     }
 }
