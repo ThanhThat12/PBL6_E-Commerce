@@ -3,6 +3,7 @@ package com.PBL6.Ecommerce.service;
 import com.PBL6.Ecommerce.domain.*;
 import com.PBL6.Ecommerce.domain.dto.CreateVoucherRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
+import com.PBL6.Ecommerce.domain.dto.VoucherApplicationResultDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherPreviewDiscountDTO;
 import com.PBL6.Ecommerce.repository.*;
@@ -248,13 +249,21 @@ public class VoucherService {
      * Lấy danh sách voucher khả dụng cho user
      */
     @Transactional(readOnly = true)
-    public List<VoucherDTO> getAvailableVouchersForUser(Long userId, List<Long> productIds, BigDecimal cartTotal) {
+    public List<VoucherDTO> getAvailableVouchersForUser(Long shopId, String username, List<Long> productIds, BigDecimal cartTotal) {
+        // Get user
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        Long userId = user.getId();
+        
+        // Verify shop exists
+        shopRepository.findById(shopId)
+            .orElseThrow(() -> new RuntimeException("Shop not found"));
+        
         List<Vouchers> availableVouchers = new ArrayList<>();
         
-        // Lấy tất cả voucher active trong thời gian hiệu lực
+        // Lấy voucher active của shop trong thời gian hiệu lực
         LocalDateTime now = LocalDateTime.now();
-        List<Vouchers> activeVouchers = vouchersRepository.findByIsActiveTrueAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
-            now, now);
+        List<Vouchers> activeVouchers = vouchersRepository.findActiveVouchersByShop(shopId, now);
         
         for (Vouchers voucher : activeVouchers) {
             // Kiểm tra usage limit
@@ -328,5 +337,86 @@ public class VoucherService {
         
         return topBuyers.stream()
             .anyMatch(buyer -> buyer.getUserId().equals(userId));
+    }
+
+    /**
+     * Áp dụng voucher cho đơn hàng
+     */
+    @Transactional
+    public VoucherApplicationResultDTO applyVoucher(String voucherCode, List<Long> productIds, 
+                                               BigDecimal cartTotal, String username) {
+        log.info("Applying voucher: code={}, username={}, cartTotal={}", voucherCode, username, cartTotal);
+        
+        // Lấy user
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Tìm voucher
+        Vouchers voucher = vouchersRepository.findByCode(voucherCode)
+            .orElseThrow(() -> new RuntimeException("Voucher không tồn tại"));
+        
+        // Kiểm tra voucher còn active không
+        if (!voucher.getIsActive()) {
+            throw new RuntimeException("Voucher đã bị vô hiệu hóa");
+        }
+        
+        // Kiểm tra thời gian hiệu lực
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(voucher.getStartDate()) || now.isAfter(voucher.getEndDate())) {
+            throw new RuntimeException("Voucher đã hết hạn hoặc chưa có hiệu lực");
+        }
+        
+        // Kiểm tra số lần sử dụng
+        if (voucher.getUsedCount() >= voucher.getUsageLimit()) {
+            throw new RuntimeException("Voucher đã hết lượt sử dụng");
+        }
+        
+        // Kiểm tra điều kiện áp dụng
+        if (!checkVoucherApplicabilityForUser(voucher, user.getId(), productIds)) {
+            throw new RuntimeException("Bạn không đủ điều kiện sử dụng voucher này");
+        }
+        
+        // Kiểm tra giá trị đơn hàng tối thiểu
+        if (voucher.getMinOrderValue() != null && cartTotal.compareTo(voucher.getMinOrderValue()) < 0) {
+            throw new RuntimeException("Đơn hàng chưa đạt giá trị tối thiểu để áp dụng voucher");
+        }
+        
+        // Tính toán giảm giá
+        BigDecimal discountAmount = calculateDiscount(voucher, cartTotal);
+        BigDecimal finalTotal = cartTotal.subtract(discountAmount);
+        
+        // Tăng số lần sử dụng voucher
+        voucher.setUsedCount(voucher.getUsedCount() + 1);
+        vouchersRepository.save(voucher);
+        
+        log.info("Voucher applied successfully: discountAmount={}, usedCount={}/{}", 
+                 discountAmount, voucher.getUsedCount(), voucher.getUsageLimit());
+        
+        // Tạo kết quả
+        VoucherApplicationResultDTO result = new VoucherApplicationResultDTO();
+        result.setVoucher(convertToDTO(voucher));
+        result.setOriginalTotal(cartTotal);
+        result.setDiscountAmount(discountAmount);
+        result.setFinalTotal(finalTotal);
+        
+        return result;
+    }
+
+    private BigDecimal calculateDiscount(Vouchers voucher, BigDecimal cartTotal) {
+        if (voucher.getMinOrderValue() != null && cartTotal.compareTo(voucher.getMinOrderValue()) < 0) {
+            return BigDecimal.ZERO;
+        }
+        
+        BigDecimal discountAmount;
+        if ("PERCENTAGE".equals(voucher.getDiscountType())) {
+            discountAmount = cartTotal.multiply(voucher.getDiscountValue().divide(BigDecimal.valueOf(100)));
+            if (voucher.getMaxDiscountAmount() != null) {
+                discountAmount = discountAmount.min(voucher.getMaxDiscountAmount());
+            }
+        } else {
+            discountAmount = voucher.getDiscountValue();
+        }
+        
+        return discountAmount;
     }
 }

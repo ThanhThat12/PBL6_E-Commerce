@@ -99,11 +99,17 @@ private ProductVariantValueRepository productVariantValueRepository;
 
     // Lấy sản phẩm theo ID
     @Transactional(readOnly = true)
-    public ProductDTO getProductById(Long id) {
-        Product product = productRepository.findById(id)
-            .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
-        return convertToProductDTO(product);
-    }
+public ProductDTO getProductById(Long id) {
+    Product product = productRepository.findById(id)
+        .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
+    
+    // Convert to DTO and set additional fields
+    ProductDTO dto = convertToProductDTO(product);
+    dto.setShopId(product.getShop().getId());
+    
+    return dto;
+}
+
 
 // Thay thế method createProduct (dòng 61-104)
 public ProductDTO createProduct(ProductCreateDTO request, Authentication authentication) {

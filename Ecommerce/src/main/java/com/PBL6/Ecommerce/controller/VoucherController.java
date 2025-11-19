@@ -1,7 +1,9 @@
 package com.PBL6.Ecommerce.controller;
 
+import com.PBL6.Ecommerce.domain.dto.ApplyVoucherRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.CreateVoucherRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.VoucherApplicationResultDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherDTO;
 import com.PBL6.Ecommerce.service.VoucherService;
 import jakarta.validation.Valid;
@@ -105,33 +107,56 @@ public class VoucherController {
 
     /**
      * Lấy danh sách voucher khả dụng cho người dùng
-     * GET /api/vouchers/available
+     * GET /api/seller/vouchers/available?shopId=1&productIds=1,2,3&cartTotal=500000
      */
     @GetMapping("/available")
-    public ResponseEntity<ResponseDTO<List<VoucherDTO>>> getAvailableVouchers(
-            @RequestParam Long userId,
-            @RequestParam String productIds,  // "1,2,3"
-            @RequestParam BigDecimal cartTotal,
-            Authentication authentication) {
-        try {
-            // Parse productIds
-            List<Long> productIdList = Arrays.stream(productIds.split(","))
-                .map(Long::parseLong)
-                .collect(Collectors.toList());
-            
-            List<VoucherDTO> availableVouchers = voucherService.getAvailableVouchersForUser(
-                userId, productIdList, cartTotal);
-            
-            ResponseDTO<List<VoucherDTO>> response = new ResponseDTO<>(
-                200, null, "Lấy danh sách voucher khả dụng thành công", availableVouchers);
-            
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
-            log.error("Error getting available vouchers", e);
-            ResponseDTO<List<VoucherDTO>> response = new ResponseDTO<>(
-                400, "GET_AVAILABLE_VOUCHERS_ERROR", e.getMessage(), null);
-            return ResponseEntity.badRequest().body(response);
-        }
+public ResponseEntity<ResponseDTO<List<VoucherDTO>>> getAvailableVouchers(
+        @RequestParam Long shopId,  // 🆕 Thay userId thành shopId
+        @RequestParam String productIds,
+        @RequestParam BigDecimal cartTotal,
+        Authentication authentication) {
+    try {
+        // Parse productIds
+        List<Long> productIdList = Arrays.stream(productIds.split(","))
+            .map(Long::parseLong)
+            .collect(Collectors.toList());
+        
+        // Lấy username từ authentication
+        String username = authentication.getName();
+        
+        List<VoucherDTO> availableVouchers = voucherService.getAvailableVouchersForUser(
+            shopId, username, productIdList, cartTotal);
+        
+        ResponseDTO<List<VoucherDTO>> response = new ResponseDTO<>(
+            200, null, "Lấy danh sách voucher khả dụng thành công", availableVouchers);
+        
+        return ResponseEntity.ok(response);
+        
+    } catch (Exception e) {
+        log.error("Error getting available vouchers", e);
+        ResponseDTO<List<VoucherDTO>> response = new ResponseDTO<>(
+            400, "GET_AVAILABLE_VOUCHERS_ERROR", e.getMessage(), null);
+        return ResponseEntity.badRequest().body(response);
     }
+}
+
+/**
+ * Áp dụng voucher cho đơn hàng
+ * POST /api/seller/vouchers/apply
+ */
+@PostMapping("/apply")
+@PreAuthorize("hasAnyRole('USER', 'SELLER')")
+public ResponseEntity<ResponseDTO<VoucherApplicationResultDTO>> applyVoucher(
+        @Valid @RequestBody ApplyVoucherRequestDTO request,
+        Authentication authentication) {
+    try {
+        String username = authentication.getName();
+        VoucherApplicationResultDTO result = voucherService.applyVoucher(
+            request.getVoucherCode(), request.getProductIds(), request.getCartTotal(), username);
+        
+        return ResponseDTO.success(result, "Áp dụng voucher thành công");
+    } catch (Exception e) {
+        return ResponseDTO.error(400, "APPLY_VOUCHER_ERROR", e.getMessage());
+    }
+}
 }

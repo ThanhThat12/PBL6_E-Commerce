@@ -14,6 +14,7 @@ public class ProductDTO {
     private String shopName; // có thể giữ hoặc đổi thành ShopDTO
     private List<ProductVariantDTO> variants; // thêm variants
     private List<ProductImageDTO> images; // thêm images
+    private Long shopId; // Thêm field shopId
 
     // Constructor mặc định
     public ProductDTO() {}
@@ -62,6 +63,9 @@ public class ProductDTO {
 
     public List<ProductImageDTO> getImages() { return images; }
     public void setImages(List<ProductImageDTO> images) { this.images = images; }
+
+    public Long getShopId() { return shopId; } // Thêm getter cho shopId
+    public void setShopId(Long shopId) { this.shopId = shopId; } // Thêm setter cho shopId
 
     // Backward compatibility methods
     public String getImage() { return mainImage; }
