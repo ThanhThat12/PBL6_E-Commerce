@@ -7,12 +7,7 @@ import java.util.List;
  * DTO for creating a new product review
  */
 public class CreateReviewRequestDTO {
-    
-    @NotNull(message = "Product ID không được null")
-    private Long productId;
-    
-    @NotNull(message = "Order ID không được null") 
-    private Long orderId;
+
     
     @NotNull(message = "Rating không được null")
     @Min(value = 1, message = "Rating phải từ 1-5")
@@ -28,29 +23,16 @@ public class CreateReviewRequestDTO {
     public CreateReviewRequestDTO() {}
 
     public CreateReviewRequestDTO(Long productId, Long orderId, Integer rating, String comment, List<String> images) {
-        this.productId = productId;
-        this.orderId = orderId;
+        
         this.rating = rating;
         this.comment = comment;
         this.images = images;
     }
 
-    // Getters and Setters
-    public Long getProductId() {
-        return productId;
-    }
+  
 
-    public void setProductId(Long productId) {
-        this.productId = productId;
-    }
-
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(Long orderId) {
-        this.orderId = orderId;
-    }
+  
+  
 
     public Integer getRating() {
         return rating;

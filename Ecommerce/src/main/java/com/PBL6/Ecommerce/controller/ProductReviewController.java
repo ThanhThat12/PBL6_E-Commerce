@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.controller;
 
+// imports cleaned: ApiResponse and ProductReview not needed in this controller
 import com.PBL6.Ecommerce.domain.dto.*;
 import com.PBL6.Ecommerce.service.ProductReviewService;
 import jakarta.validation.Valid;
@@ -36,27 +37,28 @@ public class ProductReviewController {
     private ProductReviewService productReviewService;
 
     /**
-     * 1️⃣ Tạo đánh giá sản phẩm
-     * POST /api/reviews
-     * ➡️ Buyer tạo review cho sản phẩm đã mua.
-     * Body: { productId, orderId, rating, comment, images }
+     * 1️⃣ Tạo đánh giá sản phẩm từ trang chi tiết sản phẩm
+     * POST /api/products/{productId}/reviews
+     * ➡️ Buyer tạo review cho sản phẩm đã mua. Frontend không cần gửi productId/orderId trong body.
+     * Body: { rating, comment, images }
      */
-    @PostMapping("/reviews")
+    @PostMapping("/products/{productId}/reviews")
     @PreAuthorize("hasRole('BUYER')")
-    public ResponseEntity<ResponseDTO<ProductReviewDTO>> createReview(
+    public ResponseEntity<ResponseDTO<ProductReviewDTO>> createReviewForProduct(
+            @PathVariable Long productId,
             @Valid @RequestBody CreateReviewRequestDTO request,
             Authentication authentication) {
         try {
-            ProductReviewDTO review = productReviewService.createReview(request, authentication);
-            
+            ProductReviewDTO review = productReviewService.createReviewForProduct(productId, request, authentication);
+
             ResponseDTO<ProductReviewDTO> response = new ResponseDTO<>(
                 201, null, "Tạo đánh giá thành công", review
             );
-            
+
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
-            
+
         } catch (Exception e) {
-            log.error("Error creating review", e);
+            log.error("Error creating review for product {}", productId, e);
             ResponseDTO<ProductReviewDTO> response = new ResponseDTO<>(
                 400, "CREATE_REVIEW_ERROR", e.getMessage(), null
             );
@@ -264,4 +266,100 @@ public class ProductReviewController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+
+        /**
+     * 🏪 Lấy tất cả đánh giá của shop (cho seller quản lý)
+     * GET /api/shops/{shopId}/reviews
+     * ➡️ Seller lấy tất cả review của shop mình, có thể lọc theo đã phản hồi/chưa và nhóm rating.
+     * Query params: replied (true/false), ratingGroup ("1-2", "3-4", "5"), page, size
+     */
+    @GetMapping("/shops/{shopId}/reviews")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<Page<ProductReviewDTO>>> getShopReviews(
+            @PathVariable Long shopId,
+            @RequestParam(required = false) Boolean replied,
+            @RequestParam(required = false) String ratingGroup,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+        try {
+            Page<ProductReviewDTO> reviews = productReviewService.getShopReviews(
+                shopId, replied, ratingGroup, page, size, authentication
+            );
+            
+            ResponseDTO<Page<ProductReviewDTO>> response = new ResponseDTO<>(
+                200, null, "Lấy danh sách đánh giá của shop thành công", reviews
+            );
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error getting shop reviews", e);
+            ResponseDTO<Page<ProductReviewDTO>> response = new ResponseDTO<>(
+                400, "GET_SHOP_REVIEWS_ERROR", e.getMessage(), null
+            );
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+     /**
+     * 🏪 Lấy tất cả đánh giá của shop của mình (seller)
+     * GET /api/my-shop/reviews/all
+     * ➡️ Seller lấy tất cả review của shop mình, phân loại thành 2 nhóm: đã phản hồi và chưa phản hồi.
+     * Không cần truyền shopId, server tự lấy từ JWT.
+     */
+    @GetMapping("/my-shop/reviews/all")
+@PreAuthorize("hasRole('SELLER')")
+public ResponseEntity<ResponseDTO<ShopReviewsGroupedDTO>> getAllShopReviewsGrouped(
+        Authentication authentication) {
+    try {
+        // Sửa: gọi đúng method getMyShopReviewsGrouped(authentication)
+        ShopReviewsGroupedDTO groupedReviews = productReviewService.getMyShopReviewsGrouped(authentication);
+        
+        ResponseDTO<ShopReviewsGroupedDTO> response = new ResponseDTO<>(
+            200, null, "Lấy tất cả đánh giá của shop thành công", groupedReviews
+        );
+        
+        return ResponseEntity.ok(response);
+        
+    } catch (Exception e) {
+        log.error("Error getting my shop reviews grouped", e);
+        ResponseDTO<ShopReviewsGroupedDTO> response = new ResponseDTO<>(
+            400, "GET_MY_SHOP_REVIEWS_ERROR", e.getMessage(), null
+        );
+        return ResponseEntity.badRequest().body(response);
+    }
+}
+
+    /**
+     * 🏪 Lấy đánh giá chưa phản hồi của shop
+     * GET /api/shops/{shopId}/reviews/unreplied
+     * ➡️ Seller lấy chỉ những review chưa có phản hồi của shop mình.
+     * Query params: page, size
+     */
+    @GetMapping("/shops/{shopId}/reviews/unreplied")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<Page<ProductReviewDTO>>> getUnrepliedShopReviews(
+            @PathVariable Long shopId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+        try {
+            Page<ProductReviewDTO> reviews = productReviewService.getUnrepliedShopReviews(shopId, page, size, authentication);
+            
+            ResponseDTO<Page<ProductReviewDTO>> response = new ResponseDTO<>(
+                200, null, "Lấy đánh giá chưa phản hồi thành công", reviews
+            );
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error getting unreplied shop reviews", e);
+            ResponseDTO<Page<ProductReviewDTO>> response = new ResponseDTO<>(
+                400, "GET_UNREPLIED_REVIEWS_ERROR", e.getMessage(), null
+            );
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
 }
