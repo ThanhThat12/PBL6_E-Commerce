@@ -1,0 +1,211 @@
+{
+  "info": {
+    "name": "User Avatar Management",
+    "description": "API endpoints for managing user profile avatars with face detection transformation (300x300)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Upload Avatar (First Time)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "Avatar image file (JPG, PNG, WEBP - min 100x100, max 4096x4096)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/users/me/avatar",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me", "avatar"]
+        },
+        "description": "Upload user avatar with face detection transformation (300x300). Minimum dimensions: 100x100, maximum: 4096x4096."
+      },
+      "response": []
+    },
+    {
+      "name": "Replace Avatar",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "New avatar image file (replaces existing)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/users/me/avatar",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me", "avatar"]
+        },
+        "description": "Replace existing avatar. Old avatar is automatically deleted from Cloudinary."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Avatar",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/users/me/avatar",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me", "avatar"]
+        },
+        "description": "Delete user avatar. Sets avatarUrl and avatarPublicId to null. Frontend should display placeholder."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Invalid Format (Error Test)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "Upload invalid file type (e.g., .txt, .pdf, .gif)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/users/me/avatar",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me", "avatar"]
+        },
+        "description": "Test error handling: Upload file with invalid format (not JPG/PNG/WEBP). Should return 400 Bad Request."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload File Too Large (Error Test)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "Upload file larger than 5MB"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/users/me/avatar",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me", "avatar"]
+        },
+        "description": "Test error handling: Upload file exceeding 5MB limit. Should return 400 Bad Request."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Without Authentication (Error Test)",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/users/me/avatar",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me", "avatar"]
+        },
+        "description": "Test security: Upload without authentication token. Should return 401 Unauthorized."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Non-Existent Avatar (Error Test)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/users/me/avatar",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me", "avatar"]
+        },
+        "description": "Test error handling: Delete avatar when user has no avatar. Should return 404 Not Found."
+      },
+      "response": []
+    },
+    {
+      "name": "Rate Limit Test (Multiple Rapid Uploads)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "Upload same file multiple times rapidly to trigger rate limit"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/users/me/avatar",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me", "avatar"]
+        },
+        "description": "Test rate limiting: Upload avatar multiple times rapidly (>10 times in 1 minute). Should return 429 Too Many Requests after limit exceeded."
+      },
+      "response": []
+    }
+  ]
+}

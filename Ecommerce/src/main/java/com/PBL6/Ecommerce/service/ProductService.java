@@ -33,10 +33,8 @@ import com.PBL6.Ecommerce.domain.dto.ProductDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductImageDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantValueDTO;
-import com.PBL6.Ecommerce.exception.CategoryNotFoundException;
 import com.PBL6.Ecommerce.exception.DuplicateSKUException;
 import com.PBL6.Ecommerce.exception.InvalidProductDataException;
-import com.PBL6.Ecommerce.exception.ProductHasReferencesException;
 import com.PBL6.Ecommerce.exception.ProductNotFoundException;
 import com.PBL6.Ecommerce.exception.ShopNotFoundException;
 import com.PBL6.Ecommerce.exception.UnauthorizedProductAccessException;
@@ -166,10 +164,10 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     System.out.println("🔍 DEBUG - Product saved with ID: " + product.getId());
     
     // 🔧 3. Handle images SAU KHI product đã có ID
-    // Xử lý images với color information (ưu tiên)
+    // Xử lý images với variant value information (ưu tiên)
     if (request.getImages() != null && !request.getImages().isEmpty()) {
-        handleProductImagesWithColor(product, request.getImages());
-        System.out.println("✅ DEBUG - Processed " + request.getImages().size() + " images with color info");
+        handleProductImagesWithVariantValue(product, request.getImages());
+        System.out.println("✅ DEBUG - Processed " + request.getImages().size() + " images with variant value info");
     }
     // Fallback: xử lý imageUrls cũ (backward compatibility)
     else if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
@@ -594,18 +592,18 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         ProductImageDTO dto = new ProductImageDTO();
         dto.setId(image.getId());
         dto.setImageUrl(image.getImageUrl());
-        dto.setColor(image.getColor());
+        dto.setVariantValueName(image.getVariantValueName());
         return dto;
     }
 
-    // 🆕 Handle product images với color information
-private void handleProductImagesWithColor(Product product, List<ProductImageDTO> imageDTOs) {
+    // 🆕 Handle product images with variant value information
+private void handleProductImagesWithVariantValue(Product product, List<ProductImageDTO> imageDTOs) {
     if (imageDTOs == null || imageDTOs.isEmpty()) {
         System.out.println("⚠️ DEBUG - No images to process");
         return;
     }
     
-    System.out.println("🔍 DEBUG - Processing " + imageDTOs.size() + " images with color info");
+    System.out.println("🔍 DEBUG - Processing " + imageDTOs.size() + " images with variant value info");
     
     try {
         List<ProductImage> savedImages = new ArrayList<>();
@@ -614,7 +612,7 @@ private void handleProductImagesWithColor(Product product, List<ProductImageDTO>
             ProductImageDTO imageDTO = imageDTOs.get(i);
             
             System.out.println("🔍 DEBUG - Processing image " + (i+1) + ": " + imageDTO.getImageUrl() + 
-                " (color: " + imageDTO.getColor() + ")");
+                " (variant value: " + imageDTO.getVariantValueName() + ")");
             
             // Validation
             if (imageDTO.getImageUrl() == null || imageDTO.getImageUrl().trim().isEmpty()) {
@@ -625,7 +623,7 @@ private void handleProductImagesWithColor(Product product, List<ProductImageDTO>
             ProductImage productImage = new ProductImage();
             productImage.setProduct(product);
             productImage.setImageUrl(imageDTO.getImageUrl().trim());
-            productImage.setColor(imageDTO.getColor() != null ? imageDTO.getColor().trim() : null);
+            productImage.setVariantValueName(imageDTO.getVariantValueName() != null ? imageDTO.getVariantValueName().trim() : null);
             
             // 🔧 QUAN TRỌNG: Save vào database
             try {
@@ -634,7 +632,7 @@ private void handleProductImagesWithColor(Product product, List<ProductImageDTO>
                 
                 System.out.println("✅ DEBUG - Saved product image to database: ID=" + productImage.getId() + 
                     ", URL=" + productImage.getImageUrl() + 
-                    ", Color=" + productImage.getColor() +
+                    ", VariantValue=" + productImage.getVariantValueName() +
                     ", ProductId=" + product.getId());
                 
             } catch (Exception saveEx) {
@@ -649,7 +647,7 @@ private void handleProductImagesWithColor(Product product, List<ProductImageDTO>
         System.out.println("✅ DEBUG - Successfully processed " + savedImages.size() + " product images");
         
     } catch (Exception e) {
-        System.err.println("❌ ERROR in handleProductImagesWithColor: " + e.getMessage());
+        System.err.println("❌ ERROR in handleProductImagesWithVariantValue: " + e.getMessage());
         e.printStackTrace();
         throw new RuntimeException("Lỗi khi xử lý product images: " + e.getMessage(), e);
     }
@@ -661,7 +659,7 @@ private void handleProductImages(Product product, List<String> imageUrls) {
         for (String imageUrl : imageUrls) {
             ProductImage image = new ProductImage();
             image.setImageUrl(imageUrl);
-            image.setColor(null); // Hoặc lấy từ request nếu có
+            image.setVariantValueName(null); // Hoặc lấy từ request nếu có
             image.setProduct(product); // 🔧 THÊM DÒNG NÀY
             productImageRepository.save(image); // 🔧 THÊM DÒNG NÀY
         }

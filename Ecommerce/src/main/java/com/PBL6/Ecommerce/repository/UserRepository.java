@@ -47,4 +47,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // Method để kiểm tra phone number đã được sử dụng bởi seller chưa
     List<User> findByPhoneNumberAndRole(String phoneNumber, Role role);
+
+    // ========== AVATAR-RELATED QUERIES ==========
+
+    /**
+     * Find users with avatars
+     */
+    @Query("SELECT u FROM User u WHERE u.avatarUrl IS NOT NULL")
+    List<User> findUsersWithAvatars();
+
+    /**
+     * Find user by avatar public_id (for deletion verification)
+     */
+    @Query("SELECT u FROM User u WHERE u.avatarPublicId = :publicId")
+    Optional<User> findByAvatarPublicId(@Param("publicId") String publicId);
+
 }

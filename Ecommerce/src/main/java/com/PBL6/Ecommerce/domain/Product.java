@@ -47,6 +47,9 @@ public class Product {
     @Column(name = "main_image", length = 500)
     private String mainImage;
 
+    @Column(name = "main_image_public_id", length = 255)
+    private String mainImagePublicId;
+
     // Tạm thời comment out created_at vì database chưa có cột này
     // @Column(name = "created_at", nullable = false, updatable = false)
     // private LocalDateTime createdAt = LocalDateTime.now();
@@ -153,6 +156,14 @@ public class Product {
 
     public void setMainImage(String mainImage) {
         this.mainImage = mainImage;
+    }
+
+    public String getMainImagePublicId() {
+        return mainImagePublicId;
+    }
+
+    public void setMainImagePublicId(String mainImagePublicId) {
+        this.mainImagePublicId = mainImagePublicId;
     }
 
     // public LocalDateTime getCreatedAt() {
