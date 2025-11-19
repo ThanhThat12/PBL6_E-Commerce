@@ -18,7 +18,10 @@ import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
 import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminCreateAdminDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminChangePasswordDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminMyProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminStatsDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminUpdateMyProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminUpdateSellerDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminUpdateUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminUserDetailDTO;
@@ -62,6 +65,8 @@ public class UserController {
         UserInfoDTO userInfo = userService.getCurrentUser();
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "User info retrieved successfully", userInfo));
     }
+
+
 
 
 
@@ -250,7 +255,59 @@ public class UserController {
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Admin created successfully", result));
     }
 
+        /**
+     * API lấy thông tin profile của admin đang đăng nhập
+     * GET /api/admin/myprofile
+     * @return AdminMyProfileDTO chứa: id, username, fullName, email, phoneNumber, avatar, activated, createdAt
+     */
+    @GetMapping("/admin/myprofile")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminMyProfileDTO>> getAdminMyProfile() {
+        AdminMyProfileDTO profile = userService.getAdminMyProfile();
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Admin profile retrieved successfully", profile));
+    }
 
+    /**
+     * API cập nhật thông tin profile của admin (không bao gồm avatar)
+     * PATCH /api/admin/myprofile/update
+     * @param dto - AdminUpdateMyProfileDTO chứa: username, fullName, email, phoneNumber
+     * @return AdminMyProfileDTO sau khi cập nhật
+     */
+    @PatchMapping("/admin/myprofile/update")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminMyProfileDTO>> updateAdminMyProfile(
+            @RequestBody AdminUpdateMyProfileDTO dto) {
+        AdminMyProfileDTO updatedProfile = userService.updateAdminMyProfile(dto);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Admin profile updated successfully", updatedProfile));
+    }
+
+    /**
+     * API đổi mật khẩu admin
+     * POST /api/admin/myprofile/change-password
+     * @param dto - AdminChangePasswordDTO chứa: oldPassword, newPassword, confirmPassword
+     * @return Success message
+     */
+    @PostMapping("/admin/myprofile/change-password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<String>> changeAdminPassword(
+            @RequestBody AdminChangePasswordDTO dto) {
+        userService.changeAdminPassword(dto);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Password changed successfully", "Your password has been updated"));
+    }
+
+    /**
+     * API upload avatar cho admin
+     * POST /api/admin/myprofile/avatar
+     * @param avatarUrl - URL của avatar đã upload (từ service upload file riêng)
+     * @return AdminMyProfileDTO sau khi cập nhật avatar
+     */
+    @PostMapping("/admin/myprofile/avatar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminMyProfileDTO>> updateAdminAvatar(
+            @RequestParam("avatarUrl") String avatarUrl) {
+        AdminMyProfileDTO updatedProfile = userService.updateAdminAvatar(avatarUrl);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Avatar updated successfully", updatedProfile));
+    }
 
 
 

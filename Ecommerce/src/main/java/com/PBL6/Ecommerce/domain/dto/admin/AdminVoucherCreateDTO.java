@@ -5,15 +5,18 @@ import jakarta.validation.constraints.*;
 
 public class AdminVoucherCreateDTO {
     @NotBlank(message = "Voucher code is required")
-    @Pattern(regexp = "^[A-Z0-9]{1,10}$", message = "Code must contain only uppercase letters and numbers, max 10 characters")
+    @Size(min = 1, max = 10, message = "Code must be between 1 and 10 characters")
+    @Pattern(regexp = "^[A-Z0-9]+$", message = "Code must contain only uppercase letters and positive numbers")
     private String code;
     
-    private String description; // Có thể null
+    @Size(max = 255, message = "Description must not exceed 255 characters")
+    private String description; // Không bắt buộc
     
     @NotNull(message = "Discount amount is required")
-    @Min(value = 0, message = "Discount amount must be at least 0")
+    @Min(value = 1, message = "Discount amount must be at least 1")
     private Integer discountAmount;
     
+    @NotNull(message = "Minimum order value is required")
     @Min(value = 0, message = "Minimum order value must be at least 0")
     private Integer minOrderValue;
     

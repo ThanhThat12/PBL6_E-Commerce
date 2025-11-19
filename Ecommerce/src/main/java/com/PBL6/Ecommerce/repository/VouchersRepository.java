@@ -31,28 +31,35 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
      */
     Optional<Vouchers> findByCode(String code);
     
-    /**
-     * Lấy tất cả vouchers với phân trang
-     * Sắp xếp theo ID tăng dần (cũ nhất trước)
-     */
-    @Query("SELECT v FROM Vouchers v ORDER BY v.id ASC")
-    Page<Vouchers> findAllVouchers(Pageable pageable);
+    // /**
+    //  * Lấy tất cả vouchers với phân trang
+    //  * Sắp xếp theo ID tăng dần (cũ nhất trước)
+    //  */
+    // @Query("SELECT v FROM Vouchers v ORDER BY v.id ASC")
+    // Page<Vouchers> findAllVouchers(Pageable pageable);
     
-    /**
-     * Đếm số lượng voucher đã sử dụng theo voucher ID
-     */
-    @Query("SELECT COUNT(uv) FROM User_Vouchers uv WHERE uv.voucher.id = :voucherId")
-    Long countUsedByVoucherId(@Param("voucherId") Long voucherId);
+    // /**
+    //  * Lọc vouchers theo status với phân trang
+    //  * Sắp xếp theo ID tăng dần
+    //  */
+    // @Query("SELECT v FROM Vouchers v WHERE v.status = :status ORDER BY v.id ASC")
+    // Page<Vouchers> findByStatusOrderByIdAsc(@Param("status") Vouchers.VoucherStatus status, Pageable pageable);
     
-    /**
-     * Đếm tổng số voucher đã sử dụng (tất cả vouchers)
-     */
-    @Query("SELECT COUNT(uv) FROM User_Vouchers uv")
-    Long countTotalUsedVouchers();
+    // /**
+    //  * Đếm số lượng voucher đã sử dụng theo voucher ID
+    //  */
+    // @Query("SELECT COUNT(uv) FROM User_Vouchers uv WHERE uv.voucher.id = :voucherId")
+    // Long countUsedByVoucherId(@Param("voucherId") Long voucherId);
     
-    /**
-     * Đếm số lượng voucher theo status
-     */
-    long countByStatus(Vouchers.VoucherStatus status);
+    // /**
+    //  * Đếm tổng số voucher đã sử dụng (tất cả vouchers)
+    //  */
+    // @Query("SELECT COUNT(uv) FROM User_Vouchers uv")
+    // Long countTotalUsedVouchers();
+    
+    // /**
+    //  * Đếm số lượng voucher theo status
+    //  */
+    // long countByStatus(Vouchers.VoucherStatus status);
 }
 

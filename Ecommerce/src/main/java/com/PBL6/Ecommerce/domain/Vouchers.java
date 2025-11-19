@@ -1,143 +1,115 @@
 package com.PBL6.Ecommerce.domain;
 
 import jakarta.persistence.*;
-import java.time.LocalDate;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "vouchers")
 public class Vouchers {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id; // Khóa chính, tự tăng
+
+    @Column(nullable = false, unique = true)
+    private String code; // Mã voucher duy nhất
+
+    @Column(nullable = false)
+    private String description; // Mô tả voucher
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id", nullable = true)  // Cho phép null
-    private Shop shop;
-
-    @Column(name = "code", length = 10, unique = true, nullable = false)
-    private String code;
-
-    @Column(name = "description", length = 255, nullable = true)
-    private String description;
-
-    @Column(name = "discount_amount", nullable = false)
-    private Integer discountAmount;
-
-    @Column(name = "min_order_value")
-    private Integer minOrderValue = 0;
-
-    @Column(name = "quantity")
-    private Integer quantity = 0;
-
-    @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
-
-    @Column(name = "end_date", nullable = false)
-    private LocalDate endDate;
+    @JoinColumn(name = "shop_id")
+    private Shop shop; // Voucher thuộc shop nào
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status")
-    private VoucherStatus status = VoucherStatus.ACTIVE;
+    @Column(nullable = false)
+    private DiscountType discountType; // Kiểu giảm giá: % hoặc số tiền
 
-    public enum VoucherStatus {
-        ACTIVE,
-        INACTIVE,
-        EXPIRED
+    public enum DiscountType {
+        PERCENTAGE, // Giảm theo phần trăm
+        FIXED_AMOUNT // Giảm theo số tiền cố định
     }
 
-    // Constructors
-    public Vouchers() {
-    }
+    @Column(nullable = false)
+    private BigDecimal discountValue; // Giá trị giảm (tùy theo discountType)
 
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
+    @Column
+    private BigDecimal minOrderValue; // Giá trị đơn hàng tối thiểu (có thể null)
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    @Column(nullable = true)
+    private BigDecimal maxDiscountAmount; // Mức giảm tối đa khi giảm theo %
 
-    public Shop getShop() {
-        return shop;
-    }
+    @Column(nullable = false)
+    private LocalDateTime startDate; // Ngày bắt đầu hiệu lực
 
-    public void setShop(Shop shop) {
-        this.shop = shop;
-    }
+    @Column(nullable = false)
+    private LocalDateTime endDate; // Ngày kết thúc hiệu lực
 
-    public String getCode() {
-        return code;
-    }
+    @Column(nullable = false)
+    private Integer usageLimit; // Tổng số lượt sử dụng được phép
 
-    public void setCode(String code) {
-        this.code = code;
-    }
+    @Column(nullable = false)
+    private Integer usedCount = 0; // Số lượt đã sử dụng
 
-    public String getDescription() {
-        return description;
-    }
+    @Column(nullable = false)
+    private String applicableType; // Loại đối tượng áp dụng (ALL, TOP_BUYERS,...)
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
+    @Column
+    private Integer topBuyersCount; // Số lượng top buyer được áp dụng (nếu applicableType yêu cầu)
 
-    public Integer getDiscountAmount() {
-        return discountAmount;
-    }
+    @Column(nullable = false)
+    private Boolean isActive = true; // Trạng thái voucher
 
-    public void setDiscountAmount(Integer discountAmount) {
-        this.discountAmount = discountAmount;
-    }
+    @Column
+    private LocalDateTime createdAt = LocalDateTime.now(); // Thời gian tạo
 
-    public Integer getMinOrderValue() {
-        return minOrderValue;
-    }
+    // Getters và Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setMinOrderValue(Integer minOrderValue) {
-        this.minOrderValue = minOrderValue;
-    }
+    public String getCode() { return code; }
+    public void setCode(String code) { this.code = code; }
 
-    public Integer getQuantity() {
-        return quantity;
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public void setQuantity(Integer quantity) {
-        this.quantity = quantity;
-    }
+    public Shop getShop() { return shop; }
+    public void setShop(Shop shop) { this.shop = shop; }
 
-    public LocalDate getStartDate() {
-        return startDate;
-    }
+    public DiscountType getDiscountType() { return discountType; }
+    public void setDiscountType(DiscountType discountType) { this.discountType = discountType; }
 
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
+    public BigDecimal getDiscountValue() { return discountValue; }
+    public void setDiscountValue(BigDecimal discountValue) { this.discountValue = discountValue; }
 
-    public LocalDate getEndDate() {
-        return endDate;
-    }
+    public BigDecimal getMinOrderValue() { return minOrderValue; }
+    public void setMinOrderValue(BigDecimal minOrderValue) { this.minOrderValue = minOrderValue; }
 
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
-    }
+    public BigDecimal getMaxDiscountAmount() { return maxDiscountAmount; }
+    public void setMaxDiscountAmount(BigDecimal maxDiscountAmount) { this.maxDiscountAmount = maxDiscountAmount; }
 
-    public VoucherStatus getStatus() {
-        return status;
-    }
+    public LocalDateTime getStartDate() { return startDate; }
+    public void setStartDate(LocalDateTime startDate) { this.startDate = startDate; }
 
-    public void setStatus(VoucherStatus status) {
-        this.status = status;
-    }
+    public LocalDateTime getEndDate() { return endDate; }
+    public void setEndDate(LocalDateTime endDate) { this.endDate = endDate; }
 
-    @Override
-    public String toString() {
-        return "Vouchers{" +
-                "id=" + id +
-                ", code='" + code + '\'' +
-                ", discountAmount=" + discountAmount +
-                ", status=" + status +
-                '}';
-    }
+    public Integer getUsageLimit() { return usageLimit; }
+    public void setUsageLimit(Integer usageLimit) { this.usageLimit = usageLimit; }
+
+    public Integer getUsedCount() { return usedCount; }
+    public void setUsedCount(Integer usedCount) { this.usedCount = usedCount; }
+
+    public String getApplicableType() { return applicableType; }
+    public void setApplicableType(String applicableType) { this.applicableType = applicableType; }
+
+    public Integer getTopBuyersCount() { return topBuyersCount; }
+    public void setTopBuyersCount(Integer topBuyersCount) { this.topBuyersCount = topBuyersCount; }
+
+    public Boolean getIsActive() { return isActive; }
+    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

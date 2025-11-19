@@ -25,7 +25,10 @@ import com.PBL6.Ecommerce.domain.dto.UserListDTO;
 import com.PBL6.Ecommerce.domain.dto.UserProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminCreateAdminDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminChangePasswordDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminMyProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminStatsDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminUpdateMyProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminUpdateSellerDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminUpdateUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminUserDetailDTO;
@@ -1774,6 +1777,194 @@ public class UserService {
         if (updatedCount == 0) {
             log.debug("No product status updates needed for shop ID: {}", shop.getId());
         }
+    }
+
+    /**
+     * Get admin's own profile information
+     * Only returns basic profile data for the authenticated admin
+     */
+    public AdminMyProfileDTO getAdminMyProfile() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("Unauthenticated access attempt");
+            throw new UnauthenticatedException("Authentication required");
+        }
+
+        String principal = authentication.getName();
+        Optional<User> userOpt = Optional.empty();
+
+        // Try to find user by id (if principal is numeric)
+        if (principal != null && principal.matches("^\\d+$")) {
+            try {
+                Long id = Long.parseLong(principal);
+                userOpt = userRepository.findById(id);
+            } catch (NumberFormatException ignored) { }
+        }
+
+        // Try by username or email
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findOneByUsername(principal);
+        }
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findOneByEmail(principal);
+        }
+
+        User user = userOpt.orElseThrow(() -> {
+            log.warn("Admin user not found for principal: {}", principal);
+            return new UserNotFoundException("Admin user not found");
+        });
+
+        // Verify user is actually an admin
+        if (!user.getRole().equals(Role.ADMIN)) {
+            log.warn("Non-admin user attempted to access admin profile: {}", user.getUsername());
+            throw new UnauthorizedUserActionException("Access denied: Admin role required");
+        }
+
+        return new AdminMyProfileDTO(
+            user.getId(),
+            user.getUsername(),
+            user.getFullName(),
+            user.getEmail(),
+            user.getPhoneNumber(),
+            user.getAvatarUrl(),
+            user.isActivated(),
+            user.getCreatedAt()
+        );
+    }
+
+    /**
+     * Update admin's own profile information (excluding avatar)
+     * Avatar upload is handled separately via multipart endpoint
+     */
+    @Transactional
+    public AdminMyProfileDTO updateAdminMyProfile(AdminUpdateMyProfileDTO dto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("Unauthenticated access attempt");
+            throw new UnauthenticatedException("Authentication required");
+        }
+
+        User user = resolveCurrentUser(authentication);
+
+        // Verify user is actually an admin
+        if (!user.getRole().equals(Role.ADMIN)) {
+            log.warn("Non-admin user attempted to update admin profile: {}", user.getUsername());
+            throw new UnauthorizedUserActionException("Access denied: Admin role required");
+        }
+
+        // Check for duplicate username (excluding current user)
+        if (!user.getUsername().equals(dto.getUsername())) {
+            if (userRepository.findOneByUsername(dto.getUsername()).isPresent()) {
+                throw new DuplicateUsernameException("Username already exists: " + dto.getUsername());
+            }
+        }
+
+        // Check for duplicate email (excluding current user)
+        if (!user.getEmail().equals(dto.getEmail())) {
+            if (userRepository.findOneByEmail(dto.getEmail()).isPresent()) {
+                throw new DuplicateEmailException("Email already exists: " + dto.getEmail());
+            }
+        }
+
+        // Check for duplicate phone number (excluding current user)
+        if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().equals(user.getPhoneNumber())) {
+            if (userRepository.findOneByPhoneNumber(dto.getPhoneNumber()).isPresent()) {
+                throw new DuplicatePhoneException("Phone number already exists: " + dto.getPhoneNumber());
+            }
+        }
+
+        // Update fields
+        user.setUsername(dto.getUsername());
+        user.setFullName(dto.getFullName());
+        user.setEmail(dto.getEmail());
+        user.setPhoneNumber(dto.getPhoneNumber());
+
+        userRepository.save(user);
+        log.info("Admin profile updated successfully for user ID: {}", user.getId());
+
+        return new AdminMyProfileDTO(
+            user.getId(),
+            user.getUsername(),
+            user.getFullName(),
+            user.getEmail(),
+            user.getPhoneNumber(),
+            user.getAvatarUrl(),
+            user.isActivated(),
+            user.getCreatedAt()
+        );
+    }
+
+    /**
+     * Change admin's password
+     */
+    @Transactional
+    public void changeAdminPassword(AdminChangePasswordDTO dto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("Unauthenticated access attempt");
+            throw new UnauthenticatedException("Authentication required");
+        }
+
+        User user = resolveCurrentUser(authentication);
+
+        // Verify user is actually an admin
+        if (!user.getRole().equals(Role.ADMIN)) {
+            log.warn("Non-admin user attempted to change admin password: {}", user.getUsername());
+            throw new UnauthorizedUserActionException("Access denied: Admin role required");
+        }
+
+        // Verify old password matches
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new PasswordMismatchException("Old password is incorrect");
+        }
+
+        // Verify new password and confirm password match
+        if (!dto.getNewPassword().equals(dto.getConfirmPassword())) {
+            throw new PasswordMismatchException("New password and confirm password do not match");
+        }
+
+        // Update password
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        userRepository.save(user);
+        
+        log.info("Admin password changed successfully for user ID: {}", user.getId());
+    }
+
+    /**
+     * Upload admin avatar
+     * This should be called from controller with multipart file handling
+     */
+    @Transactional
+    public AdminMyProfileDTO updateAdminAvatar(String avatarUrl) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("Unauthenticated access attempt");
+            throw new UnauthenticatedException("Authentication required");
+        }
+
+        User user = resolveCurrentUser(authentication);
+
+        // Verify user is actually an admin
+        if (!user.getRole().equals(Role.ADMIN)) {
+            log.warn("Non-admin user attempted to update admin avatar: {}", user.getUsername());
+            throw new UnauthorizedUserActionException("Access denied: Admin role required");
+        }
+
+        user.setAvatarUrl(avatarUrl);
+        userRepository.save(user);
+        
+        log.info("Admin avatar updated successfully for user ID: {}", user.getId());
+
+        return new AdminMyProfileDTO(
+            user.getId(),
+            user.getUsername(),
+            user.getFullName(),
+            user.getEmail(),
+            user.getPhoneNumber(),
+            user.getAvatarUrl(),
+            user.isActivated(),
+            user.getCreatedAt()
+        );
     }
 
 

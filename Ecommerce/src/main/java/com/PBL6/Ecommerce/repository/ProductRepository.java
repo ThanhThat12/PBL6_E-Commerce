@@ -167,6 +167,30 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            countQuery = "SELECT COUNT(DISTINCT p.id) FROM Product p WHERE p.isActive = :isActive")
     Page<AdminListProductDTO> findProductsByStatus(@Param("isActive") Boolean isActive, Pageable pageable);
 
+//search with name
+       @Query(value = "SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminListProductDTO(" +
+              "p.id, " +
+              "p.name, " +
+              "p.mainImage, " +
+              "c.name, " +
+              "p.basePrice, " +
+              "COALESCE(SUM(pv.stock), 0L), " +
+              "p.isActive, " +
+              "COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0L), " +
+              "COALESCE(AVG(pr.rating), 0.0)) " +
+              "FROM Product p " +
+              "LEFT JOIN p.category c " +
+              "LEFT JOIN p.productVariants pv " +
+              "LEFT JOIN OrderItem oi ON oi.variant = pv " +
+              "LEFT JOIN oi.order o " +
+              "LEFT JOIN ProductReview pr ON pr.product = p " +
+              "WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')) " +
+              "GROUP BY p.id, p.name, p.mainImage, c.name, p.basePrice, p.isActive",
+              countQuery = "SELECT COUNT(DISTINCT p.id) FROM Product p " +
+                     "WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+       Page<AdminListProductDTO> findAllProductsForAdminWithSearch(
+       @Param("name") String name, Pageable pageable);
+
     // 🆕 Admin Stats: Đếm tổng số sản phẩm
     @Query("SELECT COUNT(p) FROM Product p")
     Long countTotalProducts();
