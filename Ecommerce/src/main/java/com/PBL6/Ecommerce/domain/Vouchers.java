@@ -8,9 +8,22 @@ import java.time.LocalDateTime;
 @Table(name = "vouchers")
 public class Vouchers {
 	public enum DiscountType {
-    PERCENTAGE,
-    FIXED_AMOUNT
-}
+	PERCENTAGE,
+	FIXED_AMOUNT
+	}
+
+	public enum Status {
+		UPCOMING,
+		ACTIVE,
+		EXPIRED
+	}
+
+	public enum ApplicableType {
+		ALL,
+		SPECIFIC_PRODUCTS,
+		SPECIFIC_USERS,
+		TOP_BUYERS
+	}
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,14 +64,16 @@ public class Vouchers {
     @Column(nullable = false)
     private Integer usedCount = 0;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String applicableType;
+    private ApplicableType applicableType;
 
     @Column
     private Integer topBuyersCount;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Boolean isActive = true;
+    private Status status;
 
     @Column
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -100,15 +115,30 @@ public class Vouchers {
     public Integer getUsedCount() { return usedCount; }
     public void setUsedCount(Integer usedCount) { this.usedCount = usedCount; }
 
-    public String getApplicableType() { return applicableType; }
-    public void setApplicableType(String applicableType) { this.applicableType = applicableType; }
+    public ApplicableType getApplicableType() { return applicableType; }
+    public void setApplicableType(ApplicableType applicableType) { this.applicableType = applicableType; }
 
     public Integer getTopBuyersCount() { return topBuyersCount; }
     public void setTopBuyersCount(Integer topBuyersCount) { this.topBuyersCount = topBuyersCount; }
 
-    public Boolean getIsActive() { return isActive; }
-    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    public Status getStatus() { return status; }
+    public void setStatus(Status status) { this.status = status; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    @PrePersist
+    @PreUpdate
+    private void updateStatusFromDates() {
+        if (this.startDate != null && this.endDate != null) {
+            LocalDateTime now = LocalDateTime.now();
+            if (now.isBefore(this.startDate)) {
+                this.status = Status.UPCOMING;
+            } else if (now.isAfter(this.endDate)) {
+                this.status = Status.EXPIRED;
+            } else {
+                this.status = Status.ACTIVE;
+            }
+        }
+    }
 }

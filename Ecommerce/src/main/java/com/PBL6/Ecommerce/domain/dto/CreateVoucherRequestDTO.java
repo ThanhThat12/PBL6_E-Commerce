@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.domain.dto;
 
 import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
+import com.PBL6.Ecommerce.domain.Vouchers.ApplicableType;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,10 +39,8 @@ public class CreateVoucherRequestDTO {
     @Min(value = 1, message = "Số lần sử dụng tối đa phải >= 1")
     private Integer usageLimit;
 
-    @NotBlank(message = "Loại áp dụng không được để trống")
-    @Pattern(regexp = "ALL|SPECIFIC_PRODUCTS|SPECIFIC_USERS|TOP_BUYERS", 
-             message = "Loại áp dụng phải là ALL, SPECIFIC_PRODUCTS, SPECIFIC_USERS hoặc TOP_BUYERS")
-    private String applicableType;
+    @NotNull(message = "Loại áp dụng không được để trống")
+    private ApplicableType applicableType;
 
     @Min(value = 1, message = "Số lượng top buyer phải >= 1")
     private Integer topBuyersCount;
@@ -78,8 +77,8 @@ public class CreateVoucherRequestDTO {
     public Integer getUsageLimit() { return usageLimit; }
     public void setUsageLimit(Integer usageLimit) { this.usageLimit = usageLimit; }
 
-    public String getApplicableType() { return applicableType; }
-    public void setApplicableType(String applicableType) { this.applicableType = applicableType; }
+    public ApplicableType getApplicableType() { return applicableType; }
+    public void setApplicableType(ApplicableType applicableType) { this.applicableType = applicableType; }
 
     public Integer getTopBuyersCount() { return topBuyersCount; }
     public void setTopBuyersCount(Integer topBuyersCount) { this.topBuyersCount = topBuyersCount; }

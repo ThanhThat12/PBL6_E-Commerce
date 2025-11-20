@@ -20,15 +20,14 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
     List<Vouchers> findByShopId(Long shopId);
     
     // Lấy voucher đang active của shop
-    @Query("SELECT v FROM Vouchers v WHERE v.shop.id = :shopId AND v.isActive = true " +
-           "AND v.startDate <= :now AND v.endDate >= :now " +
-           "ORDER BY v.createdAt DESC")
-    List<Vouchers> findActiveVouchersByShop(@Param("shopId") Long shopId, @Param("now") LocalDateTime now);
+        @Query("SELECT v FROM Vouchers v WHERE v.shop.id = :shopId AND v.status = com.PBL6.Ecommerce.domain.Vouchers.Status.ACTIVE " +
+            "AND v.startDate <= :now AND v.endDate >= :now " +
+            "ORDER BY v.createdAt DESC")
+        List<Vouchers> findActiveVouchersByShop(@Param("shopId") Long shopId, @Param("now") LocalDateTime now);
     
     // Kiểm tra voucher code đã tồn tại
     boolean existsByCode(String code);
 
-    @Query("SELECT v FROM Vouchers v WHERE v.isActive = true AND v.startDate <= :now AND v.endDate >= :now")
-    List<Vouchers> findByIsActiveTrueAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
-        @Param("now") LocalDateTime now, @Param("now") LocalDateTime nowAgain);
+    @Query("SELECT v FROM Vouchers v WHERE v.status = com.PBL6.Ecommerce.domain.Vouchers.Status.ACTIVE AND v.startDate <= :now AND v.endDate >= :now")
+    List<Vouchers> findActiveVouchers(@Param("now") LocalDateTime now);
 }

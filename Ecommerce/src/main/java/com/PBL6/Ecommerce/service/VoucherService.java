@@ -2,6 +2,8 @@ package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.domain.*;
 import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
+import com.PBL6.Ecommerce.domain.Vouchers.ApplicableType;
+import com.PBL6.Ecommerce.domain.Vouchers.Status;
 import com.PBL6.Ecommerce.domain.dto.CreateVoucherRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherApplicationResultDTO;
@@ -98,7 +100,7 @@ public class VoucherService {
         Vouchers savedVoucher = vouchersRepository.save(voucher);
         
         // Lưu sản phẩm áp dụng (nếu có)
-        if ("SPECIFIC_PRODUCTS".equals(request.getApplicableType()) && 
+        if (ApplicableType.SPECIFIC_PRODUCTS.equals(request.getApplicableType()) && 
             request.getProductIds() != null && !request.getProductIds().isEmpty()) {
             
             for (Long productId : request.getProductIds()) {
@@ -118,7 +120,7 @@ public class VoucherService {
         }
         
         // Lưu user áp dụng (nếu có)
-        if ("SPECIFIC_USERS".equals(request.getApplicableType()) && 
+        if (ApplicableType.SPECIFIC_USERS.equals(request.getApplicableType()) && 
             request.getUserIds() != null && !request.getUserIds().isEmpty()) {
             
             for (Long userId : request.getUserIds()) {
@@ -133,7 +135,7 @@ public class VoucherService {
         }
         
         // Lưu top buyers (nếu có)
-        if ("TOP_BUYERS".equals(request.getApplicableType()) && request.getTopBuyersCount() != null) {
+        if (ApplicableType.TOP_BUYERS.equals(request.getApplicableType()) && request.getTopBuyersCount() != null) {
             List<TopBuyerDTO> topBuyers = orderRepository.findTopBuyersByShopWithLimit(
                 shop.getId(), 
                 PageRequest.of(0, request.getTopBuyersCount())
@@ -203,7 +205,7 @@ public class VoucherService {
             throw new RuntimeException("Bạn không có quyền vô hiệu hóa voucher này");
         }
         
-        voucher.setIsActive(false);
+        voucher.setStatus(Status.EXPIRED);
         Vouchers updated = vouchersRepository.save(voucher);
         
         return convertToDTO(updated);
@@ -229,17 +231,17 @@ public class VoucherService {
         dto.setUsedCount(voucher.getUsedCount());
         dto.setApplicableType(voucher.getApplicableType());
         dto.setTopBuyersCount(voucher.getTopBuyersCount());
-        dto.setIsActive(voucher.getIsActive());
+        dto.setStatus(voucher.getStatus());
         dto.setCreatedAt(voucher.getCreatedAt());
         
         // Lấy danh sách product IDs
-        if ("SPECIFIC_PRODUCTS".equals(voucher.getApplicableType())) {
+        if (ApplicableType.SPECIFIC_PRODUCTS.equals(voucher.getApplicableType())) {
             dto.setProductIds(voucherProductRepository.findProductIdsByVoucherId(voucher.getId()));
         }
         
         // Lấy danh sách user IDs
-        if ("SPECIFIC_USERS".equals(voucher.getApplicableType()) || 
-            "TOP_BUYERS".equals(voucher.getApplicableType())) {
+        if (ApplicableType.SPECIFIC_USERS.equals(voucher.getApplicableType()) || 
+            ApplicableType.TOP_BUYERS.equals(voucher.getApplicableType())) {
             dto.setUserIds(voucherUserRepository.findUserIdsByVoucherId(voucher.getId()));
         }
         
@@ -291,16 +293,16 @@ public class VoucherService {
 
     private boolean checkVoucherApplicabilityForUser(Vouchers voucher, Long userId, List<Long> productIds) {
         switch (voucher.getApplicableType()) {
-            case "ALL":
+            case ALL:
                 return true;
-            case "SPECIFIC_PRODUCTS":
+            case SPECIFIC_PRODUCTS:
                 // Kiểm tra có sản phẩm nào trong cart thuộc voucher không
                 return productIds.stream()
                     .anyMatch(productId -> voucherProductRepository.existsByVoucherIdAndProductId(voucher.getId(), productId));
-            case "SPECIFIC_USERS":
+            case SPECIFIC_USERS:
                 // Kiểm tra user có trong danh sách áp dụng không
                 return voucherUserRepository.existsByVoucherIdAndUserId(voucher.getId(), userId);
-            case "TOP_BUYERS":
+            case TOP_BUYERS:
                 // Kiểm tra user có trong top buyers không
                 return isUserInTopBuyers(userId, voucher.getTopBuyersCount());
             default:
@@ -357,7 +359,7 @@ public class VoucherService {
             .orElseThrow(() -> new RuntimeException("Voucher không tồn tại"));
         
         // Kiểm tra voucher còn active không
-        if (!voucher.getIsActive()) {
+        if (!Status.ACTIVE.equals(voucher.getStatus())) {
             throw new RuntimeException("Voucher đã bị vô hiệu hóa");
         }
         

@@ -47,4 +47,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // Method để kiểm tra phone number đã được sử dụng bởi seller chưa
     List<User> findByPhoneNumberAndRole(String phoneNumber, Role role);
+
+    
 }

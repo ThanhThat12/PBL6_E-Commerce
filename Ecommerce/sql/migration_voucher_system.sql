@@ -15,8 +15,9 @@ ADD COLUMN `usage_limit` INT NOT NULL AFTER `end_date`,
 ADD COLUMN `used_count` INT NOT NULL DEFAULT 0 AFTER `usage_limit`,
 ADD COLUMN `applicable_type` VARCHAR(30) NOT NULL AFTER `used_count`,
 ADD COLUMN `top_buyers_count` INT AFTER `applicable_type`,
-ADD COLUMN `is_active` BOOLEAN NOT NULL DEFAULT TRUE AFTER `top_buyers_count`,
-ADD COLUMN `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP AFTER `is_active`,
+-- Use string-backed status to match JPA enum storage (Vouchers.Status)
+ADD COLUMN `status` VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' AFTER `top_buyers_count`,
+ADD COLUMN `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP AFTER `status`,
 ADD CONSTRAINT `fk_voucher_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops`(`id`) ON DELETE CASCADE;
 
 -- Tạo bảng voucher_products (quan hệ nhiều-nhiều giữa voucher và product)
@@ -45,4 +46,4 @@ CREATE TABLE IF NOT EXISTS `voucher_users` (
 CREATE INDEX `idx_voucher_code` ON `vouchers`(`code`);
 CREATE INDEX `idx_voucher_shop` ON `vouchers`(`shop_id`);
 CREATE INDEX `idx_voucher_dates` ON `vouchers`(`start_date`, `end_date`);
-CREATE INDEX `idx_voucher_active` ON `vouchers`(`is_active`);
+CREATE INDEX `idx_voucher_status` ON `vouchers`(`status`);

@@ -1,6 +1,8 @@
 package com.PBL6.Ecommerce.domain.dto;
 
 import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
+import com.PBL6.Ecommerce.domain.Vouchers.ApplicableType;
+import com.PBL6.Ecommerce.domain.Vouchers.Status;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,9 +21,9 @@ public class VoucherDTO {
     private LocalDateTime endDate;
     private Integer usageLimit;
     private Integer usedCount;
-    private String applicableType;
+    private ApplicableType applicableType;
     private Integer topBuyersCount;
-    private Boolean isActive;
+    private Status status;
     private LocalDateTime createdAt;
     private List<Long> productIds;
     private List<Long> userIds;
@@ -67,14 +69,14 @@ public class VoucherDTO {
     public Integer getUsedCount() { return usedCount; }
     public void setUsedCount(Integer usedCount) { this.usedCount = usedCount; }
 
-    public String getApplicableType() { return applicableType; }
-    public void setApplicableType(String applicableType) { this.applicableType = applicableType; }
+    public ApplicableType getApplicableType() { return applicableType; }
+    public void setApplicableType(ApplicableType applicableType) { this.applicableType = applicableType; }
 
     public Integer getTopBuyersCount() { return topBuyersCount; }
     public void setTopBuyersCount(Integer topBuyersCount) { this.topBuyersCount = topBuyersCount; }
 
-    public Boolean getIsActive() { return isActive; }
-    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    public Status getStatus() { return status; }
+    public void setStatus(Status status) { this.status = status; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

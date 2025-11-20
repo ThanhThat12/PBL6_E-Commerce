@@ -127,7 +127,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       "usageLimit": 100,
       "usedCount": 45,
       "applicableType": "ALL",
-      "isActive": true,
+      "status": "ACTIVE",
       "createdAt": "2023-12-20T10:00:00",
       "productIds": [],
       "userIds": [],
@@ -152,7 +152,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       "usageLimit": 50,
       "usedCount": 10,
       "applicableType": "SPECIFIC_PRODUCTS",
-      "isActive": true,
+      "status": "ACTIVE",
       "createdAt": "2024-01-10T08:00:00",
       "productIds": [101, 102],
       "userIds": [],
@@ -169,7 +169,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ## Logic Kiểm Tra Khả Dụng
 
 ### 1. Kiểm Tra Cơ Bản
-- ✅ Voucher đang active (`isActive = true`)
+- ✅ Voucher đang active (`status = 'ACTIVE'`)
 - ✅ Trong thời gian hiệu lực (`startDate <= now <= endDate`)
 - ✅ Chưa hết lượt sử dụng (`usedCount < usageLimit`)
 
@@ -236,7 +236,7 @@ ADD COLUMN usage_limit INT DEFAULT 0,
 ADD COLUMN used_count INT DEFAULT 0,
 ADD COLUMN applicable_type VARCHAR(30) NOT NULL,
 ADD COLUMN top_buyers_count INT,
-ADD COLUMN is_active BOOLEAN DEFAULT TRUE,
+ADD COLUMN status VARCHAR(20) DEFAULT 'ACTIVE',
 ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN shop_id BIGINT NOT NULL,
 ADD FOREIGN KEY (shop_id) REFERENCES shops(id);

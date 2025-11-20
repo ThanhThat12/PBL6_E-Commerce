@@ -318,7 +318,7 @@ CREATE TABLE `vouchers` (
   `max_uses` int(11) DEFAULT NULL,
   `valid_from` datetime DEFAULT NULL,
   `valid_to` datetime DEFAULT NULL,
-  `status` enum('ACTIVE','INACTIVE','EXPIRED') DEFAULT 'ACTIVE',
+  `status` enum('UPCOMING','ACTIVE','EXPIRED') DEFAULT 'UPCOMING',
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_code` (`code`),
   KEY `idx_shop` (`shop_id`),

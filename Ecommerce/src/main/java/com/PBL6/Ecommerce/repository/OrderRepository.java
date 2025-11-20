@@ -201,5 +201,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<com.PBL6.Ecommerce.domain.dto.MonthlyOrderStatsDTO> getMonthlyCancelledOrderStats(
         @Param("shopId") Long shopId, 
         @Param("startDate") LocalDateTime startDate);
+
+   
 }
 
