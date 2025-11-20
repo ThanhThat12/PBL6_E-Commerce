@@ -68,15 +68,6 @@ public class Address {
     public TypeAddress getTypeAddress() { return typeAddress; }
     public void setTypeAddress(TypeAddress typeAddress) { this.typeAddress = typeAddress; }
 
-    public String getLabel() { return label; }
-    public void setLabel(String label) { this.label = label; }
-
-    public TypeAddress getTypeAddress() {
-        return typeAddress;
-    }
-    public void setTypeAddress(TypeAddress typeAddress) {
-        this.typeAddress = typeAddress;
-    }
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }

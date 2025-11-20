@@ -31,16 +31,6 @@ public class AdminVoucherService {
         return vouchersRepository.findAllVouchersForAdmin(pageable);
     }
 
-    /**
-     * Lấy chi tiết voucher theo ID
-     * @param id - ID của voucher
-     * @return AdminVoucherDetailDTO - Chi tiết đầy đủ của voucher
-     * @throws NotFoundException - Nếu voucher không tồn tại
-     */
-    public AdminVoucherDetailDTO getVoucherDetail(Long id) {
-        return vouchersRepository.findVoucherDetailForAdmin(id)
-                .orElseThrow(() -> new NotFoundException("Voucher not found with id: " + id));
-    }
 
     /**
      * Xóa voucher theo ID

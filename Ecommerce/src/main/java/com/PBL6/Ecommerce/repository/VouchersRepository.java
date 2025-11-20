@@ -29,12 +29,12 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
     /**
      * Kiểm tra voucher code đã tồn tại chưa
      */
-    boolean existsByCode(String code);
+    // boolean existsByCode(String code);
     
     /**
      * Tìm voucher theo code
      */
-    Optional<Vouchers> findByCode(String code);
+    // Optional<Vouchers> findByCode(String code);
     
     /**
      * Lấy danh sách vouchers với thông tin cơ bản (Admin)
@@ -52,32 +52,9 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
            "ORDER BY v.id ASC")
     Page<com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO> findAllVouchersForAdmin(Pageable pageable);
     
-    /**
-     * Lấy chi tiết voucher (Admin)
-     * Sử dụng LEFT JOIN để tránh N+1 problem và xử lý shop NULL
-     */
-    @Query("SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherDetailDTO(" +
-        "v.id, " +
-        "v.code, " +
-        "v.isActive, " +
-        "v.description, " +
-        "s.name, " +  // Có thể NULL từ LEFT JOIN
-        "CAST(v.discountType AS string), " +
-        "v.discountValue, " +
-        "v.maxDiscountAmount, " +
-        "v.minOrderValue, " +
-        "v.usageLimit, " +
-        "v.usedCount, " +
-        "v.startDate, " +
-        "v.endDate, " +
-        "v.createdAt) " +
-        "FROM Vouchers v " +
-        "LEFT JOIN v.shop s " +  // LEFT JOIN thay vì navigation
-        "WHERE v.id = :id")
-    Optional<AdminVoucherDetailDTO> findVoucherDetailForAdmin(@Param("id") Long id);
-        
     
-}
+    
+
 
     // Tìm voucher theo code
     Optional<Vouchers> findByCode(String code);

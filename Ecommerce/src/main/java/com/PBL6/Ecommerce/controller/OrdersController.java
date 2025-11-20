@@ -120,10 +120,11 @@ public class OrdersController {
         java.util.List<com.PBL6.Ecommerce.domain.dto.TopProductDTO> topProducts = 
             orderService.getTopSellingProducts(username);
         return ResponseDTO.success(topProducts, "Lấy top sản phẩm bán chạy thành công");
-     * API đánh dấu đơn hàng sang SHIPPING (Đang giao hàng)
-     * PATCH /api/seller/orders/{id}/mark-shipping
-     * Seller xác nhận đã giao hàng cho đơn vị vận chuyển
-     */
+        }
+    //  * API đánh dấu đơn hàng sang SHIPPING (Đang giao hàng)
+    //  * PATCH /api/seller/orders/{id}/mark-shipping
+    //  * Seller xác nhận đã giao hàng cho đơn vị vận chuyển
+    //  */
     @PatchMapping("/orders/{id}/mark-shipping")
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ResponseDTO<OrderDetailDTO>> markAsShipping(

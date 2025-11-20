@@ -43,20 +43,6 @@ public class AdminVoucherController {
     }
 
     /**
-     * API xem chi tiết voucher (Admin only)
-     * GET /api/admin/voucher/{id}
-     * @param id - ID của voucher
-     * @return ResponseDTO<AdminVoucherDetailDTO> - Chi tiết đầy đủ của voucher
-     */
-    @GetMapping("/voucher/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<AdminVoucherDetailDTO>> getVoucherDetail(
-            @PathVariable Long id) {
-        AdminVoucherDetailDTO voucher = adminVoucherService.getVoucherDetail(id);
-        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Voucher detail retrieved successfully", voucher));
-    }
-
-    /**
      * API xóa voucher theo ID (Admin only)
      * DELETE /api/admin/voucher/{id}
      * @param id - ID của voucher cần xóa
