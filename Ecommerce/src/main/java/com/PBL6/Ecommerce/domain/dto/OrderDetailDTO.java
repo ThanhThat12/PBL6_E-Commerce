@@ -2,6 +2,7 @@ package com.PBL6.Ecommerce.domain.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class OrderDetailDTO {
     private Long id;
@@ -12,6 +13,10 @@ public class OrderDetailDTO {
     private LocalDateTime updatedAt;
     private Long shopId;
     private Long userId;
+    private List<OrderItemDTO> items; // Danh sách sản phẩm trong đơn hàng
+    private String receiverName;
+    private String receiverPhone;
+    private String receiverAddress;
 
     // Constructors
     public OrderDetailDTO() {}
@@ -91,5 +96,37 @@ public class OrderDetailDTO {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public List<OrderItemDTO> getItems() {
+        return items;
+    }
+
+    public void setItems(List<OrderItemDTO> items) {
+        this.items = items;
+    }
+
+    public String getReceiverName() {
+        return receiverName;
+    }
+
+    public void setReceiverName(String receiverName) {
+        this.receiverName = receiverName;
+    }
+
+    public String getReceiverPhone() {
+        return receiverPhone;
+    }
+
+    public void setReceiverPhone(String receiverPhone) {
+        this.receiverPhone = receiverPhone;
+    }
+
+    public String getReceiverAddress() {
+        return receiverAddress;
+    }
+
+    public void setReceiverAddress(String receiverAddress) {
+        this.receiverAddress = receiverAddress;
     }
 }

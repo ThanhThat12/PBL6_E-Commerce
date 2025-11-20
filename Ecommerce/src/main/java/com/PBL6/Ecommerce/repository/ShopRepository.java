@@ -1,10 +1,7 @@
 package com.PBL6.Ecommerce.repository;
 
 import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
+import com.PBL6.Ecommerce.domain.Shop.ShopStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import com.PBL6.Ecommerce.domain.User;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -32,5 +30,10 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
     boolean existsByOwner(User owner); // Thêm method này
     boolean existsByName(String name);
     Optional<Shop> findByName(String name);
+    
+    // Đếm số shop theo trạng thái
+    long countByStatus(ShopStatus status);
+    
+    // Lấy danh sách shop theo trạng thái
+    List<Shop> findByStatus(ShopStatus status);
 }
-

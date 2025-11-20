@@ -47,17 +47,63 @@ public class Product {
     @Column(name = "main_image", length = 500)
     private String mainImage;
 
+    // Tạm thời comment out created_at vì database chưa có cột này
+    // @Column(name = "created_at", nullable = false, updatable = false)
+    // private LocalDateTime createdAt = LocalDateTime.now();
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductVariant> productVariants = new ArrayList<>();
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> productImages = new ArrayList<>();
 
+    // Product-level shipping dimensions (preferred storage place)
+    // Trọng lượng 1 đơn vị (gram)
+    @Column(name = "weight_grams")
+    private Integer weightGrams;
 
+    // Kích thước (cm) để tính volumetric nếu cần
+    @Column(name = "length_cm")
+    private Integer lengthCm;
 
+    @Column(name = "width_cm")
+    private Integer widthCm;
 
+    @Column(name = "height_cm")
+    private Integer heightCm;
 
-    
+     // 🆕 Helper methods để quản lý images
+    public void addProductImage(ProductImage image) {
+        productImages.add(image);
+        image.setProduct(this);
+    }
+
+    public void removeProductImage(ProductImage image) {
+        productImages.remove(image);
+        image.setProduct(null);
+    }
+
+    // 🆕 Helper methods để quản lý variants
+    public void addVariant(ProductVariant variant) {
+        productVariants.add(variant);
+        variant.setProduct(this);
+    }
+
+    public void removeVariant(ProductVariant variant) {
+        productVariants.remove(variant);
+        variant.setProduct(null);
+    }
+
+    // 🆕 Helper method để clear và set lại variants
+    public void setVariants(List<ProductVariant> variants) {
+        this.productVariants.clear();
+        if (variants != null) {
+            for (ProductVariant variant : variants) {
+                addVariant(variant);
+            }
+        }
+    }
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -124,6 +170,14 @@ public class Product {
         this.mainImage = mainImage;
     }
 
+    // public LocalDateTime getCreatedAt() {
+    //     return createdAt;
+    // }
+
+    // public void setCreatedAt(LocalDateTime createdAt) {
+    //     this.createdAt = createdAt;
+    // }
+
     public List<ProductVariant> getProductVariants() {
         return productVariants;
     }
@@ -138,5 +192,37 @@ public class Product {
 
     public void setProductImages(List<ProductImage> productImages) {
         this.productImages = productImages;
+    }
+
+    public Integer getWeightGrams() {
+        return weightGrams;
+    }
+
+    public void setWeightGrams(Integer weightGrams) {
+        this.weightGrams = weightGrams;
+    }
+
+    public Integer getLengthCm() {
+        return lengthCm;
+    }
+
+    public void setLengthCm(Integer lengthCm) {
+        this.lengthCm = lengthCm;
+    }
+
+    public Integer getWidthCm() {
+        return widthCm;
+    }
+
+    public void setWidthCm(Integer widthCm) {
+        this.widthCm = widthCm;
+    }
+
+    public Integer getHeightCm() {
+        return heightCm;
+    }
+
+    public void setHeightCm(Integer heightCm) {
+        this.heightCm = heightCm;
     }
 }

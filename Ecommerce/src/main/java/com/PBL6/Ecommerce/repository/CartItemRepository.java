@@ -1,16 +1,17 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.Cart;
-import com.PBL6.Ecommerce.domain.CartItem;
-import com.PBL6.Ecommerce.domain.Product;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
+import com.PBL6.Ecommerce.domain.Cart;
+import com.PBL6.Ecommerce.domain.CartItem;
+import com.PBL6.Ecommerce.domain.ProductVariant;
 
 @Repository
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
@@ -19,13 +20,23 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     List<CartItem> findByCartId(Long cartId);
     
     // ✅ Tìm CartItem theo Cart và Product objects
-    Optional<CartItem> findByCartAndProduct(Cart cart, Product product);
+    Optional<CartItem> findByCartAndProductVariant(Cart cart, ProductVariant productVariant);
+
+    // ✅ Tìm CartItem theo cartId và productVariantId
+    Optional<CartItem> findByCartIdAndProductVariantId(Long cartId, Long productVariantId);
     
-    // ✅ Tìm CartItem theo cartId và productId
-    Optional<CartItem> findByCartIdAndProductId(Long cartId, Long productId);
+    // ✅ Đếm số CartItem theo productId
+    @Query("SELECT COUNT(ci) FROM CartItem ci WHERE ci.productVariant.product.id = :productId")
+    long countByProductVariant_ProductId(@Param("productId") Long productId);
     
     // ✅ Xóa tất cả items trong 1 cart
     @Modifying
     @Query("DELETE FROM CartItem ci WHERE ci.cart.id = :cartId")
     void deleteByCartId(@Param("cartId") Long cartId);
+    
+    // ✅ Xóa các items theo cartId và danh sách variantId
+    @Modifying
+    @Query("DELETE FROM CartItem ci WHERE ci.cart.id = :cartId AND ci.productVariant.id IN :variantIds")
+    void deleteByCartIdAndVariantIdIn(@Param("cartId") Long cartId, @Param("variantIds") List<Long> variantIds);
+    
 }

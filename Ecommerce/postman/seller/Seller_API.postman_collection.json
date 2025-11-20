@@ -1,0 +1,517 @@
+{
+  "info": {
+    "_postman_id": "seller-api-collection",
+    "name": "Seller Management API",
+    "description": "Seller Management APIs for E-Commerce Application\n\nFeatures:\n- Shopee-style buyer to seller upgrade\n- Auto-approval seller registration\n- Phone uniqueness validation\n- Shop management for sellers\n\nEndpoints:\n- POST /api/seller/register - Buyer upgrades to seller\n- GET /api/seller/shop - Get seller's shop info\n- PUT /api/seller/shop - Update seller's shop info",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login - Buyer Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.accessToken) {",
+                  "        pm.environment.set('token', jsonData.data.accessToken);",
+                  "        pm.environment.set('username', 'buyer1');",
+                  "        console.log('✅ Buyer login successful - Token saved');",
+                  "        console.log('Username: buyer1');",
+                  "    } else {",
+                  "        console.log('❌ Login failed - No token received');",
+                  "    }",
+                  "}",
+                  "",
+                  "pm.test('Login successful', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql(200);",
+                  "    pm.expect(jsonData.data).to.have.property('accessToken');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"buyer1\",\n  \"password\": \"buyer123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login with buyer account to test seller registration. Token will be automatically saved to environment."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - Seller Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.accessToken) {",
+                  "        pm.environment.set('token', jsonData.data.accessToken);",
+                  "        pm.environment.set('username', 'seller1');",
+                  "        console.log('✅ Seller login successful - Token saved');",
+                  "        console.log('Username: seller1');",
+                  "    } else {",
+                  "        console.log('❌ Login failed - No token received');",
+                  "    }",
+                  "}",
+                  "",
+                  "pm.test('Login successful', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql(200);",
+                  "    pm.expect(jsonData.data).to.have.property('accessToken');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"seller1\",\n  \"password\": \"seller123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login with seller account to test shop management APIs. Use this after successful seller registration."
+          },
+          "response": []
+        }
+      ],
+      "description": "Authentication requests for testing seller APIs"
+    },
+    {
+      "name": "Seller Registration",
+      "item": [
+        {
+          "name": "Register as Seller - Success Case",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.id) {",
+                  "        pm.environment.set('shop_id', jsonData.data.id);",
+                  "        console.log('✅ Seller registration successful');",
+                  "        console.log('Shop ID:', jsonData.data.id);",
+                  "        console.log('Shop Name:', jsonData.data.name);",
+                  "        console.log('User role upgraded to SELLER');",
+                  "    }",
+                  "}",
+                  "",
+                  "pm.test('Seller registration successful', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql(201);",
+                  "    pm.expect(jsonData.message).to.include('Đăng ký seller thành công');",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.expect(jsonData.data).to.have.property('name');",
+                  "});",
+                  "",
+                  "pm.test('Response structure validation', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('code');",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "description": "JWT token from buyer login"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopName\": \"My Awesome Shop\",\n  \"shopDescription\": \"Best products in town with great service\",\n  \"shopPhone\": \"0987654321\",\n  \"shopAddress\": \"123 Main Street, District 1, Ho Chi Minh City\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "register"
+              ]
+            },
+            "description": "Register as seller from buyer account. This will:\n- Create a new shop\n- Upgrade user role from BUYER to SELLER\n- Validate phone uniqueness among sellers\n- Auto-approve (no admin review needed)\n\nPrerequisites:\n- Login as buyer first\n- Phone number must not be used by other sellers\n- Shop name must be unique"
+          },
+          "response": []
+        },
+        {
+          "name": "Register as Seller - Duplicate Phone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Duplicate phone validation', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql(400);",
+                  "    pm.expect(jsonData.message).to.include('Số điện thoại đã được sử dụng');",
+                  "});",
+                  "",
+                  "console.log('❌ Expected error - Phone already used by another seller');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "description": "JWT token from buyer login"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopName\": \"Another Shop\",\n  \"shopDescription\": \"Another shop description\",\n  \"shopPhone\": \"0987654321\",\n  \"shopAddress\": \"456 Another Street, City\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "register"
+              ]
+            },
+            "description": "Test phone uniqueness validation. This should fail because phone 0987654321 is already used by another seller.\n\nExpected Response:\n- Status: 400 Bad Request\n- Message: 'Số điện thoại đã được sử dụng bởi seller khác'"
+          },
+          "response": []
+        },
+        {
+          "name": "Register as Seller - Duplicate Shop Name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Duplicate shop name validation', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql(400);",
+                  "    pm.expect(jsonData.message).to.include('Tên shop đã tồn tại');",
+                  "});",
+                  "",
+                  "console.log('❌ Expected error - Shop name already exists');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "description": "JWT token from buyer login"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopName\": \"My Awesome Shop\",\n  \"shopDescription\": \"Duplicate shop name test\",\n  \"shopPhone\": \"0976543210\",\n  \"shopAddress\": \"789 Test Street, City\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "register"
+              ]
+            },
+            "description": "Test shop name uniqueness validation. This should fail because 'My Awesome Shop' already exists.\n\nExpected Response:\n- Status: 400 Bad Request\n- Message: 'Tên shop đã tồn tại'"
+          },
+          "response": []
+        },
+        {
+          "name": "Register as Seller - Invalid Phone Format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Phone format validation', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql(400);",
+                  "    pm.expect(jsonData.message).to.include('Số điện thoại không hợp lệ');",
+                  "});",
+                  "",
+                  "console.log('❌ Expected error - Invalid phone format');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "description": "JWT token from buyer login"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopName\": \"Test Shop\",\n  \"shopDescription\": \"Test description\",\n  \"shopPhone\": \"123456789\",\n  \"shopAddress\": \"Test Address\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "register"
+              ]
+            },
+            "description": "Test phone format validation. Phone must follow Vietnamese format: 0xxxxxxxxx or +84xxxxxxxxx\n\nExpected Response:\n- Status: 400 Bad Request\n- Message: 'Số điện thoại không hợp lệ. Định dạng: 0xxxxxxxxx hoặc +84xxxxxxxxx'"
+          },
+          "response": []
+        }
+      ],
+      "description": "Seller registration APIs with validation tests"
+    },
+    {
+      "name": "Shop Management",
+      "item": [
+        {
+          "name": "Get Seller Shop Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get shop info successful', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql(200);",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.expect(jsonData.data).to.have.property('name');",
+                  "    pm.expect(jsonData.data).to.have.property('address');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    console.log('✅ Shop info retrieved successfully');",
+                  "    console.log('Shop ID:', jsonData.data.id);",
+                  "    console.log('Shop Name:', jsonData.data.name);",
+                  "    console.log('Shop Status:', jsonData.data.status);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "description": "JWT token from seller login"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller/shop",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "shop"
+              ]
+            },
+            "description": "Get current seller's shop information. Only users with SELLER role can access this API.\n\nPrerequisites:\n- Login as seller account\n- User must have SELLER role\n- User must have an active shop\n\nReturns:\n- Shop details (id, name, address, description, status, etc.)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Seller Shop Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update shop successful', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql(200);",
+                  "    pm.expect(jsonData.message).to.include('Cập nhật thông tin shop thành công');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    console.log('✅ Shop updated successfully');",
+                  "    console.log('Updated Shop Name:', jsonData.data.name);",
+                  "    console.log('Updated Address:', jsonData.data.address);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "description": "JWT token from seller login"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Shop Name\",\n  \"address\": \"456 Updated Address, New District\",\n  \"description\": \"Updated shop description with new information\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller/shop",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "shop"
+              ]
+            },
+            "description": "Update seller's shop information. Only the seller who owns the shop can update it.\n\nPrerequisites:\n- Login as seller account\n- User must have SELLER role\n- User must own the shop\n\nUpdatable fields:\n- name: Shop name\n- address: Shop address\n- description: Shop description\n- status: Shop status (ACTIVE/INACTIVE)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Shop Info - Unauthorized (Buyer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Access denied for buyer', function () {",
+                  "    pm.expect(pm.response.code).to.eql(403);",
+                  "});",
+                  "",
+                  "console.log('❌ Expected error - Buyers cannot access seller shop APIs');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "description": "JWT token from buyer login"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller/shop",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "shop"
+              ]
+            },
+            "description": "Test authorization - buyers should not be able to access seller shop APIs.\n\nExpected Response:\n- Status: 403 Forbidden\n- Message: Access denied"
+          },
+          "response": []
+        }
+      ],
+      "description": "Shop management APIs for sellers"
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}

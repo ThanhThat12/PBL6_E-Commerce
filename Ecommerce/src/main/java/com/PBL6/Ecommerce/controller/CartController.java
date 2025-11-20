@@ -1,68 +1,74 @@
-// package com.PBL6.Ecommerce.controller;
+package com.PBL6.Ecommerce.controller;
 
-// import com.PBL6.Ecommerce.domain.dto.CartItemDTO;
-// import com.PBL6.Ecommerce.domain.User;
-// import com.PBL6.Ecommerce.domain.Cart;
-// import com.PBL6.Ecommerce.service.CartService;
-// import com.PBL6.Ecommerce.repository.UserRepository;
-// import org.springframework.beans.factory.annotation.Autowired;
-// import org.springframework.http.ResponseEntity;
-// import org.springframework.web.bind.annotation.*;
-// import org.springframework.security.core.annotation.AuthenticationPrincipal;
-// import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-// @RestController
-// @RequestMapping("/api/carts")
-// public class CartController {
-//     private final CartService cartService;
-//     private final UserRepository userRepository;
+import com.PBL6.Ecommerce.domain.dto.AddCartItemDTO;
+import com.PBL6.Ecommerce.domain.dto.CartDTO;
+import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.UpdateCartItemDTO;
+import com.PBL6.Ecommerce.service.CartService;
 
-//     @Autowired
-//     public CartController(CartService cartService, UserRepository userRepository) {
-//         this.cartService = cartService;
-//         this.userRepository = userRepository;
-//     }
+import jakarta.validation.Valid;
 
-//     @PostMapping
-//     public ResponseEntity<?> addToCart(@RequestBody CartItemDTO cartItem, @AuthenticationPrincipal Jwt jwt) {
-//         System.out.println("addToCart called with productId=" + cartItem.getProductId() + ", quantity=" + cartItem.getQuantity());
-//         String username = jwt.getSubject();
-//         System.out.println("Username from JWT: " + username);
-//         User user = userRepository.findOneByUsername(username).orElse(null);
-//         if (user == null) {
-//             System.out.println("User not found in DB");
-//             return ResponseEntity.badRequest().body("User not found");
-//         }
-//         try {
-//             cartService.addToCart(user, cartItem.getProductId(), cartItem.getQuantity());
-//             return ResponseEntity.ok("Added to cart successfully");
-//         } catch (Exception e) {
-//             e.printStackTrace();
-//             return ResponseEntity.badRequest().body(e.getMessage());
-//         }
-//     }
+@RestController
+@RequestMapping("/api/cart")
+public class CartController {
 
-//     @GetMapping
-//     public ResponseEntity<?> getCart(@AuthenticationPrincipal Jwt jwt) {
-//         String username = jwt.getSubject();
-//         User user = userRepository.findOneByUsername(username).orElse(null);
-//         if (user == null) return ResponseEntity.badRequest().body("User not found");
-//         Cart cart = cartService.getCart(user);
-//         System.out.println("[getCart] User: " + username + ", Cart Items: " + cart.getItems());
-//         // Convert CartItem entity to CartItemDTO for JSON serialization
-//         java.util.List<CartItemDTO> itemDTOs = new java.util.ArrayList<>();
-//         if (cart != null && cart.getItems() != null) {
-//             for (var item : cart.getItems()) {
-//                 CartItemDTO dto = new CartItemDTO();
-//                 dto.setId(item.getId());
-//                 dto.setProductId(item.getProduct().getId());
-//                 dto.setProductName(item.getProduct().getName());
-//                 dto.setProductImage(item.getProduct().getImage());
-//                 dto.setProductPrice(item.getProduct().getPrice());
-//                 dto.setQuantity(item.getQuantity());
-//                 itemDTOs.add(dto);
-//             }
-//         }
-//         return ResponseEntity.ok(itemDTOs);
-//     }
-// }
+    private final CartService cartService;
+
+    public CartController(CartService cartService) {
+        this.cartService = cartService;
+    }
+
+    @GetMapping
+    public ResponseEntity<ResponseDTO<CartDTO>> getCart(Authentication authentication) {
+        CartDTO dto = cartService.getCartDtoForUser(authentication);
+        return ResponseDTO.success(dto, "Cart retrieved");
+    }
+
+    @PostMapping("/items")
+    public ResponseEntity<ResponseDTO<CartDTO>> addItem(
+            Authentication authentication, 
+            @Valid @RequestBody AddCartItemDTO body) {
+        // Validate that at least one ID is provided
+        if (!body.hasValidId()) {
+            return ResponseDTO.badRequest("Either productId or variantId must be provided");
+        }
+        
+        // Use getVariantId() which has fallback logic to productId
+        CartDTO dto = cartService.addItem(authentication, body.getVariantId(), body.getQuantity());
+        return ResponseDTO.success(dto, "Item added");
+    }
+
+    @PutMapping("/items/{itemId}")
+    public ResponseEntity<ResponseDTO<CartDTO>> updateItem(
+            Authentication authentication, 
+            @PathVariable Long itemId, 
+            @Valid @RequestBody UpdateCartItemDTO body) {
+        CartDTO dto = cartService.updateItem(authentication, itemId, body.getQuantity());
+        return ResponseDTO.success(dto, "Item updated");
+    }
+
+    @DeleteMapping("/items/{itemId}")
+    public ResponseEntity<ResponseDTO<CartDTO>> removeItem(
+            Authentication authentication, 
+            @PathVariable Long itemId) {
+        CartDTO dto = cartService.removeItem(authentication, itemId);
+        return ResponseDTO.success(dto, "Item removed");
+    }
+
+    @DeleteMapping
+    public ResponseEntity<ResponseDTO<CartDTO>> clearCart(Authentication authentication) {
+        CartDTO dto = cartService.clearCart(authentication);
+        return ResponseDTO.success(dto, "Cart cleared");
+    }
+}
