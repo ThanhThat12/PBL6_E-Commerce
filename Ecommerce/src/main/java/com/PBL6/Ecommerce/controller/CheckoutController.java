@@ -64,7 +64,7 @@ public class CheckoutController {
      * POST /api/checkout/available-services
      */
     @PostMapping("/available-services")
-    @PreAuthorize("isAuthenticated()")
+    // @PreAuthorize("isAuthenticated()") // TODO: Re-enable after testing
     public ResponseEntity<ResponseDTO<List<Map<String,Object>>>> getAvailableServices(
             @Valid @RequestBody CheckoutInitRequestDTO req) {
         try {
@@ -136,7 +136,7 @@ public class CheckoutController {
      * POST /api/checkout/calculate-fee
      */
     @PostMapping("/calculate-fee")
-    @PreAuthorize("isAuthenticated()")
+    // @PreAuthorize("isAuthenticated()") // TODO: Re-enable after testing
     public ResponseEntity<ResponseDTO<Map<String,Object>>> calculateShippingFee(
             @Valid @RequestBody CheckoutCalculateFeeRequestDTO req) {
         try {
@@ -245,6 +245,19 @@ public class CheckoutController {
             Map<String,Object> feeResponse = ghnService.calculateFee(payload, req.getShopId());
             
             return ResponseDTO.ok(feeResponse, "Tính phí thành công");
+        } catch (RuntimeException e) {
+            // Check if it's GHN route not found error
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && errorMsg.contains("route not found")) {
+                return ResponseEntity.badRequest()
+                    .body(new ResponseDTO<>(400, 
+                        "GHN không hỗ trợ dịch vụ vận chuyển này cho địa chỉ đã chọn. Vui lòng chọn dịch vụ khác.", 
+                        "GHN_ROUTE_NOT_FOUND", 
+                        null));
+            }
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                .body(new ResponseDTO<>(400, "Lỗi tính phí: " + errorMsg, "ERROR", null));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest()
@@ -327,16 +340,28 @@ public class CheckoutController {
 
             // ========== TẠO ORDER ITEMS ==========
             for (var cartItem : cartItems) {
+                var variant = cartItem.getProductVariant();
+                
                 OrderItem orderItem = new OrderItem();
                 orderItem.setOrder(order);
-                orderItem.setVariant(cartItem.getProductVariant());
+                orderItem.setVariant(variant);
+                orderItem.setProductId(variant.getProduct().getId()); // ✅ Set product_id
+                orderItem.setVariantName(variant.getSku() != null ? variant.getSku() : variant.getProduct().getName()); // ✅ Set variant_name
                 orderItem.setQuantity(cartItem.getQuantity());
-                orderItem.setPrice(cartItem.getProductVariant().getPrice());
+                orderItem.setPrice(variant.getPrice());
                 orderItemRepository.save(orderItem);
             }
 
             // ========== XÓA CART ITEMS ==========
-            cartItemRepository.deleteAll(cartItems);
+            // Logic:
+            // - COD: Xóa cart ngay vì user đã xác nhận order (không có bước payment gateway)
+            // - MoMo/SportyPay: GIỮ cart cho đến khi payment success (user có thể thoát khỏi payment page)
+            if ("COD".equalsIgnoreCase(req.getPaymentMethod())) {
+                cartItemRepository.deleteAll(cartItems);
+                System.out.println("✅ Cart cleared for COD order #" + order.getId());
+            } else {
+                System.out.println("⏳ Cart kept for online payment order #" + order.getId() + " - will be cleared after payment success");
+            }
 
             // ========== TRẢ VỀ KẾT QUẢ ==========
             Map<String, Object> response = new HashMap<>();
