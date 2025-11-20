@@ -1,95 +1,60 @@
-package com.PBL6.Ecommerce.domain;
+package com.PBL6.Ecommerce.domain.dto;
 
-import jakarta.persistence.*;
+import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
+import com.PBL6.Ecommerce.domain.Vouchers.ApplicableType;
+import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
-@Entity
-@Table(name = "vouchers")
-public class Vouchers {
-	public enum DiscountType {
-	PERCENTAGE,
-	FIXED_AMOUNT
-	}
-
-	public enum Status {
-		UPCOMING,
-		ACTIVE,
-		EXPIRED
-	}
-
-	public enum ApplicableType {
-		ALL,
-		SPECIFIC_PRODUCTS,
-		SPECIFIC_USERS,
-		TOP_BUYERS
-	}
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, unique = true)
+public class CreateVoucherRequestDTO {
+    
+    @NotBlank(message = "Mã voucher không được để trống")
+    @Size(min = 3, max = 50, message = "Mã voucher phải từ 3-50 ký tự")
     private String code;
 
-    @Column(nullable = false)
+    @NotBlank(message = "Mô tả không được để trống")
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id", nullable = false)
-    private Shop shop;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @NotNull(message = "Loại giảm giá không được để trống")
     private DiscountType discountType;
 
-    @Column(nullable = false)
+    @NotNull(message = "Giá trị giảm không được để trống")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Giá trị giảm phải lớn hơn 0")
     private BigDecimal discountValue;
 
-    @Column
+    @DecimalMin(value = "0.0", message = "Giá trị đơn hàng tối thiểu phải >= 0")
     private BigDecimal minOrderValue;
 
-    @Column
+    @DecimalMin(value = "0.0", message = "Số tiền giảm tối đa phải >= 0")
     private BigDecimal maxDiscountAmount;
 
-    @Column(nullable = false)
+    @NotNull(message = "Ngày bắt đầu không được để trống")
     private LocalDateTime startDate;
 
-    @Column(nullable = false)
+    @NotNull(message = "Ngày kết thúc không được để trống")
     private LocalDateTime endDate;
 
-    @Column(nullable = false)
+    @NotNull(message = "Số lần sử dụng tối đa không được để trống")
+    @Min(value = 1, message = "Số lần sử dụng tối đa phải >= 1")
     private Integer usageLimit;
 
-    @Column(nullable = false)
-    private Integer usedCount = 0;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @NotNull(message = "Loại áp dụng không được để trống")
     private ApplicableType applicableType;
 
-    @Column
+    @Min(value = 1, message = "Số lượng top buyer phải >= 1")
     private Integer topBuyersCount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Status status;
+    private List<Long> productIds; // Danh sách ID sản phẩm (nếu applicableType = SPECIFIC_PRODUCTS)
 
-    @Column
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private List<Long> userIds; // Danh sách ID user (nếu applicableType = SPECIFIC_USERS)
 
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-
-    public Shop getShop() { return shop; }
-    public void setShop(Shop shop) { this.shop = shop; }
 
     public DiscountType getDiscountType() { return discountType; }
     public void setDiscountType(DiscountType discountType) { this.discountType = discountType; }
@@ -112,33 +77,15 @@ public class Vouchers {
     public Integer getUsageLimit() { return usageLimit; }
     public void setUsageLimit(Integer usageLimit) { this.usageLimit = usageLimit; }
 
-    public Integer getUsedCount() { return usedCount; }
-    public void setUsedCount(Integer usedCount) { this.usedCount = usedCount; }
-
     public ApplicableType getApplicableType() { return applicableType; }
     public void setApplicableType(ApplicableType applicableType) { this.applicableType = applicableType; }
 
     public Integer getTopBuyersCount() { return topBuyersCount; }
     public void setTopBuyersCount(Integer topBuyersCount) { this.topBuyersCount = topBuyersCount; }
 
-    public Status getStatus() { return status; }
-    public void setStatus(Status status) { this.status = status; }
+    public List<Long> getProductIds() { return productIds; }
+    public void setProductIds(List<Long> productIds) { this.productIds = productIds; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    @PrePersist
-    @PreUpdate
-    private void updateStatusFromDates() {
-        if (this.startDate != null && this.endDate != null) {
-            LocalDateTime now = LocalDateTime.now();
-            if (now.isBefore(this.startDate)) {
-                this.status = Status.UPCOMING;
-            } else if (now.isAfter(this.endDate)) {
-                this.status = Status.EXPIRED;
-            } else {
-                this.status = Status.ACTIVE;
-            }
-        }
-    }
+    public List<Long> getUserIds() { return userIds; }
+    public void setUserIds(List<Long> userIds) { this.userIds = userIds; }
 }

@@ -52,6 +52,9 @@ import com.PBL6.Ecommerce.repository.OrderItemRepository;
 import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ProductVariantRepository;
+import java.util.Optional;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
 import com.PBL6.Ecommerce.domain.Cart;
@@ -77,6 +80,7 @@ public class OrderService {
     private final AddressRepository addressRepository;
     private final ProductRepository productRepository;
     private final GhnService ghnService;
+    
     @Autowired
     private RefundRepository refundRepository;
     @Autowired
@@ -1033,6 +1037,64 @@ public class OrderService {
         }
         
         return dto;
+    }
+
+    /**
+     * Lấy thống kê số đơn hàng hoàn thành theo tháng (12 tháng gần nhất)
+     * @param username - Username của seller
+     * @return List<MonthlyOrderStatsDTO> - Thống kê theo tháng
+     */
+    public List<com.PBL6.Ecommerce.domain.dto.MonthlyOrderStatsDTO> getMonthlyCompletedOrderStats(String username) {
+        // Lấy shop của seller
+        User seller = userRepository.findByUsername(username)
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy seller"));
+        
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+            .orElseThrow(() -> new ShopNotFoundException("Seller chưa có shop"));
+        
+        // Lấy ngày 12 tháng trước
+        java.time.LocalDateTime startDate = java.time.LocalDateTime.now().minusMonths(12);
+        
+        return orderRepository.getMonthlyCompletedOrderStats(shop.getId(), startDate);
+    }
+
+    /**
+     * Lấy thống kê số đơn hàng bị hủy theo tháng (12 tháng gần nhất)
+     * @param username - Username của seller
+     * @return List<MonthlyOrderStatsDTO> - Thống kê theo tháng
+     */
+    public List<com.PBL6.Ecommerce.domain.dto.MonthlyOrderStatsDTO> getMonthlyCancelledOrderStats(String username) {
+        // Lấy shop của seller
+        User seller = userRepository.findByUsername(username)
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy seller"));
+        
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+            .orElseThrow(() -> new ShopNotFoundException("Seller chưa có shop"));
+        
+        // Lấy ngày 12 tháng trước
+        java.time.LocalDateTime startDate = java.time.LocalDateTime.now().minusMonths(12);
+        
+        return orderRepository.getMonthlyCancelledOrderStats(shop.getId(), startDate);
+    }
+
+    /**
+     * Lấy top 5 sản phẩm bán chạy nhất của shop
+     * @param username - Username của seller
+     * @return List<TopProductDTO> - Top 5 sản phẩm
+     */
+    public List<com.PBL6.Ecommerce.domain.dto.TopProductDTO> getTopSellingProducts(String username) {
+        // Lấy shop của seller
+        User seller = userRepository.findByUsername(username)
+            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy seller"));
+        
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+            .orElseThrow(() -> new ShopNotFoundException("Seller chưa có shop"));
+        
+        // Lấy top 5 sản phẩm
+        org.springframework.data.domain.Pageable topFive = 
+            org.springframework.data.domain.PageRequest.of(0, 5);
+        
+        return orderItemRepository.findTopSellingProductsByShop(shop.getId(), topFive);
     }
      
     @Transactional

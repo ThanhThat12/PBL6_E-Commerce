@@ -262,16 +262,17 @@ public class UserController {
      * GET /api/seller/top-buyers
      * Chỉ lấy top buyers của shop thuộc seller đang đăng nhập
      */
-    @GetMapping("/seller/top-buyers")
+     @GetMapping("/seller/top-buyers")
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ResponseDTO<List<TopBuyerDTO>>> getSellerTopBuyers() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String username = authentication.getName();
 
-            List<TopBuyerDTO> topBuyers = userService.getTopBuyersByShop(username);
+            // Chỉ lấy 5 buyer cao nhất
+            List<TopBuyerDTO> topBuyers = userService.getTopBuyersByShopWithLimit(username, 5);
             return ResponseEntity.ok(
-                new ResponseDTO<>(200, null, "Lấy danh sách top buyers của shop thành công", topBuyers)
+                new ResponseDTO<>(200, null, "Lấy danh sách top 5 buyers của shop thành công", topBuyers)
             );
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(
@@ -285,29 +286,23 @@ public class UserController {
      * GET /api/seller/top-buyers/limit/{limit}
      * Seller chỉ lấy được top N buyers của shop mình
      */
-    @GetMapping("/seller/top-buyers/limit/{limit}")
-    @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ResponseDTO<List<TopBuyerDTO>>> getSellerTopBuyersWithLimit(@PathVariable int limit) {
-        try {
-            if (limit <= 0 || limit > 100) {
-                return ResponseEntity.badRequest().body(
-                    new ResponseDTO<>(400, "INVALID_LIMIT", "Limit phải từ 1 đến 100", null)
-                );
-            }
+    // @GetMapping("/seller/all-buyers")
+    // @PreAuthorize("hasRole('SELLER')")
+    // public ResponseEntity<ResponseDTO<List<TopBuyerDTO>>> getSellerBuyers() {
+    //     try {
+    //         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    //         String username = authentication.getName();
 
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String username = authentication.getName();
-
-            List<TopBuyerDTO> topBuyers = userService.getTopBuyersByShopWithLimit(username, limit);
-            return ResponseEntity.ok(
-                new ResponseDTO<>(200, null, 
-                    String.format("Lấy top %d buyers của shop thành công", limit), topBuyers)
-            );
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(
-                new ResponseDTO<>(400, e.getMessage(), "Lấy danh sách top buyers thất bại", null)
-            );
-        }
-    }
+    //         // Lấy tất cả buyers đã mua sản phẩm của shop (không giới hạn)
+    //         List<TopBuyerDTO> buyers = userService.getBuyersByShop(username);
+    //         return ResponseEntity.ok(
+    //             new ResponseDTO<>(200, null, "Lấy danh sách tất cả buyers của shop thành công", buyers)
+    //         );
+    //     } catch (Exception e) {
+    //         return ResponseEntity.badRequest().body(
+    //             new ResponseDTO<>(400, e.getMessage(), "Lấy danh sách buyers thất bại", null)
+    //         );
+    //     }
+    // }
 }
 

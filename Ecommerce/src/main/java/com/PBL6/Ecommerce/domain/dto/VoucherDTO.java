@@ -1,82 +1,33 @@
-package com.PBL6.Ecommerce.domain;
+package com.PBL6.Ecommerce.domain.dto;
 
-import jakarta.persistence.*;
+import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
+import com.PBL6.Ecommerce.domain.Vouchers.ApplicableType;
+import com.PBL6.Ecommerce.domain.Vouchers.Status;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
-@Entity
-@Table(name = "vouchers")
-public class Vouchers {
-	public enum DiscountType {
-	PERCENTAGE,
-	FIXED_AMOUNT
-	}
-
-	public enum Status {
-		UPCOMING,
-		ACTIVE,
-		EXPIRED
-	}
-
-	public enum ApplicableType {
-		ALL,
-		SPECIFIC_PRODUCTS,
-		SPECIFIC_USERS,
-		TOP_BUYERS
-	}
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class VoucherDTO {
     private Long id;
-
-    @Column(nullable = false, unique = true)
     private String code;
-
-    @Column(nullable = false)
     private String description;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id", nullable = false)
-    private Shop shop;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    private Long shopId;
+    private String shopName;
     private DiscountType discountType;
-
-    @Column(nullable = false)
     private BigDecimal discountValue;
-
-    @Column
     private BigDecimal minOrderValue;
-
-    @Column
     private BigDecimal maxDiscountAmount;
-
-    @Column(nullable = false)
     private LocalDateTime startDate;
-
-    @Column(nullable = false)
     private LocalDateTime endDate;
-
-    @Column(nullable = false)
     private Integer usageLimit;
-
-    @Column(nullable = false)
-    private Integer usedCount = 0;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    private Integer usedCount;
     private ApplicableType applicableType;
-
-    @Column
     private Integer topBuyersCount;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private Status status;
-
-    @Column
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
+    private List<Long> productIds;
+    private List<Long> userIds;
+    private VoucherPreviewDiscountDTO previewDiscount;
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -88,8 +39,11 @@ public class Vouchers {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public Shop getShop() { return shop; }
-    public void setShop(Shop shop) { this.shop = shop; }
+    public Long getShopId() { return shopId; }
+    public void setShopId(Long shopId) { this.shopId = shopId; }
+
+    public String getShopName() { return shopName; }
+    public void setShopName(String shopName) { this.shopName = shopName; }
 
     public DiscountType getDiscountType() { return discountType; }
     public void setDiscountType(DiscountType discountType) { this.discountType = discountType; }
@@ -127,18 +81,12 @@ public class Vouchers {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    @PrePersist
-    @PreUpdate
-    private void updateStatusFromDates() {
-        if (this.startDate != null && this.endDate != null) {
-            LocalDateTime now = LocalDateTime.now();
-            if (now.isBefore(this.startDate)) {
-                this.status = Status.UPCOMING;
-            } else if (now.isAfter(this.endDate)) {
-                this.status = Status.EXPIRED;
-            } else {
-                this.status = Status.ACTIVE;
-            }
-        }
-    }
+    public List<Long> getProductIds() { return productIds; }
+    public void setProductIds(List<Long> productIds) { this.productIds = productIds; }
+
+    public List<Long> getUserIds() { return userIds; }
+    public void setUserIds(List<Long> userIds) { this.userIds = userIds; }
+
+    public VoucherPreviewDiscountDTO getPreviewDiscount() { return previewDiscount; }
+    public void setPreviewDiscount(VoucherPreviewDiscountDTO previewDiscount) { this.previewDiscount = previewDiscount; }
 }

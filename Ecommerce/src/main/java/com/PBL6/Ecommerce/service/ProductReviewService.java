@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -18,10 +19,16 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.PageImpl;
+import com.PBL6.Ecommerce.domain.dto.ShopReviewsGroupedDTO;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -52,60 +59,8 @@ public class ProductReviewService {
      */
     @PreAuthorize("hasRole('BUYER')")
     public ProductReviewDTO createReview(CreateReviewRequestDTO request, Authentication authentication) {
-        try {
-            // 1. Get current user
-            User user = getCurrentUser(authentication);
-            
-            // 2. Validate product exists
-            Product product = productRepository.findById(request.getProductId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
-            
-            // 3. Validate order exists and belongs to user
-            Order order = orderRepository.findById(request.getOrderId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
-            
-            if (!order.getUser().getId().equals(user.getId())) {
-                throw new RuntimeException("Đơn hàng không thuộc về bạn");
-            }
-            
-            // 4. Check order status = COMPLETED
-            if (!order.getStatus().toString().equals("COMPLETED")) {
-                throw new RuntimeException("Chỉ có thể đánh giá khi đơn hàng đã hoàn thành");
-            }
-            
-            // 5. Check order contains this product
-            boolean hasProduct = order.getOrderItems().stream()
-                .anyMatch(item -> item.getProductId().equals(request.getProductId()));
-            
-            if (!hasProduct) {
-                throw new RuntimeException("Đơn hàng không chứa sản phẩm này");
-            }
-            
-            // 6. Check if already reviewed
-            if (productReviewRepository.existsByUserIdAndProductId(user.getId(), request.getProductId())) {
-                throw new RuntimeException("Bạn đã đánh giá sản phẩm này rồi");
-            }
-            
-            // 7. Create review
-            ProductReview review = new ProductReview();
-            review.setProduct(product);
-            review.setUser(user);
-            review.setOrder(order);
-            review.setRating(request.getRating());
-            review.setComment(request.getComment());
-            review.setImages(convertImagesToJson(request.getImages()));
-            review.setVerifiedPurchase(true);
-            
-            review = productReviewRepository.save(review);
-            
-            log.info("Created review {} for product {} by user {}", review.getId(), request.getProductId(), user.getUsername());
-            
-            return convertToDTO(review);
-            
-        } catch (Exception e) {
-            log.error("Error creating review", e);
-            throw new RuntimeException("Lỗi khi tạo đánh giá: " + e.getMessage());
-        }
+        // Deprecated/compatibility stub
+        throw new UnsupportedOperationException("Endpoint POST /api/reviews (body with productId/orderId) is deprecated. Use POST /api/products/{productId}/reviews with authenticated buyer instead.");
     }
 
     /**
@@ -403,5 +358,215 @@ public class ProductReviewService {
         }
         
         return dto;
+    }
+
+    
+        public ProductReviewDTO createReviewForProduct(Long productId, CreateReviewRequestDTO request, Authentication authentication) {
+            try {
+                // 1. Get current user
+                User user = getCurrentUser(authentication);
+
+                // 2. Validate product exists
+                Product product = productRepository.findById(productId)
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+
+                // 3. Check if already reviewed
+                if (productReviewRepository.existsByUserIdAndProductId(user.getId(), productId)) {
+                    throw new RuntimeException("Bạn đã đánh giá sản phẩm này rồi");
+                }
+
+                // 4. Find a COMPLETED order of the user that contains this product
+                java.util.List<Order> orders = orderRepository.findCompletedOrdersByUserAndProduct(user.getId(), productId);
+                if (orders == null || orders.isEmpty()) {
+                    throw new RuntimeException("Không tìm thấy đơn hàng hoàn tất chứa sản phẩm này");
+                }
+                Order order = orders.get(0); // most recent due to ORDER BY in query
+
+                // 5. Create review
+                ProductReview review = new ProductReview();
+                review.setProduct(product);
+                review.setUser(user);
+                review.setOrder(order);
+                review.setRating(request.getRating());
+                review.setComment(request.getComment());
+                review.setImages(convertImagesToJson(request.getImages()));
+                review.setVerifiedPurchase(true);
+
+                review = productReviewRepository.save(review);
+
+                log.info("Created review {} for product {} by user {} via product-detail endpoint", review.getId(), productId, user.getUsername());
+
+                return convertToDTO(review);
+            } catch (Exception e) {
+                log.error("Error creating review for product {}", productId, e);
+                throw new RuntimeException("Lỗi khi tạo đánh giá: " + e.getMessage());
+            }
+        }
+
+            /**
+     * Lấy tất cả reviews của shop với filters (cho seller)
+     */
+    @PreAuthorize("hasRole('SELLER')")
+    @Transactional(readOnly = true)
+    public Page<ProductReviewDTO> getShopReviews(Long shopId, Boolean replied, String ratingGroup, 
+                                                int page, int size, Authentication authentication) {
+        try {
+            // 1. Check if seller owns the shop
+            User seller = getCurrentUser(authentication);
+            Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy shop"));
+            
+            if (!shop.getOwner().getId().equals(seller.getId())) {
+                throw new RuntimeException("Bạn chỉ có thể xem đánh giá của shop của mình");
+            }
+            
+            // 2. Get all reviews of the shop (without filters first)
+            Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+            Page<ProductReview> allReviews = productReviewRepository.findByProductShopId(shopId, pageable);
+            
+            // 3. Apply filters in memory (since we have small dataset)
+            List<ProductReview> filteredReviews = allReviews.getContent().stream()
+                .filter(review -> {
+                    // Filter by replied
+                    if (replied != null) {
+                        boolean hasReply = review.getSellerResponse() != null;
+                        if (replied && !hasReply) return false;
+                        if (!replied && hasReply) return false;
+                    }
+                    
+                    // Filter by rating group
+                    if (ratingGroup != null) {
+                        int rating = review.getRating();
+                        switch (ratingGroup) {
+                            case "1-2":
+                                if (rating < 1 || rating > 2) return false;
+                                break;
+                            case "3-4":
+                                if (rating < 3 || rating > 4) return false;
+                                break;
+                            case "5":
+                                if (rating != 5) return false;
+                                break;
+                            default:
+                                // Invalid ratingGroup, ignore filter
+                                break;
+                        }
+                    }
+                    
+                    return true;
+                })
+                .collect(Collectors.toList());
+            
+            // 4. Convert to Page (approximate, since we filtered in memory)
+            int start = (int) pageable.getOffset();
+            int end = Math.min(start + pageable.getPageSize(), filteredReviews.size());
+            List<ProductReview> pageContent = filteredReviews.subList(start, end);
+            
+            return new PageImpl<>(pageContent, pageable, filteredReviews.size())
+                .map(this::convertToDTO);
+            
+        } catch (Exception e) {
+            log.error("Error getting shop reviews", e);
+            throw new RuntimeException("Lỗi khi lấy danh sách đánh giá của shop: " + e.getMessage());
+        }
+    }
+
+
+            /**
+     * Lấy tất cả reviews của shop, phân loại theo đã/chưa phản hồi (không phân trang)
+     */
+    @PreAuthorize("hasRole('SELLER')")
+    @Transactional(readOnly = true)
+    public ShopReviewsGroupedDTO getAllShopReviewsGrouped(Long shopId, Authentication authentication) {
+        try {
+            // 1. Lấy seller từ authentication
+            User seller = getCurrentUser(authentication);
+            
+            // 2. Tìm shop theo shopId
+            Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy shop"));
+            
+            // 3. Kiểm tra seller sở hữu shop
+            if (!shop.getOwner().getId().equals(seller.getId())) {
+                throw new RuntimeException("Bạn chỉ có thể xem đánh giá của shop của mình");
+            }
+            
+            // 4. Get all reviews of the shop (no pagination)
+            List<ProductReview> allReviews = productReviewRepository.findAllByProductShopId(shopId);
+            
+            // 5. Group by replied/unreplied
+            List<ProductReviewDTO> replied = allReviews.stream()
+                .filter(review -> review.getSellerResponse() != null)
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+            
+            List<ProductReviewDTO> unreplied = allReviews.stream()
+                .filter(review -> review.getSellerResponse() == null)
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+            
+            return new ShopReviewsGroupedDTO(replied, unreplied);
+            
+        } catch (Exception e) {
+            log.error("Error getting all shop reviews grouped", e);
+            throw new RuntimeException("Lỗi khi lấy tất cả đánh giá của shop: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Lấy reviews chưa phản hồi của shop
+     */
+    @PreAuthorize("hasRole('SELLER')")
+    @Transactional(readOnly = true)
+    public Page<ProductReviewDTO> getUnrepliedShopReviews(Long shopId, int page, int size, Authentication authentication) {
+        try {
+            // Check if seller owns the shop
+            User seller = getCurrentUser(authentication);
+            Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy shop"));
+            
+            if (!shop.getOwner().getId().equals(seller.getId())) {
+                throw new RuntimeException("Bạn chỉ có thể xem đánh giá của shop của mình");
+            }
+            
+            // Get all reviews, then filter unreplied in memory (for small dataset)
+            Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+            Page<ProductReview> allReviews = productReviewRepository.findByProductShopId(shopId, pageable);
+            
+            List<ProductReview> unrepliedReviews = allReviews.getContent().stream()
+                .filter(review -> review.getSellerResponse() == null)
+                .collect(Collectors.toList());
+            
+            // Convert to Page
+            int start = (int) pageable.getOffset();
+            int end = Math.min(start + pageable.getPageSize(), unrepliedReviews.size());
+            List<ProductReview> pageContent = unrepliedReviews.subList(start, end);
+            
+            return new PageImpl<>(pageContent, pageable, unrepliedReviews.size())
+                .map(this::convertToDTO);
+            
+        } catch (Exception e) {
+            log.error("Error getting unreplied shop reviews", e);
+            throw new RuntimeException("Lỗi khi lấy đánh giá chưa phản hồi: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Lấy tất cả reviews của shop của seller hiện tại, grouped by replied/unreplied
+     */
+    @PreAuthorize("hasRole('SELLER')")
+    @Transactional(readOnly = true)
+    public ShopReviewsGroupedDTO getMyShopReviewsGrouped(Authentication authentication) {
+        try {
+            User seller = getCurrentUser(authentication);
+            Shop shop = shopRepository.findByOwnerId(seller.getId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy shop của bạn"));
+            
+            return getAllShopReviewsGrouped(shop.getId(), authentication);
+            
+        } catch (Exception e) {
+            log.error("Error getting my shop reviews grouped", e);
+            throw new RuntimeException("Lỗi khi lấy đánh giá của shop: " + e.getMessage());
+        }
     }
 }
