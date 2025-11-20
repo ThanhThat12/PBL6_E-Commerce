@@ -9,7 +9,7 @@ import com.PBL6.Ecommerce.dto.PaymentResponseDTO;
 import com.PBL6.Ecommerce.exception.MoMoPaymentException;
 import com.PBL6.Ecommerce.exception.OrderNotFoundException;
 import com.PBL6.Ecommerce.repository.OrderRepository;
-import com.PBL6.Ecommerce.service.CheckoutService;
+import com.PBL6.Ecommerce.service.MoMoService;
 import com.PBL6.Ecommerce.service.PaymentTransactionService;
 import com.PBL6.Ecommerce.service.UserService;
 import org.slf4j.Logger;
@@ -36,16 +36,16 @@ public class MoMoPaymentController {
     
     private static final Logger logger = LoggerFactory.getLogger(MoMoPaymentController.class);
     
-    private final CheckoutService checkoutService;
+    private final MoMoService moMoService;
     private final PaymentTransactionService paymentTransactionService;
     private final OrderRepository orderRepository;
     private final UserService userService;
 
-    public MoMoPaymentController(CheckoutService checkoutService,
+    public MoMoPaymentController(MoMoService moMoService,
                             PaymentTransactionService paymentTransactionService,
                             OrderRepository orderRepository,
                             UserService userService) {
-        this.checkoutService = checkoutService;
+        this.moMoService = moMoService;
         this.paymentTransactionService = paymentTransactionService;
         this.orderRepository = orderRepository;
         this.userService = userService;
@@ -128,7 +128,7 @@ public class MoMoPaymentController {
             String momoOrderId = "ORD-" + orderId + "-" + java.util.UUID.randomUUID();
 
             // Create payment (truyền momoOrderId thay vì orderId tự tăng)
-            PaymentResponseDTO paymentResponse = checkoutService.createMomoPaymentWithCustomOrderId(orderId, amount, orderInfo, momoOrderId);
+            PaymentResponseDTO paymentResponse = moMoService.createMomoPayment(orderId, amount, orderInfo);
 
             // Prepare response - Web Payment only (payUrl)
             Map<String, Object> responseData = new HashMap<>();
@@ -199,7 +199,7 @@ public class MoMoPaymentController {
 
             boolean success = false;
             if (!alreadySuccess) {
-                success = checkoutService.processMomoCallback(callback);
+                success = moMoService.processMomoCallback(callback);
             } else {
                 logger.info("[MoMo] Callback ignored: transaction already SUCCESS for requestId {}", callback.getRequestId());
                 success = true;
@@ -303,7 +303,7 @@ public class MoMoPaymentController {
             @PathVariable String requestId,
             Authentication authentication) {
         try {
-            PaymentTransaction payment = checkoutService.getPaymentByRequestId(requestId);
+            PaymentTransaction payment = paymentTransactionService.getByRequestId(requestId);
             
             // Security check
             Long userId = Long.parseLong(authentication.getName());
@@ -362,7 +362,7 @@ public class MoMoPaymentController {
                 return ResponseDTO.error(403, "FORBIDDEN", "You don't have permission to view this order");
             }
             
-            boolean hasSuccessfulPayment = checkoutService.hasSuccessfulPayment(orderId);
+            boolean hasSuccessfulPayment = paymentTransactionService.hasSuccessfulPayment(orderId);
             PaymentTransaction latestPayment = paymentTransactionService.getLatestByOrderId(orderId);
             
             Map<String, Object> status = new HashMap<>();

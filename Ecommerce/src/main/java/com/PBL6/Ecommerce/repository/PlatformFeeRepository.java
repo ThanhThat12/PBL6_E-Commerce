@@ -7,9 +7,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface PlatformFeeRepository extends JpaRepository<PlatformFee, Long> {
     @Modifying
     @Query("DELETE FROM PlatformFee pf WHERE pf.order.id = :orderId")
     void deleteByOrderId(@Param("orderId") Long orderId);
+    
+    // Find platform fee by order ID
+    @Query("SELECT pf FROM PlatformFee pf WHERE pf.order.id = :orderId")
+    Optional<PlatformFee> findByOrderId(@Param("orderId") Long orderId);
 }
