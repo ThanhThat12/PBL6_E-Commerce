@@ -193,20 +193,30 @@ public class CheckoutServiceImpl implements CheckoutService {
             logger.info("Updating order payment status for order ID: {}", order.getId());
             if (transaction.getStatus() == PaymentTransactionStatus.SUCCESS) {
                 // Update order status and payment status
-                order.setStatus(Order.OrderStatus.PROCESSING);
+                // Sau khi thanh toán thành công, đơn hàng chuyển sang trạng thái PENDING (chờ xác nhận)
+                order.setStatus(Order.OrderStatus.PENDING);
                 order.setPaymentStatus(Order.PaymentStatus.PAID);
                 order.setMethod("MOMO");
                 order.setMomoTransId(transaction.getTransId());
-                order.setPaidAt(LocalDateTime.now());
+                order.setPaidAt(new java.util.Date());
                 orderRepository.save(order);
-                logger.info("Order payment status updated successfully for order: {} (status=PROCESSING, paymentStatus=PAID)", order.getId());
+                logger.info("Order payment status updated successfully for order: {} (status=PENDING, paymentStatus=PAID)", order.getId());
                 
-                // ✅ XÓA CÁC SẢN PHẨM ĐÃ THANH TOÁN KHỎI CART
+                // ✅ XÓA CÁC SẢN PHẨM ĐÃ THANH TOÁN KHỊI CART
                 try {
                     orderService.clearCartAfterSuccessfulPayment(order.getUser().getId(), order.getId());
                     logger.info("✅ Cart items cleared after successful payment for order: {}", order.getId());
                 } catch (Exception e) {
                     logger.error("❌ Error clearing cart after payment: {}", e.getMessage(), e);
+                }
+                
+                // ✅ TẠO SHIPMENT SAU KHI THANH TOÁN THÀNH CÔNG
+                try {
+                    orderService.createShipmentAfterPayment(order.getId());
+                    logger.info("✅ Shipment creation initiated after payment for order: {}", order.getId());
+                } catch (Exception e) {
+                    logger.error("❌ Error creating shipment after payment: {}", e.getMessage(), e);
+                    // Không throw exception, order vẫn hợp lệ
                 }
             }
         } catch (Exception e) {

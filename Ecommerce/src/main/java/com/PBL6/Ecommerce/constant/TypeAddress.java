@@ -2,10 +2,8 @@ package com.PBL6.Ecommerce.constant;
 
 public enum TypeAddress {
     HOME("Home"),
-    WORK("Work"),
-    SHIPPING("Shipping"),
-    BILLING("Billing"),
     STORE("Store"),
+    SHIPPING("Shipping"),
     OTHER("Other");
 
     private final String label;

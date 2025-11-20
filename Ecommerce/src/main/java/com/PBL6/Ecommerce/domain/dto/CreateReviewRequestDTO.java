@@ -7,72 +7,27 @@ import java.util.List;
  * DTO for creating a new product review
  */
 public class CreateReviewRequestDTO {
-    
-    @NotNull(message = "Product ID không được null")
-    private Long productId;
-    
-    @NotNull(message = "Order ID không được null") 
-    private Long orderId;
-    
-    @NotNull(message = "Rating không được null")
-    @Min(value = 1, message = "Rating phải từ 1-5")
-    @Max(value = 5, message = "Rating phải từ 1-5")
+    // rating bắt buộc: 1..5
+    @NotNull(message = "Rating là bắt buộc")
+    @Min(value = 1, message = "Rating phải từ 1 đến 5")
+    @Max(value = 5, message = "Rating phải từ 1 đến 5")
     private Integer rating;
-    
-    @Size(max = 1000, message = "Comment không được vượt quá 1000 ký tự")
+
+    // comment không bắt buộc, nếu có thì giới hạn độ dài
+    @Size(max = 2000, message = "Bình luận không vượt quá 2000 ký tự")
     private String comment;
-    
-    private List<String> images;
 
-    // Constructors
-    public CreateReviewRequestDTO() {}
+    // images không bắt buộc, nếu có thì tối đa 5 ảnh, mỗi phần tử không rỗng
+    @Size(max = 5, message = "Tối đa 5 ảnh")
+    private List<@NotBlank(message = "Url ảnh không được rỗng") String> images;
 
-    public CreateReviewRequestDTO(Long productId, Long orderId, Integer rating, String comment, List<String> images) {
-        this.productId = productId;
-        this.orderId = orderId;
-        this.rating = rating;
-        this.comment = comment;
-        this.images = images;
-    }
+    // getters / setters
+    public Integer getRating() { return rating; }
+    public void setRating(Integer rating) { this.rating = rating; }
 
-    // Getters and Setters
-    public Long getProductId() {
-        return productId;
-    }
+    public String getComment() { return comment; }
+    public void setComment(String comment) { this.comment = comment; }
 
-    public void setProductId(Long productId) {
-        this.productId = productId;
-    }
-
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(Long orderId) {
-        this.orderId = orderId;
-    }
-
-    public Integer getRating() {
-        return rating;
-    }
-
-    public void setRating(Integer rating) {
-        this.rating = rating;
-    }
-
-    public String getComment() {
-        return comment;
-    }
-
-    public void setComment(String comment) {
-        this.comment = comment;
-    }
-
-    public List<String> getImages() {
-        return images;
-    }
-
-    public void setImages(List<String> images) {
-        this.images = images;
-    }
+    public List<String> getImages() { return images; }
+    public void setImages(List<String> images) { this.images = images; }
 }

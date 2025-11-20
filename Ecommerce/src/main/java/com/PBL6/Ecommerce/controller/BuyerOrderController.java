@@ -14,7 +14,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.PBL6.Ecommerce.domain.Order;
+import com.PBL6.Ecommerce.domain.Refund;
 import com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO;
+import com.PBL6.Ecommerce.domain.dto.ItemReturnRequestDTO;
+import com.PBL6.Ecommerce.domain.dto.MultiShopOrderResult;
 import com.PBL6.Ecommerce.domain.dto.OrderDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderResponseDTO;
@@ -57,11 +60,28 @@ public class BuyerOrderController {
             order.getId(),
             order.getStatus() != null ? order.getStatus().name() : null,
             order.getTotalAmount(),
-            order.getCreatedAt(),
+            order.getCreatedAt() != null ? java.time.LocalDateTime.ofInstant(order.getCreatedAt().toInstant(), java.time.ZoneId.systemDefault()) : null,
             null // GHN info if needed
         );
         
         return ResponseDTO.created(response, "Đặt hàng thành công");
+    }
+
+    /**
+     * Create multiple orders when cart contains items from different shops
+     */
+    @PostMapping("/multi-shop")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResponseDTO<MultiShopOrderResult>> createMultiShopOrders(
+            @Valid @RequestBody CreateOrderRequestDTO dto,
+            Authentication authentication) {
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        Long userId = userService.extractUserIdFromJwt(jwt);
+        dto.setUserId(userId);
+        
+        MultiShopOrderResult result = orderService.createMultiShopOrders(dto);
+        
+        return ResponseDTO.created(result, "Đặt hàng từ nhiều shop thành công");
     }
 
     @GetMapping
@@ -120,5 +140,33 @@ public class BuyerOrderController {
         Long userId = userService.extractUserIdFromJwt(jwt);
         orderService.cancelOrderAndRefund(id, userId, reason);
         return ResponseDTO.success(null, "Đã hủy đơn hàng thành công");
+    }
+
+    /**
+     * Buyer xác nhận đã nhận hàng → chuyển đơn sang COMPLETED
+     */
+    @PostMapping("/{id}/confirm-received")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResponseDTO<Order>> confirmReceived(
+            @PathVariable Long id,
+            Authentication authentication) {
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        Long userId = userService.extractUserIdFromJwt(jwt);
+        Order order = orderService.confirmReceived(id, userId);
+        return ResponseDTO.success(order, "Xác nhận đã nhận hàng thành công");
+    }
+
+    /**
+     * Buyer yêu cầu trả hàng cho một sản phẩm cụ thể
+     */
+    @PostMapping("/items/return")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResponseDTO<Refund>> requestItemReturn(
+            @Valid @RequestBody ItemReturnRequestDTO dto,
+            Authentication authentication) {
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        Long userId = userService.extractUserIdFromJwt(jwt);
+        Refund refund = orderService.requestItemReturn(dto, userId);
+        return ResponseDTO.success(refund, "Yêu cầu trả hàng đã được gửi thành công");
     }
 }

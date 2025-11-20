@@ -14,7 +14,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import com.PBL6.Ecommerce.constant.TypeAddress;
-
 @Entity
 @Table(name = "addresses")
 public class Address {
@@ -26,13 +25,9 @@ public class Address {
     @JoinColumn(name = "user_id")
     private User user;
 
-    // new 13/11/2025
     @Enumerated(EnumType.STRING)
     @Column(name = "type_address", length = 50)
     private TypeAddress typeAddress;
-
-    @Column(length = 100)
-    private String label; // "Nhà riêng", "Kho chính"
 
     @Column(length = 500)
     private String fullAddress;
@@ -76,6 +71,15 @@ public class Address {
     public String getLabel() { return label; }
     public void setLabel(String label) { this.label = label; }
 
+    public TypeAddress getTypeAddress() {
+        return typeAddress;
+    }
+    public void setTypeAddress(TypeAddress typeAddress) {
+        this.typeAddress = typeAddress;
+    }
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
     public String getFullAddress() { return fullAddress; }
     public void setFullAddress(String fullAddress) { this.fullAddress = fullAddress; }
 

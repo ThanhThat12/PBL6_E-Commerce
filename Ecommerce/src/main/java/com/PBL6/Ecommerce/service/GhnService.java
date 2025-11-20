@@ -1,194 +1,397 @@
-// ...existing code...
 package com.PBL6.Ecommerce.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.PBL6.Ecommerce.domain.Shipment;
-import com.PBL6.Ecommerce.repository.ShipmentRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.Map;
-import java.util.HashMap;
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.repository.ShopRepository;
+import com.PBL6.Ecommerce.domain.Shipment;
+import com.PBL6.Ecommerce.repository.ShipmentRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.util.*;
 
 @Service
 public class GhnService {
 
-    private final RestTemplate restTemplate;
-    private final ShipmentRepository shipmentRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    @Value("${ghn.api.url:https://dev-online-gateway.ghn.vn/shiip/public-api}")
+    @Value("${ghn.api.url}")
     private String ghnApiUrl;
 
-    @Value("${ghn.token:}")
-    private String ghnToken;
+    private final RestTemplate restTemplate;
+    private final ShopRepository shopRepository;
+    private final ShipmentRepository shipmentRepository;
+    private final ObjectMapper objectMapper;
 
-    @Value("${ghn.shop-id:}")
-    private String ghnShopId;
-// thêm 2 config tùy chọn (đặt vào application.properties nếu muốn)
-    @Value("${ghn.from-district-id:}")
-    private String ghnFromDistrictId;
-
-    @Value("${ghn.from-ward-code:}")
-    private String ghnFromWardCode;
-    
-    public GhnService(RestTemplate restTemplate, ShipmentRepository shipmentRepository) {
+    public GhnService(RestTemplate restTemplate, 
+                      ShopRepository shopRepository,
+                      ShipmentRepository shipmentRepository) {
         this.restTemplate = restTemplate;
+        this.shopRepository = shopRepository;
         this.shipmentRepository = shipmentRepository;
+        this.objectMapper = new ObjectMapper();
     }
 
-    private HttpHeaders baseHeaders() {
+    /**
+     * Chuẩn hóa payload cho GHN API
+     * GHN yêu cầu ShopID CÙNG LÚC ở cả Header (ShopId) VÀ Body (shop_id)
+     */
+    private Map<String, Object> normalizePayload(Map<String, Object> payload, Shop shop) {
+        Map<String, Object> normalized = new HashMap<>(payload);
+        
+        // ✅ Thêm shop_id vào body
+        if (shop.getGhnShopId() != null && !shop.getGhnShopId().trim().isEmpty()) {
+            try {
+                Integer shopIdInt = Integer.parseInt(shop.getGhnShopId().trim());
+                normalized.put("shop_id", shopIdInt);
+            } catch (NumberFormatException e) {
+                throw new RuntimeException("GHN Shop ID không hợp lệ: " + shop.getGhnShopId());
+            }
+        }
+        
+        // Xóa ShopID nếu có (legacy)
+        normalized.remove("ShopID");
+        
+        // ✅ DEBUG: Log để kiểm tra required_note
+        System.out.println("========== normalizePayload ==========");
+        System.out.println("Input payload keys: " + payload.keySet());
+        System.out.println("Input required_note: " + payload.get("required_note"));
+        System.out.println("Shop GHN ID: " + shop.getGhnShopId());
+        System.out.println("Output payload keys: " + normalized.keySet());
+        System.out.println("Output required_note: " + normalized.get("required_note"));
+        System.out.println("=====================================");
+        
+        return normalized;
+    }
+
+    /**
+     * Lấy headers với token và ShopId từ shop
+     */
+    private HttpHeaders getGhnHeaders(Shop shop) {
+        if (shop.getGhnToken() == null || shop.getGhnToken().trim().isEmpty()) {
+            throw new RuntimeException("Shop chưa cấu hình GHN Token");
+        }
+        if (shop.getGhnShopId() == null || shop.getGhnShopId().trim().isEmpty()) {
+            throw new RuntimeException("Shop chưa cấu hình GHN ShopId");
+        }
+
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Token", ghnToken);
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Token", shop.getGhnToken());
+        headers.set("ShopId", shop.getGhnShopId());
+        
         return headers;
     }
 
-    public Map<String,Object> calculateFee(Map<String,Object> payload) {
-        String url = ghnApiUrl + "/v2/shipping-order/fee";
-        HttpEntity<Map<String,Object>> req = new HttpEntity<>(payload, baseHeaders());
-        ResponseEntity<Map> resp = restTemplate.postForEntity(url, req, Map.class);
-        if (!resp.getStatusCode().is2xxSuccessful()) throw new RuntimeException("GHN fee failed: " + resp.getStatusCode());
-        return resp.getBody();
-    }
-
-    public Map<String,Object> createShippingOrder(Map<String,Object> payload) {
-    String url = ghnApiUrl + "/v2/shipping-order/create";
-    // copy payload to mutable map to avoid UnsupportedOperationException when incoming map is immutable
-    Map<String,Object> body = new HashMap<>(payload == null ? Map.of() : payload);
-    if (!body.containsKey("shop_id") && ghnShopId != null && !ghnShopId.isBlank()) {
-        try { body.put("shop_id", Long.parseLong(ghnShopId)); }
-        catch (NumberFormatException ex) { body.put("shop_id", ghnShopId); }
-    }
-    // Add sender's district and ward code (required by GHN)
-    if (!body.containsKey("from_district_id") && ghnFromDistrictId != null && !ghnFromDistrictId.isBlank()) {
-        try { body.put("from_district_id", Integer.parseInt(ghnFromDistrictId)); }
-        catch (NumberFormatException ex) { body.put("from_district_id", ghnFromDistrictId); }
-    }
-    if (!body.containsKey("from_ward_code") && ghnFromWardCode != null && !ghnFromWardCode.isBlank()) {
-        body.put("from_ward_code", ghnFromWardCode);
-    }
-    // ensure required_note present (GHN requires this field)
-    if (!body.containsKey("required_note")) {
-        body.put("required_note", "KHONGCHOXEMHANG"); // hoặc giá trị phù hợp với dịch vụ của bạn
-    }
-    // Add default service_id and service_type_id for standard delivery
-    if (!body.containsKey("service_id")) {
-        body.put("service_id", 0); // 0 = standard service, GHN will auto-select
-    }
-    if (!body.containsKey("service_type_id")) {
-        body.put("service_type_id", 2); // 2 = same day delivery
-    }
-    // ensure payment_type_id present and valid
-        if (!body.containsKey("payment_type_id")) {
-            int cod = 0;
-            Object codObj = body.get("cod_amount");
-            if (codObj instanceof Number) {
-                cod = ((Number) codObj).intValue();
-            } else if (codObj instanceof String) {
-                try { cod = Integer.parseInt((String) codObj); } catch (Exception ignored) {}
-            }
-            // mặc định: nếu có COD (>0) thì đặt payment_type_id = 2 (thu hộ), ngược lại = 1 (người gửi trả)
-            body.put("payment_type_id", cod > 0 ? 2 : 1);
-        }
-
-    HttpEntity<Map<String,Object>> req = new HttpEntity<>(body, baseHeaders());
-    ResponseEntity<Map> resp = restTemplate.postForEntity(url, req, Map.class);
-    if (!resp.getStatusCode().is2xxSuccessful()) throw new RuntimeException("GHN create shipment failed: " + resp.getStatusCode());
-    return resp.getBody();
-}
-
-    public Map<String,Object> getOrderDetail(String orderCode) {
-        String url = ghnApiUrl + "/v2/shipping-order/detail?order_code=" + orderCode;
-        HttpEntity<Void> req = new HttpEntity<>(baseHeaders());
-        ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, req, Map.class);
-        if (!resp.getStatusCode().is2xxSuccessful()) throw new RuntimeException("GHN detail failed: " + resp.getStatusCode());
-        return resp.getBody();
-    }
-
-    public Shipment createShippingOrderAsync(Long orderId, Map<String,Object> payload) {
-        Map<String,Object> resp;
+    /**
+     * Lấy danh sách dịch vụ vận chuyển khả dụng
+     */
+    public List<Map<String,Object>> getAvailableServices(Map<String,Object> payload, Long shopId) {
         try {
-            resp = createShippingOrder(payload);
-        } catch (Exception ex) {
-            // save failure info for later retry / troubleshooting
-            Shipment fail = new Shipment();
-            fail.setOrderId(orderId);
-            fail.setReceiverName((String) payload.get("to_name"));
-            fail.setReceiverPhone((String) payload.get("to_phone"));
-            fail.setReceiverAddress((String) payload.get("to_address"));
-            fail.setProvince((String) payload.get("province"));
-            fail.setDistrict((String) payload.get("district"));
-            fail.setWard((String) payload.get("ward"));
-            fail.setStatus("GHN_ERROR");
-            fail.setGhnPayload(toJson(Map.of("error", ex.getMessage(), "request", payload)));
-            return shipmentRepository.save(fail);
-        }
+            Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Shop not found"));
 
-        Shipment s = new Shipment();
-        s.setOrderId(orderId);
-        s.setReceiverName((String) payload.get("to_name"));
-        s.setReceiverPhone((String) payload.get("to_phone"));
-        s.setReceiverAddress((String) payload.get("to_address"));
-        s.setProvince((String) payload.get("province"));
-        s.setDistrict((String) payload.get("district"));
-        s.setWard((String) payload.get("ward"));
-        
-        // Use shipping fee from request payload (calculated by frontend)
-        Object payloadShippingFee = payload.get("shipping_fee");
-        if (payloadShippingFee != null) {
-            if (payloadShippingFee instanceof java.math.BigDecimal) {
-                s.setShippingFee((java.math.BigDecimal) payloadShippingFee);
-            } else if (payloadShippingFee instanceof Number) {
-                s.setShippingFee(java.math.BigDecimal.valueOf(((Number) payloadShippingFee).doubleValue()));
+            // MOCK LOGIC: If token is 'DUMMY_TOKEN', return mock data
+            if ("DUMMY_TOKEN".equals(shop.getGhnToken())) {
+                System.out.println("[MOCK] Returning mock GHN available services for shopId=" + shopId);
+                List<Map<String, Object>> mockServices = new ArrayList<>();
+                Map<String, Object> service1 = new HashMap<>();
+                service1.put("service_id", 53320);
+                service1.put("short_name", "GHN Express");
+                service1.put("service_type_id", 1);
+                service1.put("service_name", "GHN Nhanh");
+                service1.put("description", "Giao hàng nhanh trong ngày");
+                mockServices.add(service1);
+                Map<String, Object> service2 = new HashMap<>();
+                service2.put("service_id", 53321);
+                service2.put("short_name", "GHN Saver");
+                service2.put("service_type_id", 2);
+                service2.put("service_name", "GHN Tiết kiệm");
+                service2.put("description", "Giao hàng tiết kiệm 2-3 ngày");
+                mockServices.add(service2);
+                return mockServices;
             }
+
+            HttpHeaders headers = getGhnHeaders(shop);
+
+            // Chuẩn hóa payload
+            Map<String, Object> normalizedPayload = normalizePayload(payload, shop);
+
+            System.out.println("========== GHN AVAILABLE SERVICES REQUEST ==========");
+            System.out.println("URL: " + ghnApiUrl + "/v2/shipping-order/available-services");
+            System.out.println("Headers: " + headers);
+            System.out.println("Body: " + normalizedPayload);
+            System.out.println("===================================================");
+
+            HttpEntity<Map<String,Object>> request = new HttpEntity<>(normalizedPayload, headers);
+
+            String url = ghnApiUrl + "/v2/shipping-order/available-services";
+
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+
+            Map<String,Object> body = response.getBody();
+            System.out.println("GHN Response: " + body);
+
+            if (body != null && body.get("data") instanceof List) {
+                return (List<Map<String,Object>>) body.get("data");
+            }
+            return new ArrayList<>();
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            System.err.println("❌ GHN Error Response: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Lỗi gọi GHN available-services: " + e.getMessage() + " - " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi gọi GHN available-services: " + e.getMessage());
         }
-        
-        // Generate unique GHN order code using timestamp
-        String customOrderCode = "GHN" + System.currentTimeMillis();
-        s.setGhnOrderCode(customOrderCode);
-        
-        // Extract data from GHN response
-        Object data = resp.get("data");
-        if (data instanceof Map) {
-            Map<String,Object> dataMap = (Map<String,Object>) data;
+    }
+
+    public Map<String,Object> calculateFee(Map<String,Object> payload, Long shopId) {
+        try {
+            Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Shop not found"));
             
-            // Only use GHN shipping fee if not already set from request payload
-            if (s.getShippingFee() == null) {
+            HttpHeaders headers = getGhnHeaders(shop);
+            
+            // ✅ Chuẩn hóa payload
+            Map<String, Object> normalizedPayload = normalizePayload(payload, shop);
+            
+            System.out.println("========== GHN CALCULATE FEE REQUEST ==========");
+            System.out.println("URL: " + ghnApiUrl + "/v2/shipping-order/fee");
+            System.out.println("Payload: " + normalizedPayload);
+            System.out.println("==============================================");
+            
+            HttpEntity<Map<String,Object>> request = new HttpEntity<>(normalizedPayload, headers);
+            
+            String url = ghnApiUrl + "/v2/shipping-order/fee";
+            
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+            
+            System.out.println("========== GHN CALCULATE FEE RESPONSE ==========");
+            System.out.println("Response: " + response.getBody());
+            System.out.println("================================================");
+            
+            return response.getBody();
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            System.err.println("❌ GHN Error Response: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Lỗi tính phí: " + e.getMessage() + " - " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi tính phí: " + e.getMessage());
+        }
+    }
+
+    public Map<String,Object> createShippingOrder(Map<String,Object> payload, Long shopId) {
+        try {
+            Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Shop not found"));
+            
+            HttpHeaders headers = getGhnHeaders(shop);
+            
+            // ✅ Chuẩn hóa payload
+            Map<String, Object> normalizedPayload = normalizePayload(payload, shop);
+            
+            // ✅ FORCE thêm required_note nếu thiếu
+            if (!normalizedPayload.containsKey("required_note") || normalizedPayload.get("required_note") == null) {
+                System.err.println("⚠️ WARNING: required_note is missing, setting default value");
+                normalizedPayload.put("required_note", "KHONGCHOXEMHANG");
+            }
+            
+            // ✅ Validate required_note value
+            String requiredNote = String.valueOf(normalizedPayload.get("required_note"));
+            List<String> validValues = Arrays.asList("CHOTHUHANG", "CHOXEMHANGKHONGTHU", "KHONGCHOXEMHANG");
+            if (!validValues.contains(requiredNote)) {
+                System.err.println("⚠️ WARNING: Invalid required_note value: " + requiredNote);
+                normalizedPayload.put("required_note", "KHONGCHOXEMHANG");
+            }
+            
+            // ✅ DEBUG: Log đầy đủ
+            System.out.println("========== CREATE SHIPPING ORDER REQUEST ==========");
+            System.out.println("URL: " + ghnApiUrl + "/v2/shipping-order/create");
+            System.out.println("Headers: " + headers);
+            System.out.println("Full Payload: " + normalizedPayload);
+            System.out.println("Required Note: " + normalizedPayload.get("required_note"));
+            
+            // ✅ Log JSON body sẽ gửi
+            try {
+                String jsonBody = objectMapper.writeValueAsString(normalizedPayload);
+                System.out.println("JSON Body sent to GHN:");
+                System.out.println(jsonBody);
+                
+                // Verify JSON contains required_note
+                if (!jsonBody.contains("required_note")) {
+                    System.err.println("❌ CRITICAL: required_note NOT FOUND in JSON!");
+                    throw new RuntimeException("Payload serialization error: required_note missing");
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Error serializing payload: " + e.getMessage());
+            }
+            System.out.println("===================================================");
+            
+            HttpEntity<Map<String,Object>> request = new HttpEntity<>(normalizedPayload, headers);
+            
+            String url = ghnApiUrl + "/v2/shipping-order/create";
+            
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+            
+            System.out.println("========== CREATE SHIPPING ORDER RESPONSE ==========");
+            System.out.println("Response: " + response.getBody());
+            System.out.println("====================================================");
+            
+            return response.getBody();
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            System.err.println("❌ GHN Error Response: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Lỗi tạo đơn: " + e.getMessage() + " - " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi tạo đơn: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get order detail from GHN by order code
+     */
+    public Map<String, Object> getOrderDetail(String orderCode, Long shopId) {
+        try {
+            Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new RuntimeException("Shop not found"));
+            
+            HttpHeaders headers = getGhnHeaders(shop);
+            
+            Map<String, Object> body = new HashMap<>();
+            body.put("order_code", orderCode);
+            
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+            
+            String url = ghnApiUrl + "/v2/shipping-order/detail";
+            
+            System.out.println("========== GET ORDER DETAIL REQUEST ==========");
+            System.out.println("Order Code: " + orderCode);
+            System.out.println("URL: " + url);
+            System.out.println("==============================================");
+            
+            ResponseEntity<Map> response = restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                entity,
+                Map.class
+            );
+            
+            System.out.println("========== GET ORDER DETAIL RESPONSE ==========");
+            System.out.println("Response: " + response.getBody());
+            System.out.println("===============================================");
+            
+            return response.getBody();
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            System.err.println("❌ GHN Error Response: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Lỗi lấy chi tiết đơn: " + e.getMessage() + " - " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi lấy chi tiết đơn: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Tạo đơn hàng GHN và lưu vào bảng shipments (async best-effort)
+     */
+    public Shipment createShippingOrderAsync(Long orderId, Map<String, Object> payload) {
+        try {
+            // Lấy shopId từ payload hoặc từ order
+            Long shopId = null;
+            if (payload.containsKey("shop_id")) {
+                shopId = Long.valueOf(String.valueOf(payload.get("shop_id")));
+            }
+            
+            // Gọi GHN API để tạo đơn
+            Map<String, Object> ghnResponse = createShippingOrder(payload, shopId);
+            
+            // Parse response
+            if (ghnResponse == null || ghnResponse.get("code") == null) {
+                System.err.println("❌ GHN response is null or missing code");
+                return null;
+            }
+            
+            int code = Integer.parseInt(String.valueOf(ghnResponse.get("code")));
+            if (code != 200) {
+                System.err.println("❌ GHN create order failed with code: " + code);
+                return null;
+            }
+            
+            // Tạo entity Shipment
+            Shipment shipment = new Shipment();
+            shipment.setReceiverName(getString(payload, "to_name"));
+            shipment.setReceiverPhone(getString(payload, "to_phone"));
+            shipment.setReceiverAddress(getString(payload, "to_address"));
+            shipment.setProvince(getString(payload, "province"));
+            shipment.setDistrict(getString(payload, "district"));
+            shipment.setWard(getString(payload, "ward"));
+            
+            // Lấy thông tin từ GHN response
+            Object data = ghnResponse.get("data");
+            if (data instanceof Map) {
+                Map<?, ?> dataMap = (Map<?, ?>) data;
+                
+                // Order code từ GHN
+                Object orderCode = dataMap.get("order_code");
+                if (orderCode != null) {
+                    shipment.setGhnOrderCode(String.valueOf(orderCode));
+                }
+                
+                // Shipping fee
                 Object totalFee = dataMap.get("total_fee");
                 if (totalFee instanceof Number) {
-                    s.setShippingFee(java.math.BigDecimal.valueOf(((Number) totalFee).doubleValue()));
+                    shipment.setShippingFee(BigDecimal.valueOf(((Number) totalFee).doubleValue()));
+                } else if (totalFee != null) {
+                    try {
+                        shipment.setShippingFee(new BigDecimal(String.valueOf(totalFee)));
+                    } catch (Exception ignored) {}
+                }
+                
+                // Expected delivery time
+                Object expectedDeliveryTime = dataMap.get("expected_delivery_time");
+                if (expectedDeliveryTime != null) {
+                    shipment.setExpectedDeliveryTime(String.valueOf(expectedDeliveryTime));
                 }
             }
             
-            // Set expected delivery time
-            Object expectedTime = dataMap.get("expected_delivery_time");
-            if (expectedTime instanceof String) {
-                try {
-                    s.setExpectedDelivery(java.time.LocalDateTime.parse((String) expectedTime, 
-                        java.time.format.DateTimeFormatter.ISO_DATE_TIME));
-                } catch (Exception ignored) {}
+            // Lưu toàn bộ response từ GHN dưới dạng JSON
+            try {
+                shipment.setGhnPayload(objectMapper.writeValueAsString(ghnResponse));
+            } catch (Exception e) {
+                shipment.setGhnPayload(ghnResponse.toString());
             }
             
-            // Set service type from trans_type
-            Object transType = dataMap.get("trans_type");
-            if (transType instanceof String) {
-                s.setServiceType((String) transType);
-            }
+            // Set initial status
+            shipment.setStatus("CREATED");
+            
+            // Lưu vào database
+            Shipment saved = shipmentRepository.save(shipment);
+            System.out.println("✅ Shipment saved successfully: " + saved.getId());
+            
+            return saved;
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error creating shipping order async: " + e.getMessage());
+            e.printStackTrace();
+            return null;
         }
-        
-        s.setStatus("CREATED");
-        s.setGhnPayload(toJson(resp));
-        return shipmentRepository.save(s);
     }
-
+    
+    /**
+     * Helper method để lấy String từ Map
+     */
+    private String getString(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        return value != null ? String.valueOf(value) : null;
+    }
+    
+    /**
+     * Convert object sang JSON string
+     */
     public String toJson(Object obj) {
-        try { return objectMapper.writeValueAsString(obj); }
-        catch (JsonProcessingException e) { return "{}"; }
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            return obj != null ? obj.toString() : null;
+        }
     }
 }
-// ...existing code...

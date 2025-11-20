@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
@@ -173,11 +174,50 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      */
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0.0) FROM Order o WHERE o.shop.id = :shopId AND o.status = 'COMPLETED'")
     Double getTotalRevenueByShopId(@Param("shopId") Long shopId);
+     * Tìm tất cả đơn hàng theo status
+     * Dùng để lấy danh sách SHIPPING orders cho auto-complete
+     */
+    List<Order> findByStatus(Order.OrderStatus status);
     
 //     /**
 //      * Lấy ngày đặt hàng gần nhất của user (tất cả trạng thái)
 //      */
 //     @Query("SELECT MAX(o.createdAt) FROM Order o WHERE o.user.id = :userId")
 //     Optional<LocalDateTime> getLastOrderDateByUserId(@Param("userId") Long userId);
+    @Query("select o from Order o join o.orderItems oi " +
+           "where o.user.id = :userId and o.status = 'COMPLETED' and oi.productId = :productId " +
+           "order by o.createdAt desc")
+    java.util.List<Order> findCompletedOrdersByUserAndProduct(@Param("userId") Long userId,
+                                                              @Param("productId") Long productId);
+
+    /**
+     * Thống kê số đơn hàng hoàn thành theo tháng trong 12 tháng gần nhất
+     */
+    @Query("SELECT new com.PBL6.Ecommerce.domain.dto.MonthlyOrderStatsDTO(" +
+           "YEAR(o.createdAt), MONTH(o.createdAt), COUNT(o.id)) " +
+           "FROM Order o " +
+           "WHERE o.shop.id = :shopId AND o.status = 'COMPLETED' " +
+           "AND o.createdAt >= :startDate " +
+           "GROUP BY YEAR(o.createdAt), MONTH(o.createdAt) " +
+           "ORDER BY YEAR(o.createdAt), MONTH(o.createdAt)")
+    List<com.PBL6.Ecommerce.domain.dto.MonthlyOrderStatsDTO> getMonthlyCompletedOrderStats(
+        @Param("shopId") Long shopId, 
+        @Param("startDate") LocalDateTime startDate);
+
+    /**
+     * Thống kê số đơn hàng bị hủy theo tháng trong 12 tháng gần nhất
+     */
+    @Query("SELECT new com.PBL6.Ecommerce.domain.dto.MonthlyOrderStatsDTO(" +
+           "YEAR(o.createdAt), MONTH(o.createdAt), COUNT(o.id)) " +
+           "FROM Order o " +
+           "WHERE o.shop.id = :shopId AND o.status = 'CANCELLED' " +
+           "AND o.createdAt >= :startDate " +
+           "GROUP BY YEAR(o.createdAt), MONTH(o.createdAt) " +
+           "ORDER BY YEAR(o.createdAt), MONTH(o.createdAt)")
+    List<com.PBL6.Ecommerce.domain.dto.MonthlyOrderStatsDTO> getMonthlyCancelledOrderStats(
+        @Param("shopId") Long shopId, 
+        @Param("startDate") LocalDateTime startDate);
+
+   
 }
 

@@ -7,79 +7,78 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "vouchers")
 public class Vouchers {
+	public enum DiscountType {
+	PERCENTAGE,
+	FIXED_AMOUNT
+	}
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Khóa chính, tự tăng
+	public enum Status {
+		UPCOMING,
+		ACTIVE,
+		EXPIRED
+	}
 
-    @Column(nullable = false, unique = true)
-    private String code; // Mã voucher duy nhất
-
-    @Column(nullable = false)
-    private String description; // Mô tả voucher
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id")
-    private Shop shop; // Voucher thuộc shop nào
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private DiscountType discountType; // Kiểu giảm giá: % hoặc số tiền
-
-    public enum DiscountType {
-        PERCENTAGE, // Giảm theo phần trăm
-        FIXED_AMOUNT // Giảm theo số tiền cố định
-    }
-
-    @Column(nullable = false)
-    private BigDecimal discountValue; // Giá trị giảm (tùy theo discountType)
-
-    @Column
-    private BigDecimal minOrderValue; // Giá trị đơn hàng tối thiểu (có thể null)
-
-    @Column(nullable = true)
-    private BigDecimal maxDiscountAmount; // Mức giảm tối đa khi giảm theo %
-
-    @Column(nullable = false)
-    private LocalDateTime startDate; // Ngày bắt đầu hiệu lực
-
-    @Column(nullable = false)
-    private LocalDateTime endDate; // Ngày kết thúc hiệu lực
-
-    @Column(nullable = false)
-    private Integer usageLimit; // Tổng số lượt sử dụng được phép
-
-    @Column(nullable = false)
-    private Integer usedCount = 0; // Số lượt đã sử dụng
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ApplicableType applicableType; // Loại áp dụng của voucher
-    public enum ApplicableType {
+	public enum ApplicableType {
 		ALL,
 		SPECIFIC_PRODUCTS,
 		SPECIFIC_USERS,
 		TOP_BUYERS
 	}
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Column(nullable = true)
-    private Integer topBuyersCount; // Số lượng top buyer được áp dụng (nếu applicableType yêu cầu)
+    @Column(nullable = false, unique = true)
+    private String code;
+
+    @Column(nullable = false)
+    private String description;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shop_id", nullable = false)
+    private Shop shop;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status = Status.ACTIVE;
-    public enum Status {
-		UPCOMING,    // Chưa đến thời gian áp dụng
-        ACTIVE,      // Đang trong thời gian hoạt động
-        EXPIRED      // Đã hết hạn
-	}
+    private DiscountType discountType;
 
+    @Column(nullable = false)
+    private BigDecimal discountValue;
 
     @Column
-    private LocalDateTime createdAt = LocalDateTime.now(); // Thời gian tạo
+    private BigDecimal minOrderValue;
 
-    // Getters và Setters
+    @Column
+    private BigDecimal maxDiscountAmount;
+
+    @Column(nullable = false)
+    private LocalDateTime startDate;
+
+    @Column(nullable = false)
+    private LocalDateTime endDate;
+
+    @Column(nullable = false)
+    private Integer usageLimit;
+
+    @Column(nullable = false)
+    private Integer usedCount = 0;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ApplicableType applicableType;
+
+    @Column
+    private Integer topBuyersCount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Status status;
+
+    @Column
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -125,7 +124,21 @@ public class Vouchers {
     public Status getStatus() { return status; }
     public void setStatus(Status status) { this.status = status; }
 
-
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    @PrePersist
+    @PreUpdate
+    private void updateStatusFromDates() {
+        if (this.startDate != null && this.endDate != null) {
+            LocalDateTime now = LocalDateTime.now();
+            if (now.isBefore(this.startDate)) {
+                this.status = Status.UPCOMING;
+            } else if (now.isAfter(this.endDate)) {
+                this.status = Status.EXPIRED;
+            } else {
+                this.status = Status.ACTIVE;
+            }
+        }
+    }
 }

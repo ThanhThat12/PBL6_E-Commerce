@@ -7,6 +7,7 @@ import com.PBL6.Ecommerce.domain.WalletTransaction;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
 import com.PBL6.Ecommerce.repository.WalletRepository;
 import com.PBL6.Ecommerce.repository.WalletTransactionRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -26,11 +27,14 @@ public class WalletService {
     
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final UserRepository userRepository;
 
     public WalletService(WalletRepository walletRepository,
-                        WalletTransactionRepository walletTransactionRepository) {
+                        WalletTransactionRepository walletTransactionRepository,
+                        UserRepository userRepository) {
         this.walletRepository = walletRepository;
         this.walletTransactionRepository = walletTransactionRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -47,10 +51,19 @@ public class WalletService {
 
     /**
      * Get wallet by user ID
+     * Auto-create wallet if not exists
      */
     public Wallet getByUserId(Long userId) {
         return walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new UserNotFoundException("Wallet not found for user ID: " + userId));
+                .orElseGet(() -> {
+                    // Auto-create wallet if not exists
+                    User user = userRepository.findById(userId)
+                            .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
+                    Wallet newWallet = new Wallet();
+                    newWallet.setUser(user);
+                    newWallet.setBalance(BigDecimal.ZERO);
+                    return walletRepository.save(newWallet);
+                });
     }
 
     /**

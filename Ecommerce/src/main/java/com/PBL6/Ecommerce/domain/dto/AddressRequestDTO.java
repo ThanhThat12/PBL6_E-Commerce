@@ -5,10 +5,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class AddressRequestDTO {
-    @NotBlank(message = "Label không được để trống")
-    @Size(max = 100, message = "Label không được vượt quá 100 ký tự")
-    public String label;
-    
     @NotBlank(message = "Địa chỉ đầy đủ không được để trống")
     @Size(max = 500, message = "Địa chỉ không được vượt quá 500 ký tự")
     public String fullAddress;
@@ -32,12 +28,7 @@ public class AddressRequestDTO {
     public String contactPhone;
     
     public boolean primaryAddress; // true nếu muốn đánh dấu primary
-    public String getLabel() {
-        return label;
-    }
-    public void setLabel(String label) {
-        this.label = label;
-    }
+    
     public String getFullAddress() {
         return fullAddress;
     }
