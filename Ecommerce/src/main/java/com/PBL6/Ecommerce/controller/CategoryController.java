@@ -13,9 +13,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminCategoryDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminCategoryStatsDTO;
 import com.PBL6.Ecommerce.service.CategoryService;
 import jakarta.validation.Valid;
 
@@ -39,6 +43,41 @@ public class CategoryController {
         return ResponseDTO.success(data, "Lấy danh mục thành công");
     }
 
+    /**
+     * 📊 API A: GET /api/categories/admin/categories
+     * Admin only - Lấy tất cả categories kèm thống kê
+     * Bao gồm: id, name, totalProducts (active), totalSoldProducts (COMPLETED orders)
+     */
+    @GetMapping("/admin/categories")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<List<AdminCategoryDTO>>> getAdminCategories() {
+        List<AdminCategoryDTO> data = categoryService.getAllCategoriesForAdmin();
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Lấy danh sách categories thành công", data));
+    }
+
+    /**
+     * 📈 API B: GET /api/categories/admin/stats
+     * Admin only - Lấy thống kê tổng quát
+     * Bao gồm: totalCategories, totalProducts (active), productsSold (COMPLETED orders)
+     */
+    @GetMapping("/admin/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminCategoryStatsDTO>> getCategoryStats() {
+        AdminCategoryStatsDTO data = categoryService.getCategoryStats();
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Lấy thống kê thành công", data));
+    }
+
+
+    /**
+     * ✏️ API 2b: PUT /api/categories/{id}
+     * Admin only - Sửa category
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<CategoryDTO>> updateCategory(@PathVariable Long id, @Valid @RequestBody CategoryDTO dto) {
+        CategoryDTO updated = categoryService.updateCategory(id, dto);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Category updated successfully", updated));
+    }
     /**
      * ➕ API 2: POST /api/categories
      * Admin only - Tạo category mới

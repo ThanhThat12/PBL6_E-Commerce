@@ -4,7 +4,6 @@ public enum TypeAddress {
     HOME("Home"),
     STORE("Store"),
     SHIPPING("Shipping"),
-    BILLING("Billing"),
     OTHER("Other");
 
     private final String label;

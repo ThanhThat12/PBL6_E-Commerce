@@ -6,6 +6,8 @@ import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminCategoryDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminCategoryStatsDTO;
 import com.PBL6.Ecommerce.domain.Category;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
@@ -62,6 +64,26 @@ public class CategoryService {
     }
 
     /**
+     * Sửa category - Chỉ admin
+     */
+    @Transactional
+    public CategoryDTO updateCategory(Long categoryId, CategoryDTO dto) {
+        // Kiểm tra category có tồn tại không
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new CategoryNotFoundException(categoryId));
+
+        // Kiểm tra tên mới có bị trùng với category khác không
+        if (categoryRepository.existsByName(dto.getName()) && !category.getName().equalsIgnoreCase(dto.getName())) {
+            throw new DuplicateCategoryException(dto.getName());
+        }
+
+        // Cập nhật tên
+        category.setName(dto.getName());
+        Category saved = categoryRepository.save(category);
+        return new CategoryDTO(saved.getId(), saved.getName());
+    }
+
+    /**
      * Xóa category - Chỉ admin
      */
     @Transactional
@@ -78,6 +100,24 @@ public class CategoryService {
                 
         // Xóa category
         categoryRepository.delete(category);
+    }
+
+    /**
+     * API A: Get all categories with statistics for admin
+     * Returns list of categories with totalProducts (active) and totalSoldProducts (COMPLETED orders)
+     */
+    @Transactional(readOnly = true)
+    public List<AdminCategoryDTO> getAllCategoriesForAdmin() {
+        return categoryRepository.findAllCategoriesForAdmin();
+    }
+
+    /**
+     * API B: Get overall category statistics
+     * Returns totalCategories, totalProducts (active), productsSold (from COMPLETED orders)
+     */
+    @Transactional(readOnly = true)
+    public AdminCategoryStatsDTO getCategoryStats() {
+        return categoryRepository.getCategoryStats();
     }
 
      /**

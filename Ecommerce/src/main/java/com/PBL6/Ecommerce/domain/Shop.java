@@ -45,7 +45,7 @@ public class Shop {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private ShopStatus status = ShopStatus.ACTIVE;
+    private ShopStatus status = ShopStatus.PENDING;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -56,8 +56,9 @@ public class Shop {
 
     // Enum trạng thái shop
     public enum ShopStatus {
-        ACTIVE,
-        INACTIVE
+        PENDING,   // Shop chờ duyệt
+        ACTIVE,    // Shop đang hoạt động
+        INACTIVE   // Shop bị vô hiệu hóa
     }
 
     public Long getId() {

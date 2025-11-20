@@ -1,6 +1,12 @@
 package com.PBL6.Ecommerce.repository;
 
 import com.PBL6.Ecommerce.domain.Vouchers;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherDetailDTO;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +19,66 @@ import java.util.Optional;
 @Repository
 public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
     
+    /**
+     * Xóa tất cả vouchers của một shop
+     */
+    @Modifying
+    @Query("DELETE FROM Vouchers v WHERE v.shop.id = :shopId")
+    void deleteByShopId(@Param("shopId") Long shopId);
+    
+    /**
+     * Kiểm tra voucher code đã tồn tại chưa
+     */
+    boolean existsByCode(String code);
+    
+    /**
+     * Tìm voucher theo code
+     */
+    Optional<Vouchers> findByCode(String code);
+    
+    /**
+     * Lấy danh sách vouchers với thông tin cơ bản (Admin)
+     * Sắp xếp theo ID tăng dần
+     */
+    @Query("SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO(" +
+           "v.id, " +
+           "v.code, " +
+           "CAST(v.discountType AS string), " +
+           "v.discountValue, " +
+           "v.minOrderValue, " +
+           "v.usageLimit, " +
+           "v.usedCount) " +
+           "FROM Vouchers v " +
+           "ORDER BY v.id ASC")
+    Page<com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO> findAllVouchersForAdmin(Pageable pageable);
+    
+    /**
+     * Lấy chi tiết voucher (Admin)
+     * Sử dụng LEFT JOIN để tránh N+1 problem và xử lý shop NULL
+     */
+    @Query("SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherDetailDTO(" +
+        "v.id, " +
+        "v.code, " +
+        "v.isActive, " +
+        "v.description, " +
+        "s.name, " +  // Có thể NULL từ LEFT JOIN
+        "CAST(v.discountType AS string), " +
+        "v.discountValue, " +
+        "v.maxDiscountAmount, " +
+        "v.minOrderValue, " +
+        "v.usageLimit, " +
+        "v.usedCount, " +
+        "v.startDate, " +
+        "v.endDate, " +
+        "v.createdAt) " +
+        "FROM Vouchers v " +
+        "LEFT JOIN v.shop s " +  // LEFT JOIN thay vì navigation
+        "WHERE v.id = :id")
+    Optional<AdminVoucherDetailDTO> findVoucherDetailForAdmin(@Param("id") Long id);
+        
+    
+}
+
     // Tìm voucher theo code
     Optional<Vouchers> findByCode(String code);
     

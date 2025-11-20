@@ -164,6 +164,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Double getTotalRevenueFromCompletedOrders();
     
     /**
+     * Đếm số đơn hàng COMPLETED của shop (cho Admin xem seller details)
+     */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.shop.id = :shopId AND o.status = 'COMPLETED'")
+    long countCompletedOrdersByShopId(@Param("shopId") Long shopId);
+    
+    /**
+     * Tính tổng doanh thu của shop từ đơn hàng COMPLETED (cho Admin xem seller details)
+     */
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0.0) FROM Order o WHERE o.shop.id = :shopId AND o.status = 'COMPLETED'")
+    Double getTotalRevenueByShopId(@Param("shopId") Long shopId);
      * Tìm tất cả đơn hàng theo status
      * Dùng để lấy danh sách SHIPPING orders cho auto-complete
      */

@@ -65,7 +65,11 @@ public class Address {
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
 
-    
+    public TypeAddress getTypeAddress() { return typeAddress; }
+    public void setTypeAddress(TypeAddress typeAddress) { this.typeAddress = typeAddress; }
+
+    public String getLabel() { return label; }
+    public void setLabel(String label) { this.label = label; }
 
     public TypeAddress getTypeAddress() {
         return typeAddress;
