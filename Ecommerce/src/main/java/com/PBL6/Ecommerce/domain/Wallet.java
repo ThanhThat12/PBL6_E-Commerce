@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.domain;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -14,6 +15,7 @@ public class Wallet {
 
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @JsonIgnore
     private User user;
 
     @Column(name = "balance", nullable = false, precision = 15, scale = 2)

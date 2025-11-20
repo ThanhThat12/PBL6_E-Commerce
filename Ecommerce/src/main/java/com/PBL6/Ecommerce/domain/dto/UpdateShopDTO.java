@@ -2,11 +2,10 @@ package com.PBL6.Ecommerce.domain.dto;
 
 /**
  * DTO để cập nhật thông tin shop
- * Chỉ cho phép cập nhật: name, address, description, status
+ * Chỉ cho phép cập nhật: name, description, status, pickupAddressId
  */
 public class UpdateShopDTO {
     private String name;
-    private String address;
     // Optional: allow selecting existing address id instead of plain string
     private Long pickupAddressId;
     private String description;
@@ -15,9 +14,8 @@ public class UpdateShopDTO {
     public UpdateShopDTO() {
     }
 
-    public UpdateShopDTO(String name, String address, String description, String status) {
+    public UpdateShopDTO(String name, String description, String status) {
         this.name = name;
-        this.address = address;
         this.description = description;
         this.status = status;
     }
@@ -28,14 +26,6 @@ public class UpdateShopDTO {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
     }
 
     public Long getPickupAddressId() {

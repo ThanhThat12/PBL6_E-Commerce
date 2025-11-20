@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.service;
 
+import com.PBL6.Ecommerce.constant.PaymentTransactionStatus;
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.PaymentTransaction;
 import com.PBL6.Ecommerce.dto.PaymentCallbackRequest;
@@ -10,6 +11,7 @@ import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Implementation of CheckoutService for payment processing
@@ -30,13 +34,19 @@ public class MoMoServiceIpl implements MoMoService {
     private final MoMoPaymentService momoPaymentService;
     private final OrderRepository orderRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final OrderService orderService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public MoMoServiceIpl(MoMoPaymentService momoPaymentService,
                               OrderRepository orderRepository,
-                              PaymentTransactionRepository paymentTransactionRepository) {
+                              PaymentTransactionRepository paymentTransactionRepository,
+                              OrderService orderService,
+                              SimpMessagingTemplate messagingTemplate) {
         this.momoPaymentService = momoPaymentService;
         this.orderRepository = orderRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
+        this.orderService = orderService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Override
@@ -70,7 +80,7 @@ public class MoMoServiceIpl implements MoMoService {
             transaction.setRequestId(requestId);
             transaction.setOrderIdMomo(momoOrderId); // Sử dụng momoOrderId duy nhất thay vì orderId
             transaction.setAmount(amount);
-            transaction.setStatus(PaymentTransaction.PaymentStatus.PENDING);
+            transaction.setStatus(PaymentTransactionStatus.PENDING);
             
             // Save transaction
             transaction = paymentTransactionRepository.save(transaction);
@@ -93,10 +103,10 @@ public class MoMoServiceIpl implements MoMoService {
             
             // Update status based on response
             if (response.isSuccess()) {
-                transaction.setStatus(PaymentTransaction.PaymentStatus.PENDING);
+                transaction.setStatus(PaymentTransactionStatus.PENDING);
                 logger.info("Web Payment created successfully with momoOrderId: {}, user will be redirected to pay.momo.vn", momoOrderId);
             } else {
-                transaction.setStatus(PaymentTransaction.PaymentStatus.FAILED);
+                transaction.setStatus(PaymentTransactionStatus.FAILED);
                 logger.warn("Web Payment creation failed with result code: {}, momoOrderId: {}", response.getResultCode(), momoOrderId);
             }
             
@@ -142,14 +152,17 @@ public class MoMoServiceIpl implements MoMoService {
             
             // Update payment status based on result code
             if (momoPaymentService.isPaymentSuccessful(callback)) {
-                transaction.setStatus(PaymentTransaction.PaymentStatus.SUCCESS);
+                transaction.setStatus(PaymentTransactionStatus.SUCCESS);
                 logger.info("Payment successful for order: {}", transaction.getOrder().getId());
                 
                 // Update order payment status
                 updateOrderPaymentStatus(transaction.getOrder(), transaction);
                 
+                // Send WebSocket notification to user
+                sendPaymentNotification(transaction.getOrder(), transaction);
+                
             } else {
-                transaction.setStatus(PaymentTransaction.PaymentStatus.FAILED);
+                transaction.setStatus(PaymentTransactionStatus.FAILED);
                 logger.warn("Payment failed for order: {}, resultCode: {}", 
                            transaction.getOrder().getId(), callback.getResultCode());
             }
@@ -187,18 +200,63 @@ public class MoMoServiceIpl implements MoMoService {
     public void updateOrderPaymentStatus(Order order, PaymentTransaction transaction) {
         try {
             logger.info("Updating order payment status for order ID: {}", order.getId());
-            if (transaction.getStatus() == PaymentTransaction.PaymentStatus.SUCCESS) {
+            if (transaction.getStatus() == PaymentTransactionStatus.SUCCESS) {
                 // Update order status and payment status
-                order.setStatus(Order.OrderStatus.PROCESSING);
+                // Sau khi thanh toán thành công, đơn hàng chuyển sang trạng thái PENDING (chờ xác nhận)
+                order.setStatus(Order.OrderStatus.PENDING);
                 order.setPaymentStatus(Order.PaymentStatus.PAID);
                 order.setMethod("MOMO");
                 order.setMomoTransId(transaction.getTransId());
-                order.setPaidAt(LocalDateTime.now());
+                order.setPaidAt(new java.util.Date());
                 orderRepository.save(order);
-                logger.info("Order payment status updated successfully for order: {} (status=PROCESSING, paymentStatus=PAID)", order.getId());
+                logger.info("Order payment status updated successfully for order: {} (status=PENDING, paymentStatus=PAID)", order.getId());
+                
+                // ✅ XÓA CÁC SẢN PHẨM ĐÃ THANH TOÁN KHỊI CART
+                try {
+                    orderService.clearCartAfterSuccessfulPayment(order.getUser().getId(), order.getId());
+                    logger.info("✅ Cart items cleared after successful payment for order: {}", order.getId());
+                } catch (Exception e) {
+                    logger.error("❌ Error clearing cart after payment: {}", e.getMessage(), e);
+                }
+                
+                // ✅ TẠO SHIPMENT SAU KHI THANH TOÁN THÀNH CÔNG
+                try {
+                    orderService.createShipmentAfterPayment(order.getId());
+                    logger.info("✅ Shipment creation initiated after payment for order: {}", order.getId());
+                } catch (Exception e) {
+                    logger.error("❌ Error creating shipment after payment: {}", e.getMessage(), e);
+                    // Không throw exception, order vẫn hợp lệ
+                }
             }
         } catch (Exception e) {
             logger.error("Error updating order payment status: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Send WebSocket notification to user after successful payment
+     */
+    private void sendPaymentNotification(Order order, PaymentTransaction transaction) {
+        try {
+            Long userId = order.getUser().getId();
+            
+            Map<String, Object> notification = new HashMap<>();
+            notification.put("orderId", order.getId());
+            notification.put("orderStatus", order.getStatus().name());
+            notification.put("paymentStatus", order.getPaymentStatus().name());
+            notification.put("transactionId", transaction.getId());
+            notification.put("amount", order.getTotalAmount());
+            notification.put("message", "Payment successful for order #" + order.getId());
+            notification.put("timestamp", System.currentTimeMillis());
+            
+            String destination = "/topic/orderws/" + userId;
+            messagingTemplate.convertAndSend(destination, notification);
+            
+            logger.info("WebSocket notification sent to {} for order: {}", destination, order.getId());
+        } catch (Exception e) {
+            logger.error("Error sending WebSocket notification for order: {}, error: {}", 
+                        order.getId(), e.getMessage(), e);
+            // Don't throw exception, payment already successful
         }
     }
 }

@@ -7,6 +7,7 @@ import com.PBL6.Ecommerce.domain.WalletTransaction;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
 import com.PBL6.Ecommerce.repository.WalletRepository;
 import com.PBL6.Ecommerce.repository.WalletTransactionRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -26,11 +27,14 @@ public class WalletService {
     
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final UserRepository userRepository;
 
     public WalletService(WalletRepository walletRepository,
-                        WalletTransactionRepository walletTransactionRepository) {
+                        WalletTransactionRepository walletTransactionRepository,
+                        UserRepository userRepository) {
         this.walletRepository = walletRepository;
         this.walletTransactionRepository = walletTransactionRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -47,10 +51,19 @@ public class WalletService {
 
     /**
      * Get wallet by user ID
+     * Auto-create wallet if not exists
      */
     public Wallet getByUserId(Long userId) {
         return walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new UserNotFoundException("Wallet not found for user ID: " + userId));
+                .orElseGet(() -> {
+                    // Auto-create wallet if not exists
+                    User user = userRepository.findById(userId)
+                            .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
+                    Wallet newWallet = new Wallet();
+                    newWallet.setUser(user);
+                    newWallet.setBalance(BigDecimal.ZERO);
+                    return walletRepository.save(newWallet);
+                });
     }
 
     /**
@@ -217,5 +230,143 @@ public class WalletService {
     public BigDecimal getTotalPayment(Long userId) {
         Wallet wallet = getByUserId(userId);
         return walletTransactionRepository.calculateTotalPayment(wallet.getId());
+    }
+
+    /**
+     * Get admin user (first user with ADMIN role)
+     */
+    private User getAdminUser() {
+        return userRepository.findByRole(com.PBL6.Ecommerce.domain.Role.ADMIN)
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new UserNotFoundException("Admin user not found"));
+    }
+
+    /**
+     * Deposit to admin wallet from buyer payment (MoMo, SportyPay, COD)
+     */
+    @Transactional
+    public Wallet depositToAdminWallet(BigDecimal amount, Order order, String paymentMethod) {
+        try {
+            logger.info("🔵 [START] depositToAdminWallet - amount: {}, order: {}, method: {}", 
+                       amount, order.getId(), paymentMethod);
+            
+            // 1. Get admin user
+            User adminUser = getAdminUser();
+            logger.info("✅ Found admin user: {} (ID: {})", adminUser.getUsername(), adminUser.getId());
+            
+            // 2. Get or create admin wallet
+            Wallet adminWallet = getOrCreateWallet(adminUser);
+            BigDecimal oldBalance = adminWallet.getBalance();
+            logger.info("📊 Admin wallet ID: {}, Current balance: {}", adminWallet.getId(), oldBalance);
+            
+            // 3. Update balance
+            logger.info("💸 Calling deposit({}) on wallet...", amount);
+            adminWallet.deposit(amount);
+            BigDecimal newBalance = adminWallet.getBalance();
+            logger.info("💰 Balance after deposit call: {} (old: {}, diff: {})", 
+                       newBalance, oldBalance, newBalance.subtract(oldBalance));
+            
+            // 4. Save wallet with flush to ensure DB write
+            logger.info("💾 Saving wallet to database...");
+            adminWallet = walletRepository.saveAndFlush(adminWallet);
+            logger.info("✅ Wallet saved. Balance in entity: {}", adminWallet.getBalance());
+            
+            // 5. Create transaction record
+            logger.info("📝 Creating wallet transaction record...");
+            WalletTransaction transaction = new WalletTransaction(
+                adminWallet,
+                WalletTransaction.TransactionType.DEPOSIT,
+                amount,
+                String.format("Nhận thanh toán từ đơn hàng #%d qua %s", order.getId(), paymentMethod)
+            );
+            transaction.setRelatedOrder(order);
+            WalletTransaction savedTx = walletTransactionRepository.save(transaction);
+            logger.info("✅ Transaction saved with ID: {}", savedTx.getId());
+            
+            // 6. Verify by re-fetching from DB
+            Wallet verifyWallet = walletRepository.findById(adminWallet.getId()).orElse(null);
+            if (verifyWallet != null) {
+                logger.info("🔍 VERIFICATION: Wallet balance in DB = {}", verifyWallet.getBalance());
+                if (!verifyWallet.getBalance().equals(newBalance)) {
+                    logger.error("⚠️ WARNING: Balance mismatch! Entity={}, DB={}", 
+                               newBalance, verifyWallet.getBalance());
+                }
+            } else {
+                logger.error("❌ ERROR: Could not verify wallet - not found in DB!");
+            }
+            
+            logger.info("✅ [SUCCESS] depositToAdminWallet completed. Final balance: {}", 
+                       adminWallet.getBalance());
+            
+            return adminWallet;
+            
+        } catch (Exception e) {
+            logger.error("❌ [ERROR] depositToAdminWallet failed for order {}: {}", 
+                        order.getId(), e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * Transfer money from admin wallet to seller wallet
+     * Called after order is completed and return period expired
+     */
+    public void transferFromAdminToSeller(Long sellerId, BigDecimal amount, Order order, BigDecimal platformFee) {
+        User adminUser = getAdminUser();
+        Wallet adminWallet = getOrCreateWallet(adminUser);
+        
+        User seller = userRepository.findById(sellerId)
+                .orElseThrow(() -> new UserNotFoundException("Seller not found with ID: " + sellerId));
+        Wallet sellerWallet = getOrCreateWallet(seller);
+        
+        logger.info("Transferring {} from admin wallet to seller {} for order: {}", 
+                   amount, sellerId, order.getId());
+        
+        // Check if admin has enough balance
+        if (!adminWallet.hasEnoughBalance(amount)) {
+            throw new IllegalArgumentException("Admin wallet has insufficient balance");
+        }
+        
+        // Withdraw from admin wallet
+        adminWallet.withdraw(amount);
+        walletRepository.save(adminWallet);
+        
+        // Create admin withdrawal transaction
+        WalletTransaction adminTransaction = new WalletTransaction(
+            adminWallet,
+            WalletTransaction.TransactionType.PAYMENT_TO_SELLER,
+            amount,
+            String.format("Chuyển tiền cho seller #%d - đơn hàng #%d", sellerId, order.getId())
+        );
+        adminTransaction.setRelatedOrder(order);
+        walletTransactionRepository.save(adminTransaction);
+        
+        // Deposit to seller wallet
+        sellerWallet.deposit(amount);
+        walletRepository.save(sellerWallet);
+        
+        // Create seller deposit transaction
+        WalletTransaction sellerTransaction = new WalletTransaction(
+            sellerWallet,
+            WalletTransaction.TransactionType.PAYMENT_TO_SELLER,
+            amount,
+            String.format("Nhận tiền từ đơn hàng #%d (trừ phí nền tảng: %s)", 
+                         order.getId(), platformFee.toString())
+        );
+        sellerTransaction.setRelatedOrder(order);
+        walletTransactionRepository.save(sellerTransaction);
+        
+        logger.info("Transfer successful. Admin balance: {}, Seller balance: {}", 
+                   adminWallet.getBalance(), sellerWallet.getBalance());
+    }
+
+    /**
+     * Get admin wallet balance
+     */
+    public BigDecimal getAdminBalance() {
+        User adminUser = getAdminUser();
+        Wallet adminWallet = getOrCreateWallet(adminUser);
+        return adminWallet.getBalance();
     }
 }

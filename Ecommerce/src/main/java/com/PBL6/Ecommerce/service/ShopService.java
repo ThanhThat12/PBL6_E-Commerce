@@ -99,12 +99,6 @@ public class ShopService {
             // ensure type = STORE
             addr.setTypeAddress(TypeAddress.STORE);
             addressRepository.save(addr);
-        } else if (updateShopDTO.getAddress() != null && !updateShopDTO.getAddress().trim().isEmpty()) {
-            Address addr = new Address();
-            addr.setUser(user);
-            addr.setFullAddress(updateShopDTO.getAddress().trim());
-            addr.setTypeAddress(TypeAddress.STORE); // mark as store pickup
-            Address savedAddr = addressRepository.save(addr);
         }
 
         if (updateShopDTO.getDescription() != null && !updateShopDTO.getDescription().trim().isEmpty()) {

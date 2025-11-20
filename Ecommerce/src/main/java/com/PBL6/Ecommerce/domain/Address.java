@@ -65,14 +65,9 @@ public class Address {
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
 
-    
+    public TypeAddress getTypeAddress() { return typeAddress; }
+    public void setTypeAddress(TypeAddress typeAddress) { this.typeAddress = typeAddress; }
 
-    public TypeAddress getTypeAddress() {
-        return typeAddress;
-    }
-    public void setTypeAddress(TypeAddress typeAddress) {
-        this.typeAddress = typeAddress;
-    }
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }

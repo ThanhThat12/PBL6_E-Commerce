@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.domain.dto.*;
 import com.PBL6.Ecommerce.service.CheckoutService;
@@ -75,11 +76,12 @@ public class CheckoutController {
     }
 
     /**
-     * Bước 11-13: User xác nhận thanh toán → Tạo Order + GHN shipment
+     * Bước 11-13: User xác nhận thanh toán → CHỈ TẠO ORDER (chưa tạo GHN shipment)
      * POST /api/checkout/confirm
      */
     @PostMapping("/confirm")
     @PreAuthorize("isAuthenticated()")
+    @Transactional
     public ResponseEntity<ResponseDTO<Map<String,Object>>> confirmCheckout(
             @Valid @RequestBody CheckoutConfirmRequestDTO req,
             @AuthenticationPrincipal Jwt jwt) {
@@ -99,4 +101,4 @@ public class CheckoutController {
                 .body(new ResponseDTO<>(400, e.getMessage(), "Lỗi tạo đơn", null));
         }
     }
-}
+    }

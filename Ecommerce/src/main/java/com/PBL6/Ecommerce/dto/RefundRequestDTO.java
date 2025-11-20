@@ -27,6 +27,9 @@ public class RefundRequestDTO {
     
     @JsonProperty("signature")
     private String signature;
+    
+    @JsonProperty("imageUrl")
+    private String imageUrl;  // Ảnh bằng chứng từ khách (JSON array nếu nhiều ảnh)
 
     // Constructors
     public RefundRequestDTO() {
@@ -106,6 +109,14 @@ public class RefundRequestDTO {
 
     public void setSignature(String signature) {
         this.signature = signature;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     @Override
