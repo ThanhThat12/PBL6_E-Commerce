@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.controller;
 
+import com.PBL6.Ecommerce.constant.PaymentTransactionStatus;
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.PaymentTransaction;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
@@ -10,12 +11,14 @@ import com.PBL6.Ecommerce.exception.OrderNotFoundException;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.service.CheckoutService;
 import com.PBL6.Ecommerce.service.PaymentTransactionService;
+import com.PBL6.Ecommerce.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
 
@@ -36,13 +39,16 @@ public class MoMoPaymentController {
     private final CheckoutService checkoutService;
     private final PaymentTransactionService paymentTransactionService;
     private final OrderRepository orderRepository;
+    private final UserService userService;
 
     public MoMoPaymentController(CheckoutService checkoutService,
-                                PaymentTransactionService paymentTransactionService,
-                                OrderRepository orderRepository) {
+                            PaymentTransactionService paymentTransactionService,
+                            OrderRepository orderRepository,
+                            UserService userService) {
         this.checkoutService = checkoutService;
         this.paymentTransactionService = paymentTransactionService;
         this.orderRepository = orderRepository;
+        this.userService = userService;
     }
 
     /**
@@ -57,7 +63,7 @@ public class MoMoPaymentController {
      * 
      * Response:
      * {
-     *   "payUrl": "https://pay.momo.vn/web/...",
+     *   "payUrl": "httpss://pay.momo.vn/web/...",
      *   "orderId": "ORD-123-UUID",
      *   "requestId": "REQ-...",
      *   "amount": 100000,
@@ -73,11 +79,34 @@ public class MoMoPaymentController {
             @RequestBody Map<String, Object> request,
             Authentication authentication) {
         try {
-            Long userId = Long.parseLong(authentication.getName());
+            Jwt jwt = (Jwt) authentication.getPrincipal();
+            Long userId = userService.extractUserIdFromJwt(jwt);
             logger.info("User {} requesting MoMo payment creation", userId);
+            
+            // LOG TOÀN BỘ REQUEST ĐỂ DEBUG
+            logger.info("🔍 Received request map: {}", request);
+            logger.info("🔍 Request keys: {}", request.keySet());
+            logger.info("🔍 Request values: {}", request.values());
 
-            // Parse request
-            Long orderId = Long.valueOf(request.get("orderId").toString());
+            // Parse request with validation
+            Object orderIdObj = request.get("orderId");
+            logger.info("🔍 orderIdObj from request: {} (type: {})", orderIdObj, orderIdObj != null ? orderIdObj.getClass().getName() : "null");
+            
+            if (orderIdObj == null) {
+                return ResponseDTO.error(400, "BAD_REQUEST", "orderId is required");
+            }
+            
+            Long orderId;
+            try {
+                String orderIdStr = orderIdObj.toString();
+                logger.info("🔍 orderIdStr: '{}'", orderIdStr);
+                orderId = Long.valueOf(orderIdStr);
+                logger.info("✅ Successfully parsed orderId: {}", orderId);
+            } catch (NumberFormatException e) {
+                logger.error("❌ Invalid orderId format: '{}' - {}", orderIdObj, e.getMessage());
+                return ResponseDTO.error(400, "BAD_REQUEST", "orderId must be a valid number, got: " + orderIdObj);
+            }
+            
             String orderInfo = request.getOrDefault("orderInfo", "Thanh toán đơn hàng #" + orderId).toString();
 
             // Validate order exists and belongs to user
@@ -127,7 +156,7 @@ public class MoMoPaymentController {
      * POST /api/payment/momo/callback
      * 
      * This endpoint receives payment notifications from MoMo
-     * Must return HTTP 204 or 200 to acknowledge receipt
+     * Must return https 204 or 200 to acknowledge receipt
      */
     @PostMapping("/callback")
     public ResponseEntity<Map<String, Object>> handleCallback(
@@ -160,7 +189,7 @@ public class MoMoPaymentController {
             try {
                 if (callback.getRequestId() != null) {
                     PaymentTransaction tx = paymentTransactionService.getByRequestId(callback.getRequestId());
-                    if (tx != null && tx.getStatus() == PaymentTransaction.PaymentStatus.SUCCESS) {
+                    if (tx != null && tx.getStatus() == PaymentTransactionStatus.SUCCESS) {
                         alreadySuccess = true;
                     }
                 }
@@ -210,12 +239,12 @@ public class MoMoPaymentController {
             
             if (resultCode != null && resultCode == 0) {
                 // Payment successful - redirect to success page
-                redirectUrl = "http://localhost:3000/payment/success?orderId=" + orderId + 
+                redirectUrl = "https://localhost:3000/payment/success?orderId=" + orderId + 
                              "&transId=" + transId + "&message=Payment successful";
                 logger.info("Payment successful, redirecting to success page");
             } else {
                 // Payment failed - redirect to failure page
-                redirectUrl = "http://localhost:3000/payment/failed?orderId=" + orderId + 
+                redirectUrl = "https://localhost:3000/payment/failed?orderId=" + orderId + 
                              "&message=" + (message != null ? message : "Payment failed");
                 logger.warn("Payment failed with result code: {}, redirecting to failure page", resultCode);
             }
@@ -224,7 +253,7 @@ public class MoMoPaymentController {
             
         } catch (Exception e) {
             logger.error("Error handling return URL: {}", e.getMessage(), e);
-            return new RedirectView("http://localhost:3000/payment/error?message=Error processing payment");
+            return new RedirectView("https://localhost:3000/payment/error?message=Error processing payment");
         }
     }
 
@@ -399,7 +428,7 @@ public class MoMoPaymentController {
             transaction.setTransId(request.getOrDefault("transId", System.currentTimeMillis()).toString());
             transaction.setResultCode(0);
             transaction.setMessage("TEST: Payment successful");
-            transaction.setStatus(PaymentTransaction.PaymentStatus.SUCCESS);
+            transaction.setStatus(PaymentTransactionStatus.SUCCESS);
             
             paymentTransactionService.save(transaction);
             

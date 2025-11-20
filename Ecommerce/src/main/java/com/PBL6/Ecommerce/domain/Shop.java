@@ -12,7 +12,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.CascadeType;
@@ -25,22 +25,27 @@ public class Shop {
     private Long id;
 
     // Chủ shop
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
     @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(length = 255)
-    private String address;
+    
+    // External GHN shop identifier (shop id assigned by GHN). Stored as string to be safe.
+    @Column(name = "ghn_shop_id", length = 100)
+    private String ghnShopId;
+    
+    @Column(name = "ghn_token", length = 500)
+    private String ghnToken;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private ShopStatus status = ShopStatus.ACTIVE;
+    private ShopStatus status = ShopStatus.PENDING;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -51,8 +56,9 @@ public class Shop {
 
     // Enum trạng thái shop
     public enum ShopStatus {
-        ACTIVE,
-        INACTIVE
+        PENDING,   // Shop chờ duyệt
+        ACTIVE,    // Shop đang hoạt động
+        INACTIVE   // Shop bị vô hiệu hóa
     }
 
     public Long getId() {
@@ -79,12 +85,21 @@ public class Shop {
         this.name = name;
     }
 
-    public String getAddress() {
-        return address;
+
+    public String getGhnShopId() {
+        return ghnShopId;
     }
 
-    public void setAddress(String address) {
-        this.address = address;
+    public void setGhnShopId(String ghnShopId) {
+        this.ghnShopId = ghnShopId;
+    }
+
+    public String getGhnToken() {
+        return ghnToken;
+    }
+
+    public void setGhnToken(String ghnToken) {
+        this.ghnToken = ghnToken;
     }
 
     public String getDescription() {

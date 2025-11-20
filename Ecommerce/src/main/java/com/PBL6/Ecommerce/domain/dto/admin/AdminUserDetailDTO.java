@@ -6,6 +6,7 @@ public class AdminUserDetailDTO {
     // Thông tin chung cho tất cả user
     private Long id;
     private String username;
+    private String fullName;
     private String email;
     private String phoneNumber;
     private String role;
@@ -18,7 +19,9 @@ public class AdminUserDetailDTO {
     private String shopName;
     private String shopAddress;
     private String shopDescription;
-    private Integer totalProducts;
+    private String shopStatus;
+    private Integer totalProductsSeller;
+    private Integer totalOrdersSeller;
     private Double totalRevenue;
 
     // Thông tin dành cho BUYER/CUSTOMER
@@ -39,11 +42,12 @@ public class AdminUserDetailDTO {
     }
 
     // Constructor cho ADMIN
-    public AdminUserDetailDTO(Long id, String username, String email, String phoneNumber,
+    public AdminUserDetailDTO(Long id, String username, String fullName, String email, String phoneNumber,
                              String role, boolean activated, String facebookId,
                              LocalDateTime createdAt, LocalDateTime lastLogin) {
         this.id = id;
         this.username = username;
+        this.fullName = fullName;
         this.email = email;
         this.phoneNumber = phoneNumber;
         this.role = role;
@@ -54,12 +58,14 @@ public class AdminUserDetailDTO {
     }
 
     // Constructor cho SELLER
-    public AdminUserDetailDTO(Long id, String username, String email, String phoneNumber,
+    public AdminUserDetailDTO(Long id, String username, String fullName, String email, String phoneNumber,
                              String role, boolean activated, LocalDateTime createdAt,
                              String shopName, String shopAddress, String shopDescription,
-                             Integer totalProducts, Integer totalSales, Double totalRevenue) {
+                             String shopStatus, Integer totalProductsSeller, 
+                             Integer totalOrdersSeller, Double totalRevenue) {
         this.id = id;
         this.username = username;
+        this.fullName = fullName;
         this.email = email;
         this.phoneNumber = phoneNumber;
         this.role = role;
@@ -68,20 +74,23 @@ public class AdminUserDetailDTO {
         this.shopName = shopName;
         this.shopAddress = shopAddress;
         this.shopDescription = shopDescription;
-        this.totalProducts = totalProducts;
+        this.shopStatus = shopStatus;
+        this.totalProductsSeller = totalProductsSeller;
+        this.totalOrdersSeller = totalOrdersSeller;
         this.totalRevenue = totalRevenue;
     }
 
     // Constructor cho BUYER/CUSTOMER
-    public AdminUserDetailDTO(Long id, String username, String email, String phoneNumber,
+    public AdminUserDetailDTO(Long id, String username, String fullName, String email, String phoneNumber,
                              String role, boolean activated, LocalDateTime createdAt,
                              Integer totalOrders, Double totalSpent, LocalDateTime lastOrderDate,
                              Integer cartItemsCount,
-                             String primaryAddressLabel, String primaryAddressFullAddress,
+                             String primaryAddressFullAddress,
                              String primaryAddressProvince, String primaryAddressDistrict,
                              String primaryAddressWard, String primaryAddressContactPhone) {
         this.id = id;
         this.username = username;
+        this.fullName = fullName;
         this.email = email;
         this.phoneNumber = phoneNumber;
         this.role = role;
@@ -91,7 +100,6 @@ public class AdminUserDetailDTO {
         this.totalSpent = totalSpent;
         this.lastOrderDate = lastOrderDate;
         this.cartItemsCount = cartItemsCount;
-        this.primaryAddressLabel = primaryAddressLabel;
         this.primaryAddressFullAddress = primaryAddressFullAddress;
         this.primaryAddressProvince = primaryAddressProvince;
         this.primaryAddressDistrict = primaryAddressDistrict;
@@ -114,6 +122,14 @@ public class AdminUserDetailDTO {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public String getEmail() {
@@ -196,12 +212,28 @@ public class AdminUserDetailDTO {
         this.shopDescription = shopDescription;
     }
 
-    public Integer getTotalProducts() {
-        return totalProducts;
+    public String getShopStatus() {
+        return shopStatus;
     }
 
-    public void setTotalProducts(Integer totalProducts) {
-        this.totalProducts = totalProducts;
+    public void setShopStatus(String shopStatus) {
+        this.shopStatus = shopStatus;
+    }
+
+    public Integer getTotalProductsSeller() {
+        return totalProductsSeller;
+    }
+
+    public void setTotalProductsSeller(Integer totalProductsSeller) {
+        this.totalProductsSeller = totalProductsSeller;
+    }
+
+    public Integer getTotalOrdersSeller() {
+        return totalOrdersSeller;
+    }
+
+    public void setTotalOrdersSeller(Integer totalOrdersSeller) {
+        this.totalOrdersSeller = totalOrdersSeller;
     }
 
     public Double getTotalRevenue() {
@@ -242,14 +274,6 @@ public class AdminUserDetailDTO {
 
     public void setCartItemsCount(Integer cartItemsCount) {
         this.cartItemsCount = cartItemsCount;
-    }
-
-    public String getPrimaryAddressLabel() {
-        return primaryAddressLabel;
-    }
-
-    public void setPrimaryAddressLabel(String primaryAddressLabel) {
-        this.primaryAddressLabel = primaryAddressLabel;
     }
 
     public String getPrimaryAddressFullAddress() {

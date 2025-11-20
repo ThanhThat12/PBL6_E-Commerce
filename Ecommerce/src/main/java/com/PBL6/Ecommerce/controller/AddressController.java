@@ -40,7 +40,6 @@ public class AddressController {
         if (a == null) return null;
         AddressResponseDTO d = new AddressResponseDTO();
         d.setId(a.getId());
-        d.setLabel(a.getLabel());
         d.setFullAddress(a.getFullAddress());
         d.setProvinceId(a.getProvinceId());
         d.setDistrictId(a.getDistrictId());

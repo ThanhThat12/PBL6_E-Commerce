@@ -99,11 +99,17 @@ private ProductVariantValueRepository productVariantValueRepository;
 
     // Lấy sản phẩm theo ID
     @Transactional(readOnly = true)
-    public ProductDTO getProductById(Long id) {
-        Product product = productRepository.findById(id)
-            .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
-        return convertToProductDTO(product);
-    }
+public ProductDTO getProductById(Long id) {
+    Product product = productRepository.findById(id)
+        .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
+    
+    // Convert to DTO and set additional fields
+    ProductDTO dto = convertToProductDTO(product);
+    dto.setShopId(product.getShop().getId());
+    
+    return dto;
+}
+
 
 // Thay thế method createProduct (dòng 61-104)
 public ProductDTO createProduct(ProductCreateDTO request, Authentication authentication) {
@@ -166,17 +172,28 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     System.out.println("🔍 DEBUG - Product saved with ID: " + product.getId());
     
     // 🔧 3. Handle images SAU KHI product đã có ID
-    if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
+    // Xử lý images với color information (ưu tiên)
+    if (request.getImages() != null && !request.getImages().isEmpty()) {
+        handleProductImagesWithColor(product, request.getImages());
+        System.out.println("✅ DEBUG - Processed " + request.getImages().size() + " images with color info");
+    }
+    // Fallback: xử lý imageUrls cũ (backward compatibility)
+    else if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
         handleProductImages(product, request.getImageUrls());
+        System.out.println("✅ DEBUG - Processed " + request.getImageUrls().size() + " simple image URLs");
     }
     
     // 🔧 4. Handle variants SAU KHI product đã có ID  
     if (request.getVariants() != null && !request.getVariants().isEmpty()) {
+        System.out.println("🔍 DEBUG - Starting to handle " + request.getVariants().size() + " variants for product ID: " + product.getId());
         handleProductVariants(product, request.getVariants());
+        System.out.println("✅ DEBUG - Completed handling all variants");
     }
     
     // 🔧 5. Reload product để có relationships mới
     product = productRepository.findById(product.getId()).orElse(product);
+    System.out.println("🔍 DEBUG - Final product has " + 
+        (product.getProductVariants() != null ? product.getProductVariants().size() : 0) + " variants");
     
     return convertToProductDTO(product);
 }
@@ -539,6 +556,8 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         return dto;
     }
     
+
+    
     // Convert ProductVariant to ProductVariantDTO
     private ProductVariantDTO convertToProductVariantDTO(ProductVariant variant) {
         ProductVariantDTO dto = new ProductVariantDTO();
@@ -585,39 +604,98 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         return dto;
     }
 
-    // 🆕 Handle product images
-private void handleProductImages(Product product, List<String> imageUrls) {
-        if (imageUrls != null && !imageUrls.isEmpty()) {
-            // Clear existing images
-            product.getProductImages().clear();
+    // 🆕 Handle product images với color information
+private void handleProductImagesWithColor(Product product, List<ProductImageDTO> imageDTOs) {
+    if (imageDTOs == null || imageDTOs.isEmpty()) {
+        System.out.println("⚠️ DEBUG - No images to process");
+        return;
+    }
+    
+    System.out.println("🔍 DEBUG - Processing " + imageDTOs.size() + " images with color info");
+    
+    try {
+        List<ProductImage> savedImages = new ArrayList<>();
+        
+        for (int i = 0; i < imageDTOs.size(); i++) {
+            ProductImageDTO imageDTO = imageDTOs.get(i);
             
-            // Add new images
-            for (String imageUrl : imageUrls) {
-                ProductImage image = new ProductImage();
-                image.setImageUrl(imageUrl);
-                image.setColor(null); // Hoặc lấy từ request nếu có
-                product.addProductImage(image);
+            System.out.println("🔍 DEBUG - Processing image " + (i+1) + ": " + imageDTO.getImageUrl() + 
+                " (color: " + imageDTO.getColor() + ")");
+            
+            // Validation
+            if (imageDTO.getImageUrl() == null || imageDTO.getImageUrl().trim().isEmpty()) {
+                throw new RuntimeException("Image URL không được để trống cho image " + (i+1));
+            }
+            
+            // Tạo ProductImage entity
+            ProductImage productImage = new ProductImage();
+            productImage.setProduct(product);
+            productImage.setImageUrl(imageDTO.getImageUrl().trim());
+            productImage.setColor(imageDTO.getColor() != null ? imageDTO.getColor().trim() : null);
+            
+            // 🔧 QUAN TRỌNG: Save vào database
+            try {
+                productImage = productImageRepository.save(productImage);
+                savedImages.add(productImage);
+                
+                System.out.println("✅ DEBUG - Saved product image to database: ID=" + productImage.getId() + 
+                    ", URL=" + productImage.getImageUrl() + 
+                    ", Color=" + productImage.getColor() +
+                    ", ProductId=" + product.getId());
+                
+            } catch (Exception saveEx) {
+                System.err.println("❌ ERROR - Failed to save product image: " + saveEx.getMessage());
+                throw new RuntimeException("Lỗi khi lưu product image vào database: " + saveEx.getMessage(), saveEx);
             }
         }
+        
+        // 🔧 Cập nhật relationship trong memory
+        product.setProductImages(savedImages);
+        
+        System.out.println("✅ DEBUG - Successfully processed " + savedImages.size() + " product images");
+        
+    } catch (Exception e) {
+        System.err.println("❌ ERROR in handleProductImagesWithColor: " + e.getMessage());
+        e.printStackTrace();
+        throw new RuntimeException("Lỗi khi xử lý product images: " + e.getMessage(), e);
     }
+}
+
+// 🆕 Handle product images (backward compatibility - chỉ URL)
+private void handleProductImages(Product product, List<String> imageUrls) {
+    if (imageUrls != null && !imageUrls.isEmpty()) {
+        for (String imageUrl : imageUrls) {
+            ProductImage image = new ProductImage();
+            image.setImageUrl(imageUrl);
+            image.setColor(null); // Hoặc lấy từ request nếu có
+            image.setProduct(product); // 🔧 THÊM DÒNG NÀY
+            productImageRepository.save(image); // 🔧 THÊM DÒNG NÀY
+        }
+    }
+}
 
 // 🆕 Handle product variants
 private void handleProductVariants(Product product, List<ProductVariantDTO> variantDTOs) {
     if (variantDTOs == null || variantDTOs.isEmpty()) return;
     
+    System.out.println("🔍 DEBUG - handleProductVariants: Processing " + variantDTOs.size() + " variants");
+    
     try {
-        for (ProductVariantDTO variantDTO : variantDTOs) {
+        for (int i = 0; i < variantDTOs.size(); i++) {
+            ProductVariantDTO variantDTO = variantDTOs.get(i);
+            System.out.println("🔍 DEBUG - Processing variant " + (i+1) + "/" + variantDTOs.size() + ": " + variantDTO.getSku());
+            
             // Null checks
             if (variantDTO.getSku() == null || variantDTO.getSku().trim().isEmpty()) {
-                throw new RuntimeException("SKU không được để trống");
+                throw new RuntimeException("SKU không được để trống cho variant " + (i+1));
             }
             
             if (variantDTO.getPrice() == null) {
-                throw new RuntimeException("Giá variant không được để trống");
+                throw new RuntimeException("Giá variant không được để trống cho variant " + (i+1));
             }
             
             if (variantDTO.getStock() == null) {
-                throw new RuntimeException("Số lượng tồn kho không được để trống");
+                throw new RuntimeException("Số lượng tồn kho không được để trống cho variant " + (i+1));
             }
             
             // Check if SKU already exists
@@ -625,24 +703,35 @@ private void handleProductVariants(Product product, List<ProductVariantDTO> vari
                 throw new RuntimeException("SKU đã tồn tại: " + variantDTO.getSku());
             }
             
-            ProductVariant variant = new ProductVariant();
-            variant.setProduct(product);  
-            variant.setSku(variantDTO.getSku());
-            variant.setPrice(variantDTO.getPrice());
-            variant.setStock(variantDTO.getStock());
-            
-            // Save variant trước
-            variant = productVariantRepository.save(variant);
-            System.out.println("🔍 DEBUG - Saved variant: " + variantDTO.getSku());
-            
-            // Handle variant values if exists
-            if (variantDTO.getVariantValues() != null && !variantDTO.getVariantValues().isEmpty()) {
-                handleVariantValues(variant, variantDTO.getVariantValues());
+            try {
+                ProductVariant variant = new ProductVariant();
+                variant.setProduct(product);  
+                variant.setSku(variantDTO.getSku());
+                variant.setPrice(variantDTO.getPrice());
+                variant.setStock(variantDTO.getStock());
+                
+                // Save variant trước
+                variant = productVariantRepository.save(variant);
+                System.out.println("✅ DEBUG - Saved variant " + (i+1) + " with ID: " + variant.getId());
+                
+                // Handle variant values if exists
+                if (variantDTO.getVariantValues() != null && !variantDTO.getVariantValues().isEmpty()) {
+                    System.out.println("🔍 DEBUG - Processing " + variantDTO.getVariantValues().size() + " variant values for variant " + (i+1));
+                    handleVariantValues(variant, variantDTO.getVariantValues());
+                    System.out.println("✅ DEBUG - Completed variant values for variant " + (i+1));
+                }
+                
+                System.out.println("✅ DEBUG - Successfully processed variant " + (i+1) + ": " + variantDTO.getSku());
+                
+            } catch (Exception variantEx) {
+                System.err.println("❌ Error processing variant " + (i+1) + " (" + variantDTO.getSku() + "): " + variantEx.getMessage());
+                variantEx.printStackTrace();
+                throw new RuntimeException("Lỗi khi xử lý variant " + (i+1) + " (" + variantDTO.getSku() + "): " + variantEx.getMessage(), variantEx);
             }
-            
-            // Add variant to product
-            product.addVariant(variant);
         }
+        
+        System.out.println("✅ DEBUG - Successfully processed all " + variantDTOs.size() + " variants");
+        
     } catch (Exception e) {
         System.err.println("❌ Error in handleProductVariants: " + e.getMessage());
         e.printStackTrace();
@@ -650,43 +739,72 @@ private void handleProductVariants(Product product, List<ProductVariantDTO> vari
     }
 }
 
-// Sửa method handleVariantValues (dòng 169-183)
+// Method để xử lý variant values và lưu vào database
 private void handleVariantValues(ProductVariant variant, List<ProductVariantValueDTO> valueDTOs) {
+    if (valueDTOs == null || valueDTOs.isEmpty()) {
+        System.out.println("⚠️ DEBUG - No variant values to process for variant: " + variant.getSku());
+        return;
+    }
+    
+    System.out.println("🔍 DEBUG - Processing " + valueDTOs.size() + " variant values for variant: " + variant.getSku());
+    
     try {
-        for (ProductVariantValueDTO valueDTO : valueDTOs) {
-            // Null checks
+        List<ProductVariantValue> savedVariantValues = new ArrayList<>();
+        
+        for (int i = 0; i < valueDTOs.size(); i++) {
+            ProductVariantValueDTO valueDTO = valueDTOs.get(i);
+            System.out.println("🔍 DEBUG - Processing variant value " + (i+1) + ": " + valueDTO.getValue() + 
+                " (attributeId: " + valueDTO.getProductAttributeId() + ")");
+            
+            // Validation
             if (valueDTO.getProductAttributeId() == null) {
-                throw new RuntimeException("Product Attribute ID không được để trống");
+                throw new RuntimeException("Product Attribute ID không được để trống cho variant value " + (i+1));
             }
             
             if (valueDTO.getValue() == null || valueDTO.getValue().trim().isEmpty()) {
-                throw new RuntimeException("Giá trị thuộc tính không được để trống");
+                throw new RuntimeException("Giá trị thuộc tính không được để trống cho variant value " + (i+1));
             }
             
-            // Validate product attribute exists
+            // Tìm product attribute
             ProductAttribute attribute = productAttributeRepository.findById(valueDTO.getProductAttributeId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thuộc tính với ID: " + valueDTO.getProductAttributeId()));
             
+            System.out.println("✅ DEBUG - Found attribute: " + attribute.getName());
+            
+            // Tạo variant value
             ProductVariantValue variantValue = new ProductVariantValue();
             variantValue.setVariant(variant);
             variantValue.setProductAttribute(attribute);
             variantValue.setValue(valueDTO.getValue().trim());
-
-            // Kiểm tra repository có tồn tại không
-            if (productVariantValueRepository == null) {
-                throw new RuntimeException("ProductVariantValueRepository chưa được inject");
-            }
             
-            productVariantValueRepository.save(variantValue);
-            System.out.println("🔍 DEBUG - Saved variant value: " + valueDTO.getValue());
+            // 🔧 QUAN TRỌNG: Save vào database
+            try {
+                variantValue = productVariantValueRepository.save(variantValue);
+                savedVariantValues.add(variantValue);
+                
+                System.out.println("✅ DEBUG - Saved variant value to database: ID=" + variantValue.getId() + 
+                    ", Value=" + variantValue.getValue() + 
+                    ", Attribute=" + attribute.getName() +
+                    ", VariantId=" + variant.getId());
+                
+            } catch (Exception saveEx) {
+                System.err.println("❌ ERROR - Failed to save variant value: " + saveEx.getMessage());
+                throw new RuntimeException("Lỗi khi lưu variant value vào database: " + saveEx.getMessage(), saveEx);
+            }
         }
+        
+        // 🔧 Cập nhật relationship trong memory
+        variant.setProductVariantValues(savedVariantValues);
+        
+        System.out.println("✅ DEBUG - Successfully processed " + savedVariantValues.size() + 
+            " variant values for variant: " + variant.getSku());
+        
     } catch (Exception e) {
-        System.err.println("❌ Error in handleVariantValues: " + e.getMessage());
+        System.err.println("❌ ERROR in handleVariantValues for variant " + variant.getSku() + ": " + e.getMessage());
         e.printStackTrace();
-        throw new RuntimeException("Lỗi khi thêm giá trị thuộc tính: " + e.getMessage());
+        throw new RuntimeException("Lỗi khi xử lý variant values cho variant " + variant.getSku() + ": " + e.getMessage(), e);
     }
 }
-
  // Lấy sản phẩm của shop của user hiện tại (có phân trang)
     public Page<ProductDTO> getMyShopProducts(Authentication authentication, Boolean isActive, Pageable pageable) {
         if (authentication == null) {
@@ -713,21 +831,33 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
         return products.map(this::convertToProductDTO);
     }
 
-     // Lấy sản phẩm đã duyệt của shop (có phân trang)
+     // 🔧 Lấy sản phẩm đã duyệt với thông tin đơn giản
     public Page<ProductDTO> getMyShopApprovedProducts(Authentication authentication, Pageable pageable) {
         if (authentication == null) {
             throw new RuntimeException("Authentication required");
         }
 
         String username = authentication.getName();
+        System.out.println("🔍 DEBUG - Getting approved products for: " + username);
         
+        // Tìm user
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new RuntimeException("User not found: " + username));
 
+        // Tìm shop của user  
         Shop shop = shopRepository.findByOwnerId(user.getId())
             .orElseThrow(() -> new RuntimeException("Shop not found for user: " + username));
 
+        System.out.println("🔍 DEBUG - Shop found: " + shop.getName());
+
+        // Chỉ lấy sản phẩm đã duyệt (is_active = true)
         Page<Product> products = productRepository.findByShopIdAndIsActive(shop.getId(), true, pageable);
+        
+        System.out.println("🔍 DEBUG - Found " + products.getTotalElements() + " approved products");
+
+        // Convert sang ProductSimpleDTO
         return products.map(this::convertToProductDTO);
     }
+
+    
 }
