@@ -1,83 +1,52 @@
 package com.PBL6.Ecommerce.domain.dto.admin;
 
+import java.math.BigDecimal;
+
+/**
+ * DTO for Admin Voucher List - shows vouchers in paginated list
+ */
 public class AdminVoucherListDTO {
+    
     private Long id;
     private String code;
-    private Integer discountAmount;
-    private Integer minOrderValue;
-    private Integer quantity;
-    private Long used; // Số lượng đã sử dụng
-    private String status;
+    private String discountType;
+    private BigDecimal discountValue;
+    private BigDecimal minOrderValue;
+    private Integer usageLimit;
+    private Integer usedCount;
+    
 
-    // Constructors
-    public AdminVoucherListDTO() {}
-
-    public AdminVoucherListDTO(Long id, String code, Integer discountAmount,
-                               Integer minOrderValue, Integer quantity,
-                               Long used, String status) {
+    // Constructor for projection
+    public AdminVoucherListDTO(Long id, String code, String discountType, BigDecimal discountValue, 
+                               BigDecimal minOrderValue, Integer usageLimit, Integer usedCount) {
         this.id = id;
         this.code = code;
-        this.discountAmount = discountAmount;
+        this.discountType = discountType;
+        this.discountValue = discountValue;
         this.minOrderValue = minOrderValue;
-        this.quantity = quantity;
-        this.used = used;
-        this.status = status;
+        this.usageLimit = usageLimit;
+        this.usedCount = usedCount;
     }
 
     // Getters and Setters
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public String getCode() { return code; }
+    public void setCode(String code) { this.code = code; }
 
-    public String getCode() {
-        return code;
-    }
+    public String getDiscountType() { return discountType; }
+    public void setDiscountType(String discountType) { this.discountType = discountType; }
 
-    public void setCode(String code) {
-        this.code = code;
-    }
+    public BigDecimal getDiscountValue() { return discountValue; }
+    public void setDiscountValue(BigDecimal discountValue) { this.discountValue = discountValue; }
 
-    public Integer getDiscountAmount() {
-        return discountAmount;
-    }
+    public BigDecimal getMinOrderValue() { return minOrderValue; }
+    public void setMinOrderValue(BigDecimal minOrderValue) { this.minOrderValue = minOrderValue; }
 
-    public void setDiscountAmount(Integer discountAmount) {
-        this.discountAmount = discountAmount;
-    }
+    public Integer getUsageLimit() { return usageLimit; }
+    public void setUsageLimit(Integer usageLimit) { this.usageLimit = usageLimit; }
 
-    public Integer getMinOrderValue() {
-        return minOrderValue;
-    }
-
-    public void setMinOrderValue(Integer minOrderValue) {
-        this.minOrderValue = minOrderValue;
-    }
-
-    public Integer getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(Integer quantity) {
-        this.quantity = quantity;
-    }
-
-    public Long getUsed() {
-        return used;
-    }
-
-    public void setUsed(Long used) {
-        this.used = used;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
+    public Integer getUsedCount() { return usedCount; }
+    public void setUsedCount(Integer usedCount) { this.usedCount = usedCount; }
 }

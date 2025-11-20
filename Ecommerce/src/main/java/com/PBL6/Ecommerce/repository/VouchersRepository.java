@@ -1,6 +1,8 @@
 package com.PBL6.Ecommerce.repository;
 
 import com.PBL6.Ecommerce.domain.Vouchers;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherDetailDTO;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -31,35 +33,46 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
      */
     Optional<Vouchers> findByCode(String code);
     
-    // /**
-    //  * Lấy tất cả vouchers với phân trang
-    //  * Sắp xếp theo ID tăng dần (cũ nhất trước)
-    //  */
-    // @Query("SELECT v FROM Vouchers v ORDER BY v.id ASC")
-    // Page<Vouchers> findAllVouchers(Pageable pageable);
+    /**
+     * Lấy danh sách vouchers với thông tin cơ bản (Admin)
+     * Sắp xếp theo ID tăng dần
+     */
+    @Query("SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO(" +
+           "v.id, " +
+           "v.code, " +
+           "CAST(v.discountType AS string), " +
+           "v.discountValue, " +
+           "v.minOrderValue, " +
+           "v.usageLimit, " +
+           "v.usedCount) " +
+           "FROM Vouchers v " +
+           "ORDER BY v.id ASC")
+    Page<com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO> findAllVouchersForAdmin(Pageable pageable);
     
-    // /**
-    //  * Lọc vouchers theo status với phân trang
-    //  * Sắp xếp theo ID tăng dần
-    //  */
-    // @Query("SELECT v FROM Vouchers v WHERE v.status = :status ORDER BY v.id ASC")
-    // Page<Vouchers> findByStatusOrderByIdAsc(@Param("status") Vouchers.VoucherStatus status, Pageable pageable);
+    /**
+     * Lấy chi tiết voucher (Admin)
+     * Sử dụng LEFT JOIN để tránh N+1 problem và xử lý shop NULL
+     */
+    @Query("SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherDetailDTO(" +
+        "v.id, " +
+        "v.code, " +
+        "v.isActive, " +
+        "v.description, " +
+        "s.name, " +  // Có thể NULL từ LEFT JOIN
+        "CAST(v.discountType AS string), " +
+        "v.discountValue, " +
+        "v.maxDiscountAmount, " +
+        "v.minOrderValue, " +
+        "v.usageLimit, " +
+        "v.usedCount, " +
+        "v.startDate, " +
+        "v.endDate, " +
+        "v.createdAt) " +
+        "FROM Vouchers v " +
+        "LEFT JOIN v.shop s " +  // LEFT JOIN thay vì navigation
+        "WHERE v.id = :id")
+    Optional<AdminVoucherDetailDTO> findVoucherDetailForAdmin(@Param("id") Long id);
+        
     
-    // /**
-    //  * Đếm số lượng voucher đã sử dụng theo voucher ID
-    //  */
-    // @Query("SELECT COUNT(uv) FROM User_Vouchers uv WHERE uv.voucher.id = :voucherId")
-    // Long countUsedByVoucherId(@Param("voucherId") Long voucherId);
-    
-    // /**
-    //  * Đếm tổng số voucher đã sử dụng (tất cả vouchers)
-    //  */
-    // @Query("SELECT COUNT(uv) FROM User_Vouchers uv")
-    // Long countTotalUsedVouchers();
-    
-    // /**
-    //  * Đếm số lượng voucher theo status
-    //  */
-    // long countByStatus(Vouchers.VoucherStatus status);
 }
 

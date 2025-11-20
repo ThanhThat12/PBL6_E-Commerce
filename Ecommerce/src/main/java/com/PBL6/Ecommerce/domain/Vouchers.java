@@ -52,14 +52,29 @@ public class Vouchers {
     @Column(nullable = false)
     private Integer usedCount = 0; // Số lượt đã sử dụng
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String applicableType; // Loại đối tượng áp dụng (ALL, TOP_BUYERS,...)
+    private ApplicableType applicableType; // Loại áp dụng của voucher
+    public enum ApplicableType {
+		ALL,
+		SPECIFIC_PRODUCTS,
+		SPECIFIC_USERS,
+		TOP_BUYERS
+	}
 
-    @Column
+
+    @Column(nullable = true)
     private Integer topBuyersCount; // Số lượng top buyer được áp dụng (nếu applicableType yêu cầu)
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Boolean isActive = true; // Trạng thái voucher
+    private Status status = Status.ACTIVE;
+    public enum Status {
+		UPCOMING,    // Chưa đến thời gian áp dụng
+        ACTIVE,      // Đang trong thời gian hoạt động
+        EXPIRED      // Đã hết hạn
+	}
+
 
     @Column
     private LocalDateTime createdAt = LocalDateTime.now(); // Thời gian tạo
@@ -101,14 +116,15 @@ public class Vouchers {
     public Integer getUsedCount() { return usedCount; }
     public void setUsedCount(Integer usedCount) { this.usedCount = usedCount; }
 
-    public String getApplicableType() { return applicableType; }
-    public void setApplicableType(String applicableType) { this.applicableType = applicableType; }
+    public ApplicableType getApplicableType() { return applicableType; }
+    public void setApplicableType(ApplicableType applicableType) { this.applicableType = applicableType; }
 
     public Integer getTopBuyersCount() { return topBuyersCount; }
     public void setTopBuyersCount(Integer topBuyersCount) { this.topBuyersCount = topBuyersCount; }
 
-    public Boolean getIsActive() { return isActive; }
-    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    public Status getStatus() { return status; }
+    public void setStatus(Status status) { this.status = status; }
+
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
