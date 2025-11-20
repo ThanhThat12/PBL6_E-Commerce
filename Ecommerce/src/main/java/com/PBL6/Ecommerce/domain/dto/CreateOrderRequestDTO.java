@@ -42,6 +42,10 @@ public class CreateOrderRequestDTO {
 
     private String method;
 
+    // optional: buyer-chosen shipping service (GHN)
+    private Integer serviceId;
+    private Integer serviceTypeId;
+
     public static class Item {
         @NotNull
         private Long variantId;
@@ -92,4 +96,8 @@ public class CreateOrderRequestDTO {
     public void setVoucherDiscount(BigDecimal v){this.voucherDiscount=v;}
     public String getVoucherCode(){return voucherCode;}
     public void setVoucherCode(String c){this.voucherCode=c;}
+    public Integer getServiceId(){return serviceId;}
+    public void setServiceId(Integer s){this.serviceId = s;}
+    public Integer getServiceTypeId(){return serviceTypeId;}
+    public void setServiceTypeId(Integer s){this.serviceTypeId = s;}
 }

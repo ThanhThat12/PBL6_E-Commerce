@@ -20,13 +20,13 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- =====================================================
 
 
-DROP DATABASE IF EXISTS `ecommerce1`;
-CREATE DATABASE `ecommerce1`
+DROP DATABASE IF EXISTS `ecommerce`;
+CREATE DATABASE `ecommerce`
   DEFAULT CHARACTER SET utf8mb4
   COLLATE utf8mb4_general_ci;
 
 
-USE `ecommerce1`;
+USE `ecommerce`;
 
 
 -- =====================================================
@@ -94,7 +94,6 @@ CREATE TABLE `refresh_tokens` (
 CREATE TABLE `addresses` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) NOT NULL,
-  `label` varchar(100) DEFAULT NULL COMMENT 'Nhà riêng, Văn phòng, etc.',
   `full_address` varchar(500) DEFAULT NULL COMMENT 'Số nhà, tên đường',
   `province_id` int(11) DEFAULT NULL COMMENT 'GHN Province ID',
   `district_id` int(11) DEFAULT NULL COMMENT 'GHN District ID',
@@ -121,7 +120,6 @@ CREATE TABLE `shops` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `description` text,
-  `address` varchar(255) DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL COMMENT 'SĐT liên hệ',
   `email` varchar(100) DEFAULT NULL COMMENT 'Email shop',
   `status` enum('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
@@ -348,7 +346,6 @@ CREATE TABLE `wallets` (
 -- TABLE: orders
 -- =====================================================
 
-
 CREATE TABLE `orders` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) DEFAULT NULL,
@@ -459,6 +456,7 @@ CREATE TABLE `refunds` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `order_id` bigint(20) NOT NULL,
   `reason` varchar(255) DEFAULT NULL,
+  `image_url` TEXT NULL,
   `amount` decimal(15,2) NOT NULL,
   `status` enum('REQUESTED','APPROVED','REJECTED','COMPLETED') DEFAULT 'REQUESTED',
   `transaction_id` bigint(20) DEFAULT NULL,
@@ -565,7 +563,7 @@ CREATE TABLE IF NOT EXISTS `payment_transactions` (
   `order_id_momo` varchar(50) DEFAULT NULL COMMENT 'MoMo order ID',
   `amount` decimal(19,2) NOT NULL COMMENT 'Payment amount',
   `trans_id` varchar(50) DEFAULT NULL COMMENT 'MoMo transaction ID',
-  `status` varchar(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING, SUCCESS, FAILED',
+  `status` ENUM('PENDING','SUCCESS','FAILED','REFUNDED') DEFAULT 'PENDING',
   `result_code` int(11) DEFAULT NULL COMMENT 'MoMo result code',
   `message` text DEFAULT NULL COMMENT 'Response message',
   `signature` varchar(255) DEFAULT NULL COMMENT 'MoMo signature',

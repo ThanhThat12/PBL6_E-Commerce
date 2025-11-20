@@ -163,6 +163,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0.0) FROM Order o WHERE o.status = 'COMPLETED'")
     Double getTotalRevenueFromCompletedOrders();
     
+    /**
+     * Tìm tất cả đơn hàng theo status
+     * Dùng để lấy danh sách SHIPPING orders cho auto-complete
+     */
+    List<Order> findByStatus(Order.OrderStatus status);
+    
 //     /**
 //      * Lấy ngày đặt hàng gần nhất của user (tất cả trạng thái)
 //      */

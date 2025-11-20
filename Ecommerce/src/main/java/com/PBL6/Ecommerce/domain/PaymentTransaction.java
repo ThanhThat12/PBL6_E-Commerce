@@ -3,7 +3,8 @@ package com.PBL6.Ecommerce.domain;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
+import com.PBL6.Ecommerce.constant.PaymentTransactionStatus;
+import com.PBL6.Ecommerce.constant.PaymentStatus;
 @Entity
 @Table(name = "payment_transactions")
 public class PaymentTransaction {
@@ -30,7 +31,7 @@ public class PaymentTransaction {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private PaymentStatus status = PaymentStatus.PENDING;
+    private PaymentTransactionStatus status = PaymentTransactionStatus.PENDING;
 
     @Column(name = "result_code")
     private Integer resultCode;
@@ -50,11 +51,7 @@ public class PaymentTransaction {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
 
-    public enum PaymentStatus {
-        PENDING,      // Chờ thanh toán
-        SUCCESS,      // Thành công
-        FAILED        // Thất bại
-    }
+
 
     // Constructors
     public PaymentTransaction() {
@@ -64,7 +61,7 @@ public class PaymentTransaction {
         this.order = order;
         this.requestId = requestId;
         this.amount = amount;
-        this.status = PaymentStatus.PENDING;
+        this.status = PaymentTransactionStatus.PENDING;
     }
 
     // Getters and Setters
@@ -116,11 +113,11 @@ public class PaymentTransaction {
         this.transId = transId;
     }
 
-    public PaymentStatus getStatus() {
+    public PaymentTransactionStatus getStatus() {
         return status;
     }
 
-    public void setStatus(PaymentStatus status) {
+    public void setStatus(PaymentTransactionStatus status) {
         this.status = status;
     }
 

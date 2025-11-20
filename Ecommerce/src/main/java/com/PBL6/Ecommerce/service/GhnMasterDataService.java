@@ -43,22 +43,66 @@ public class GhnMasterDataService {
 
     @SuppressWarnings("unchecked")
     public List<Map<String,Object>> getDistricts(Integer provinceId) {
-        if (provinceId == null) return Collections.emptyList();
-        String url = ghnApiUrl + "/master-data/district?province_id=" + provinceId;
-        ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(baseHeaders()), Map.class);
-        if (!resp.getStatusCode().is2xxSuccessful()) return Collections.emptyList();
-        Object d = resp.getBody().get("data");
-        return d instanceof List ? (List<Map<String,Object>>) d : Collections.emptyList();
+        if (provinceId == null) {
+            System.err.println("GHN getDistricts: provinceId is null");
+            return Collections.emptyList();
+        }
+        
+        // Validate provinceId
+        if (provinceId <= 0) {
+            System.err.println("GHN getDistricts: invalid provinceId: " + provinceId);
+            return Collections.emptyList();
+        }
+        
+        try {
+            String url = ghnApiUrl + "/master-data/district?province_id=" + provinceId;
+            System.out.println("GHN getDistricts: calling " + url);
+            ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(baseHeaders()), Map.class);
+            if (!resp.getStatusCode().is2xxSuccessful()) {
+                System.err.println("GHN getDistricts: failed with status " + resp.getStatusCode());
+                return Collections.emptyList();
+            }
+            Object d = resp.getBody().get("data");
+            List<Map<String,Object>> result = d instanceof List ? (List<Map<String,Object>>) d : Collections.emptyList();
+            System.out.println("GHN getDistricts: returned " + result.size() + " districts for province " + provinceId);
+            return result;
+        } catch (Exception e) {
+            System.err.println("Error fetching districts for province " + provinceId + ": " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
     }
 
     @SuppressWarnings("unchecked")
     public List<Map<String,Object>> getWards(Integer districtId) {
-        if (districtId == null) return Collections.emptyList();
-        String url = ghnApiUrl + "/master-data/ward?district_id=" + districtId;
-        ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(baseHeaders()), Map.class);
-        if (!resp.getStatusCode().is2xxSuccessful()) return Collections.emptyList();
-        Object d = resp.getBody().get("data");
-        return d instanceof List ? (List<Map<String,Object>>) d : Collections.emptyList();
+        if (districtId == null) {
+            System.err.println("GHN getWards: districtId is null");
+            return Collections.emptyList();
+        }
+        
+        // Validate districtId
+        if (districtId <= 0) {
+            System.err.println("GHN getWards: invalid districtId: " + districtId);
+            return Collections.emptyList();
+        }
+        
+        try {
+            String url = ghnApiUrl + "/master-data/ward?district_id=" + districtId;
+            System.out.println("GHN getWards: calling " + url);
+            ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(baseHeaders()), Map.class);
+            if (!resp.getStatusCode().is2xxSuccessful()) {
+                System.err.println("GHN getWards: failed with status " + resp.getStatusCode());
+                return Collections.emptyList();
+            }
+            Object d = resp.getBody().get("data");
+            List<Map<String,Object>> result = d instanceof List ? (List<Map<String,Object>>) d : Collections.emptyList();
+            System.out.println("GHN getWards: returned " + result.size() + " wards for district " + districtId);
+            return result;
+        } catch (Exception e) {
+            System.err.println("Error fetching wards for district " + districtId + ": " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
     }
 
     // Resolve by fuzzy name matching: client can send province/district/ward names (partial)

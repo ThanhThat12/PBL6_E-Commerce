@@ -2,6 +2,7 @@ package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.PaymentTransaction;
+import com.PBL6.Ecommerce.constant.PaymentTransactionStatus;
 import com.PBL6.Ecommerce.exception.OrderNotFoundException;
 import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
 import org.slf4j.Logger;
@@ -75,7 +76,7 @@ public class PaymentTransactionService {
     /**
      * Get payment transactions by status
      */
-    public List<PaymentTransaction> getByStatus(PaymentTransaction.PaymentStatus status) {
+    public List<PaymentTransaction> getByStatus(PaymentTransactionStatus status) {
         return paymentTransactionRepository.findByStatus(status);
     }
 
@@ -96,7 +97,7 @@ public class PaymentTransactionService {
     /**
      * Update payment transaction status
      */
-    public PaymentTransaction updateStatus(Long transactionId, PaymentTransaction.PaymentStatus status) {
+    public PaymentTransaction updateStatus(Long transactionId, PaymentTransactionStatus status) {
         PaymentTransaction transaction = getById(transactionId);
         transaction.setStatus(status);
         return paymentTransactionRepository.save(transaction);
@@ -113,7 +114,7 @@ public class PaymentTransactionService {
         
         int count = 0;
         for (PaymentTransaction transaction : expiredTransactions) {
-            transaction.setStatus(PaymentTransaction.PaymentStatus.FAILED);
+            transaction.setStatus(PaymentTransactionStatus.FAILED);
             transaction.setMessage("Transaction expired after " + timeoutMinutes + " minutes");
             paymentTransactionRepository.save(transaction);
             count++;
@@ -129,9 +130,9 @@ public class PaymentTransactionService {
     public PaymentStatistics getStatistics() {
         PaymentStatistics stats = new PaymentStatistics();
         
-        stats.totalPending = paymentTransactionRepository.countByStatus(PaymentTransaction.PaymentStatus.PENDING);
-        stats.totalSuccess = paymentTransactionRepository.countByStatus(PaymentTransaction.PaymentStatus.SUCCESS);
-        stats.totalFailed = paymentTransactionRepository.countByStatus(PaymentTransaction.PaymentStatus.FAILED);
+    stats.totalPending = paymentTransactionRepository.countByStatus(PaymentTransactionStatus.PENDING);
+    stats.totalSuccess = paymentTransactionRepository.countByStatus(PaymentTransactionStatus.SUCCESS);
+    stats.totalFailed = paymentTransactionRepository.countByStatus(PaymentTransactionStatus.FAILED);
         
         stats.totalSuccessAmount = paymentTransactionRepository.calculateTotalSuccessfulAmount();
         

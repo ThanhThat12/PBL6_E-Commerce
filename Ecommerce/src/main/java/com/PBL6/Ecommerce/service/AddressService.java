@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.domain.Address;
+import com.PBL6.Ecommerce.constant.TypeAddress;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.dto.AddressRequestDTO;
 import com.PBL6.Ecommerce.exception.AddressNotFoundException;
@@ -86,7 +87,7 @@ public class AddressService {
         resolveNamesIfNeeded(req);
 
         if (req.primaryAddress) {
-            addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
+            addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
                     .ifPresent(prev -> {
                         prev.setPrimaryAddress(false);
                         addressRepository.save(prev);
@@ -95,7 +96,6 @@ public class AddressService {
 
         Address a = new Address();
         a.setUser(user);
-        a.setLabel(req.label);
         a.setFullAddress(req.fullAddress);
         a.setProvinceId(req.provinceId);
         a.setDistrictId(req.districtId);
@@ -124,38 +124,61 @@ public class AddressService {
     private void resolveAndSetLocationNames(Address address) {
         // Resolve province name only if not already set
         if ((address.getProvinceName() == null || address.getProvinceName().isBlank()) 
-            && address.getProvinceId() != null) {
+            && address.getProvinceId() != null && address.getProvinceId() > 0) {
             try {
+                System.out.println("Resolving province name for ID: " + address.getProvinceId());
                 var provinces = ghnMaster.getProvinces();
                 provinces.stream()
                     .filter(p -> address.getProvinceId().equals(p.get("ProvinceID")))
                     .findFirst()
-                    .ifPresent(p -> address.setProvinceName((String) p.get("ProvinceName")));
-            } catch (Exception ignored) {}
+                    .ifPresent(p -> {
+                        String name = (String) p.get("ProvinceName");
+                        System.out.println("Found province name: " + name);
+                        address.setProvinceName(name);
+                    });
+            } catch (Exception e) {
+                System.err.println("Error resolving province name: " + e.getMessage());
+            }
         }
         
         // Resolve district name only if not already set
         if ((address.getDistrictName() == null || address.getDistrictName().isBlank())
-            && address.getDistrictId() != null && address.getProvinceId() != null) {
+            && address.getDistrictId() != null && address.getDistrictId() > 0 
+            && address.getProvinceId() != null && address.getProvinceId() > 0) {
             try {
+                System.out.println("Resolving district name for ID: " + address.getDistrictId() + ", provinceId: " + address.getProvinceId());
                 var districts = ghnMaster.getDistricts(address.getProvinceId());
                 districts.stream()
                     .filter(d -> address.getDistrictId().equals(d.get("DistrictID")))
                     .findFirst()
-                    .ifPresent(d -> address.setDistrictName((String) d.get("DistrictName")));
-            } catch (Exception ignored) {}
+                    .ifPresent(d -> {
+                        String name = (String) d.get("DistrictName");
+                        System.out.println("Found district name: " + name);
+                        address.setDistrictName(name);
+                    });
+            } catch (Exception e) {
+                System.err.println("Error resolving district name: " + e.getMessage());
+            }
         }
         
         // Resolve ward name only if not already set
         if ((address.getWardName() == null || address.getWardName().isBlank())
-            && address.getWardCode() != null && address.getDistrictId() != null) {
+            && address.getWardCode() != null && !address.getWardCode().isBlank()
+            && address.getDistrictId() != null && address.getDistrictId() > 0) {
             try {
+                System.out.println("Resolving ward name for code: " + address.getWardCode() + ", districtId: " + address.getDistrictId());
                 var wards = ghnMaster.getWards(address.getDistrictId());
                 wards.stream()
-                    .filter(w -> address.getWardCode().equals(w.get("WardCode")))
+                    .filter(w -> address.getWardCode().equals(String.valueOf(w.get("WardCode"))))
                     .findFirst()
-                    .ifPresent(w -> address.setWardName((String) w.get("WardName")));
-            } catch (Exception ignored) {}
+                    .ifPresent(w -> {
+                        String name = (String) w.get("WardName");
+                        System.out.println("Found ward name: " + name);
+                        address.setWardName(name);
+                    });
+            } catch (Exception e) {
+                System.err.println("Error resolving ward name: " + e.getMessage());
+            }
         }
     }
 
@@ -171,7 +194,7 @@ public class AddressService {
         }
 
         if (req.primaryAddress && !a.isPrimaryAddress()) {
-            addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
+            addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
                     .ifPresent(prev -> {
                         if (!prev.getId().equals(a.getId())) {
                             prev.setPrimaryAddress(false);
@@ -180,7 +203,6 @@ public class AddressService {
                     });
         }
         
-        if (req.label != null) a.setLabel(req.label);
         if (req.fullAddress != null) a.setFullAddress(req.fullAddress);
         if (req.provinceId != null) a.setProvinceId(req.provinceId);
         if (req.districtId != null) a.setDistrictId(req.districtId);
@@ -227,7 +249,7 @@ public class AddressService {
             throw new UnauthorizedAddressAccessException(addressId);
         }
 
-        addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
+        addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
                 .ifPresent(prev -> {
                     if (!prev.getId().equals(a.getId())) {
                         prev.setPrimaryAddress(false);
