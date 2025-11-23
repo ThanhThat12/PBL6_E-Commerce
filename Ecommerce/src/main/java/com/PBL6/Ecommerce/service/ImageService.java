@@ -233,5 +233,48 @@ public interface ImageService {
      * @throws SecurityException if user does not own the review
      */
     ImageDeleteResponse deleteReviewImage(Long reviewId, Integer imageIndex, Long userId);
+
+    // ========== VARIANT-SPECIFIC IMAGES (Phase 5) ==========
+
+    /**
+     * Upload a variant-specific image for a primary attribute value.
+     * Example: Upload image for Color="Red" where Color is the primary attribute.
+     * If image already exists for this attribute value, it will be replaced.
+     * 
+     * @param productId The ID of the product
+     * @param file The image file to upload
+     * @param attributeValue The attribute value (e.g., "Red", "Blue")
+     * @param userId The ID of the authenticated user (for ownership validation)
+     * @return VariantImageResponse with image details
+     * @throws com.PBL6.Ecommerce.exception.BusinessException if product has no primary attribute
+     * @throws ImageValidationException if attributeValue doesn't exist for product
+     * @throws ImageUploadException if upload to Cloudinary fails
+     * @throws SecurityException if user does not own the product
+     */
+    com.PBL6.Ecommerce.dto.response.VariantImageResponse uploadVariantImage(
+        Long productId, 
+        MultipartFile file, 
+        String attributeValue, 
+        Long userId);
+
+    /**
+     * Delete a variant-specific image for a primary attribute value.
+     * 
+     * @param productId The ID of the product
+     * @param attributeValue The attribute value (e.g., "Red")
+     * @param userId The ID of the authenticated user (for ownership validation)
+     * @throws ImageNotFoundException if variant image not found
+     * @throws SecurityException if user does not own the product
+     */
+    void deleteVariantImage(Long productId, String attributeValue, Long userId);
+
+    /**
+     * Get all product images including main, gallery, and variant-specific images.
+     * Returns comprehensive image information with primary attribute details.
+     * 
+     * @param productId The ID of the product
+     * @return ProductImagesResponse with all image types
+     */
+    com.PBL6.Ecommerce.dto.response.ProductImagesResponse getProductImages(Long productId);
 }
 

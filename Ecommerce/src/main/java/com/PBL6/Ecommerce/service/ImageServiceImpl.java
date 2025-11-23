@@ -4,6 +4,7 @@ import com.PBL6.Ecommerce.constant.ImageType;
 import com.PBL6.Ecommerce.constant.TransformationType;
 import com.PBL6.Ecommerce.domain.Product;
 import com.PBL6.Ecommerce.domain.ProductImage;
+import com.PBL6.Ecommerce.domain.ProductPrimaryAttribute;
 import com.PBL6.Ecommerce.domain.ProductReview;
 import com.PBL6.Ecommerce.domain.ProductVariant;
 import com.PBL6.Ecommerce.domain.ProductVariantValue;
@@ -11,10 +12,15 @@ import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.dto.cloudinary.CloudinaryUploadResult;
 import com.PBL6.Ecommerce.dto.request.ImageReorderRequest;
+import com.PBL6.Ecommerce.dto.response.GalleryImageResponse;
 import com.PBL6.Ecommerce.dto.response.ImageDeleteResponse;
 import com.PBL6.Ecommerce.dto.response.ImageTransformationResponse;
 import com.PBL6.Ecommerce.dto.response.ImageUploadResponse;
+import com.PBL6.Ecommerce.dto.response.PrimaryAttributeDTO;
 import com.PBL6.Ecommerce.dto.response.ProductImageResponse;
+import com.PBL6.Ecommerce.dto.response.ProductImagesResponse;
+import com.PBL6.Ecommerce.dto.response.VariantImageResponse;
+import com.PBL6.Ecommerce.exception.BusinessException;
 import com.PBL6.Ecommerce.exception.CloudinaryServiceException;
 import com.PBL6.Ecommerce.exception.ImageNotFoundException;
 import com.PBL6.Ecommerce.exception.ImageUploadException;
@@ -63,6 +69,7 @@ public class ImageServiceImpl implements ImageService {
     private final ProductVariantRepository productVariantRepository;
     private final ProductVariantValueRepository productVariantValueRepository;
     private final ProductAttributeRepository productAttributeRepository;
+    private final com.PBL6.Ecommerce.repository.ProductPrimaryAttributeRepository productPrimaryAttributeRepository;
     private final ImageUploadConfig imageUploadConfig;
     private final RateLimitConfig rateLimitConfig;
 
@@ -107,10 +114,33 @@ public class ImageServiceImpl implements ImageService {
             throw new ImageUploadException("Failed to upload main image: " + e.getMessage(), e);
         }
 
-        // Update product entity
-        product.setMainImage(result.getSecureUrl());
-        product.setMainImagePublicId(result.getPublicId());
-        productRepository.save(product);
+        // Update product entity with optimistic locking support
+        try {
+            product.setMainImage(result.getSecureUrl());
+            product.setMainImagePublicId(result.getPublicId());
+            productRepository.save(product);
+            log.info("Product {} main image updated successfully", productId);
+        } catch (org.springframework.dao.OptimisticLockingFailureException e) {
+            // Rollback: Delete uploaded image from Cloudinary
+            try {
+                cloudinaryClient.deleteImage(result.getPublicId());
+                log.info("Rolled back uploaded image: {}", result.getPublicId());
+            } catch (Exception deleteEx) {
+                log.error("Failed to rollback uploaded image: {}", result.getPublicId(), deleteEx);
+            }
+            log.warn("Product {} was modified by another user during image upload. userId={}", productId, userId);
+            throw new ImageUploadException("Product was modified by another user, please retry");
+        } catch (Exception e) {
+            // Rollback: Delete uploaded image from Cloudinary
+            try {
+                cloudinaryClient.deleteImage(result.getPublicId());
+                log.info("Rolled back uploaded image due to error: {}", result.getPublicId());
+            } catch (Exception deleteEx) {
+                log.error("Failed to rollback uploaded image: {}", result.getPublicId(), deleteEx);
+            }
+            log.error("Failed to save product {} with new main image: {}", productId, e.getMessage(), e);
+            throw new ImageUploadException("Failed to update product with new image");
+        }
 
         // Build transformation URLs
         Map<TransformationType, String> transformations = cloudinaryUtil.buildAllTransformations(result.getPublicId());
@@ -191,9 +221,8 @@ public class ImageServiceImpl implements ImageService {
         Product product = findProductAndVerifyOwnership(productId, userId);
 
         // Validate variant if provided
-        ProductVariant variant = null;
         if (variantId != null) {
-            variant = productVariantRepository.findById(variantId)
+            ProductVariant variant = productVariantRepository.findById(variantId)
                     .orElseThrow(() -> new ImageValidationException("Variant not found with id: " + variantId));
             
             // Verify variant belongs to the product
@@ -233,14 +262,32 @@ public class ImageServiceImpl implements ImageService {
                 // Create ProductImage entity
                 ProductImage productImage = new ProductImage();
                 productImage.setProduct(product);
-                productImage.setVariant(variant); // Associate with variant if provided
+                productImage.setImageType(variantId != null ? "VARIANT" : "GALLERY");
                 productImage.setImageUrl(result.getSecureUrl());
                 productImage.setPublicId(result.getPublicId());
                 productImage.setDisplayOrder(nextDisplayOrder++);
-                // productImage.setCreatedAt(LocalDateTime.now());
-                // productImage.setUpdatedAt(LocalDateTime.now());
+                productImage.setUploadedAt(java.time.LocalDateTime.now());
 
-                productImageRepository.save(productImage);
+                try {
+                    productImageRepository.save(productImage);
+                } catch (org.springframework.dao.OptimisticLockingFailureException e) {
+                    // Rollback: Delete uploaded images
+                    log.warn("Optimistic locking failure during gallery upload for product {}", productId);
+                    for (ImageUploadResponse resp : responses) {
+                        try {
+                            cloudinaryClient.deleteImage(resp.getPublicId());
+                        } catch (Exception deleteEx) {
+                            log.error("Failed to rollback image: {}", resp.getPublicId(), deleteEx);
+                        }
+                    }
+                    // Delete current image
+                    try {
+                        cloudinaryClient.deleteImage(result.getPublicId());
+                    } catch (Exception deleteEx) {
+                        log.error("Failed to rollback current image: {}", result.getPublicId(), deleteEx);
+                    }
+                    throw new ImageUploadException("Product was modified during upload, please retry");
+                }
                 
                 if (variantId != null) {
                     log.debug("Associated image {} with variant {}", productImage.getId(), variantId);
@@ -278,13 +325,15 @@ public class ImageServiceImpl implements ImageService {
     @Override
     @Transactional(readOnly = true)
     public List<ProductImageResponse> getProductGalleryImages(Long productId, Long variantId) {
-        log.debug("Retrieving gallery images for product {} (variant: {})", productId, variantId);
+        log.debug("Retrieving gallery images for product {} (variantAttributeId: {})", productId, variantId);
 
         List<ProductImage> images;
         if (variantId != null) {
-            images = productImageRepository.findByProductIdAndVariantIdOrderByDisplayOrderAsc(productId, variantId);
+            // Get images for specific variant attribute
+            images = productImageRepository.findByProductIdAndVariantAttributeIdOrderByDisplayOrderAsc(productId, variantId);
         } else {
-            images = productImageRepository.findByProductIdOrderByDisplayOrderAsc(productId);
+            // Get only GALLERY images (not VARIANT images)
+            images = productImageRepository.findGalleryImagesByProductId(productId);
         }
 
         return images.stream()
@@ -296,20 +345,22 @@ public class ImageServiceImpl implements ImageService {
     @Transactional
     public void reorderProductGalleryImages(Long productId, ImageReorderRequest request, Long userId) {
         log.info("Reordering {} gallery images for product {} by user {}", 
-                 request.getImageIds().size(), productId, userId);
+                 request.getImageOrders().size(), productId, userId);
 
         // Verify ownership
         findProductAndVerifyOwnership(productId, userId);
 
         // Validate and fetch images
-        List<Long> imageIds = request.getImageIds();
-        if (imageIds == null || imageIds.isEmpty()) {
-            throw new ImageValidationException("Image IDs list cannot be empty");
+        List<ImageReorderRequest.ImageOrderItem> imageOrders = request.getImageOrders();
+        if (imageOrders == null || imageOrders.isEmpty()) {
+            throw new ImageValidationException("Image orders list cannot be empty");
         }
 
         // Update display order
-        for (int i = 0; i < imageIds.size(); i++) {
-            Long imageId = imageIds.get(i);
+        for (ImageReorderRequest.ImageOrderItem orderItem : imageOrders) {
+            Long imageId = orderItem.getImageId();
+            Integer displayOrder = orderItem.getDisplayOrder();
+            
             ProductImage image = productImageRepository.findById(imageId)
                     .orElseThrow(() -> new ImageNotFoundException("Image not found: " + imageId));
 
@@ -318,7 +369,7 @@ public class ImageServiceImpl implements ImageService {
                 throw new ImageValidationException("Image " + imageId + " does not belong to product " + productId);
             }
 
-            image.setDisplayOrder(i);
+            image.setDisplayOrder(displayOrder);
             // image.setUpdatedAt(LocalDateTime.now());
             productImageRepository.save(image);
         }
@@ -484,17 +535,16 @@ public class ImageServiceImpl implements ImageService {
                                 variantValueName, e.getMessage()), e);
             }
 
-            // Save to database with both variant and variantValue associations
+            // Save to database with variant attribute info
             ProductImage productImage = new ProductImage();
             productImage.setProduct(product);
             productImage.setImageUrl(result.getUrl());
             productImage.setPublicId(result.getPublicId());
-            productImage.setVariantValueName(variantValueName); // Display-friendly name
+            productImage.setImageType("VARIANT"); // Mark as variant-specific image
+            productImage.setVariantAttributeValue(variantValueName); // Display-friendly name (e.g., "Red")
             productImage.setDisplayOrder(0); // Single image per variant value
-            
-            // NEW: Set both associations for optimal queries
-            productImage.setVariant(variant);  // Specific variant (for variant_id queries)
-            productImage.setVariantValue(variantValue);  // Group 1 value (for optimized queries)
+            productImage.setVariantAttribute(variantValue); // FK to ProductVariantValue
+            productImage.setUploadedAt(java.time.LocalDateTime.now());
             
             productImageRepository.save(productImage);
 
@@ -599,8 +649,8 @@ public class ImageServiceImpl implements ImageService {
                 .url(image.getImageUrl())
                 .publicId(image.getPublicId())
                 .displayOrder(image.getDisplayOrder())
-                .variantId(image.getVariant() != null ? image.getVariant().getId() : null)
-                .variantValueName(image.getVariantValueName())
+                .variantId(image.getVariantAttribute() != null ? image.getVariantAttribute().getId() : null)
+                .variantValueName(image.getVariantAttributeValue())
                 .transformations(transformationResponse)
                 .build();
     }
@@ -1084,6 +1134,219 @@ public class ImageServiceImpl implements ImageService {
                 .success(true)
                 .message("Review image deleted successfully")
                 .deletedPublicId(publicId)
+                .build();
+    }
+
+    // ========== VARIANT-SPECIFIC IMAGES (Phase 5) ==========
+
+    @Override
+    @Transactional
+    public VariantImageResponse uploadVariantImage(Long productId, MultipartFile file, String attributeValue, Long userId) {
+        log.info("Uploading variant image for product {} with attribute value '{}' by user {}", 
+                 productId, attributeValue, userId);
+
+        // Rate limiting
+        checkRateLimit(userId);
+
+        // Validate file
+        imageValidationUtil.validateImage(file);
+
+        // Verify ownership
+        Product product = findProductAndVerifyOwnership(productId, userId);
+
+        // Get primary attribute
+        ProductPrimaryAttribute primaryAttr = productPrimaryAttributeRepository.findByProductId(productId)
+                .orElseThrow(() -> new BusinessException(
+                    "Product does not have a primary attribute. Please set a primary attribute before uploading variant images."));
+
+        Long attributeId = primaryAttr.getAttribute().getId();
+
+        // Validate attribute value exists for this product
+        boolean valueExists = productVariantValueRepository.existsByProductIdAndAttributeIdAndValue(
+            productId, attributeId, attributeValue);
+        
+        if (!valueExists) {
+            throw new ImageValidationException(
+                String.format("Attribute value '%s' does not exist for product %d", attributeValue, productId));
+        }
+
+        // Check if variant image already exists
+        ProductImage existingImage = productImageRepository
+                .findByProductIdAndVariantAttributeIdAndVariantAttributeValue(productId, attributeId, attributeValue)
+                .orElse(null);
+
+        String oldPublicId = null;
+        if (existingImage != null) {
+            oldPublicId = existingImage.getPublicId();
+            log.info("Replacing existing variant image for '{}': {}", attributeValue, oldPublicId);
+        }
+
+        // Upload to Cloudinary
+        String folder = cloudinaryUtil.getFolderPath("product-variants");
+        String publicId = String.format("product_%d_variant_%s_%d", productId, attributeValue, System.currentTimeMillis());
+        CloudinaryUploadResult result;
+        
+        try {
+            result = cloudinaryClient.uploadImage(file, folder, publicId);
+            log.info("Uploaded variant image to Cloudinary: {} (size: {} bytes)", result.getPublicId(), result.getBytes());
+        } catch (Exception e) {
+            log.error("Failed to upload variant image to Cloudinary: {}", e.getMessage(), e);
+            throw new ImageUploadException("Failed to upload variant image: " + e.getMessage(), e);
+        }
+
+        // Save/Update ProductImage entity
+        ProductImage productImage;
+        if (existingImage != null) {
+            productImage = existingImage;
+            productImage.setImageUrl(result.getSecureUrl());
+            productImage.setPublicId(result.getPublicId());
+            productImage.setUploadedAt(LocalDateTime.now());
+        } else {
+            productImage = new ProductImage();
+            productImage.setProduct(product);
+            productImage.setImageType("VARIANT");
+            productImage.setVariantAttributeValue(attributeValue);
+            productImage.setVariantAttribute(productVariantValueRepository
+                .findByProductIdAndValueName(productId, attributeValue)
+                .orElse(null));
+            productImage.setImageUrl(result.getSecureUrl());
+            productImage.setPublicId(result.getPublicId());
+            productImage.setDisplayOrder(0);
+            productImage.setUploadedAt(LocalDateTime.now());
+        }
+
+        try {
+            productImageRepository.save(productImage);
+        } catch (Exception e) {
+            // Rollback: delete uploaded image from Cloudinary
+            log.warn("Database save failed, rolling back Cloudinary upload: {}", result.getPublicId());
+            try {
+                cloudinaryClient.deleteImage(result.getPublicId());
+            } catch (Exception deleteEx) {
+                log.error("Failed to rollback Cloudinary upload: {}", result.getPublicId(), deleteEx);
+            }
+            throw new ImageUploadException("Failed to save variant image to database: " + e.getMessage(), e);
+        }
+
+        // Delete old image from Cloudinary if it existed
+        if (oldPublicId != null) {
+            try {
+                cloudinaryClient.deleteImage(oldPublicId);
+                log.info("Deleted old variant image from Cloudinary: {}", oldPublicId);
+            } catch (Exception e) {
+                log.warn("Failed to delete old variant image from Cloudinary: {}", oldPublicId, e);
+                // Non-critical error, continue
+            }
+        }
+
+        log.info("Successfully uploaded variant image for '{}' on product {}", attributeValue, productId);
+
+        return VariantImageResponse.from(productImage);
+    }
+
+    @Override
+    @Transactional
+    public void deleteVariantImage(Long productId, String attributeValue, Long userId) {
+        log.info("Deleting variant image for product {} with attribute value '{}' by user {}", 
+                 productId, attributeValue, userId);
+
+        // Verify ownership
+        findProductAndVerifyOwnership(productId, userId);
+
+        // Get primary attribute
+        ProductPrimaryAttribute primaryAttr = productPrimaryAttributeRepository.findByProductId(productId)
+                .orElseThrow(() -> new BusinessException(
+                    "Product does not have a primary attribute."));
+
+        Long attributeId = primaryAttr.getAttribute().getId();
+
+        // Find variant image
+        ProductImage image = productImageRepository
+                .findByProductIdAndVariantAttributeIdAndVariantAttributeValue(productId, attributeId, attributeValue)
+                .orElseThrow(() -> new ImageNotFoundException(
+                    String.format("Variant image not found for attribute value '%s'", attributeValue)));
+
+        String publicId = image.getPublicId();
+
+        // Delete from Cloudinary
+        try {
+            boolean deleted = cloudinaryClient.deleteImage(publicId);
+            if (!deleted) {
+                log.warn("Cloudinary reported variant image not deleted: {}", publicId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to delete variant image from Cloudinary: {}", e.getMessage(), e);
+            throw new CloudinaryServiceException("Failed to delete variant image from Cloudinary: " + e.getMessage(), e);
+        }
+
+        // Delete from database
+        productImageRepository.delete(image);
+
+        log.info("Successfully deleted variant image for '{}' on product {}: {}", attributeValue, productId, publicId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProductImagesResponse getProductImages(Long productId) {
+        log.debug("Retrieving all images for product {}", productId);
+
+        // Get product
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new com.PBL6.Ecommerce.exception.ProductNotFoundException(
+                    "Product not found with id: " + productId));
+
+        // Get main image
+        String mainImage = product.getMainImage();
+
+        // Get gallery images
+        List<ProductImage> galleryImageEntities = productImageRepository.findGalleryImagesByProductId(productId);
+        List<GalleryImageResponse> galleryImages = galleryImageEntities.stream()
+                .map(img -> GalleryImageResponse.builder()
+                        .imageId(img.getId())
+                        .imageUrl(img.getImageUrl())
+                        .publicId(img.getPublicId())
+                        .displayOrder(img.getDisplayOrder())
+                        .build())
+                .collect(Collectors.toList());
+
+        // Get primary attribute
+        ProductPrimaryAttribute primaryAttr = productPrimaryAttributeRepository.findByProductId(productId)
+                .orElse(null);
+
+        PrimaryAttributeDTO primaryAttributeDTO = null;
+        Map<String, VariantImageResponse> variantImagesMap = new HashMap<>();
+
+        if (primaryAttr != null) {
+            Long attributeId = primaryAttr.getAttribute().getId();
+            String attributeName = primaryAttr.getAttribute().getName();
+
+            // Get distinct values for primary attribute
+            List<String> values = productVariantValueRepository
+                    .findDistinctValuesByProductIdAndAttributeId(productId, attributeId);
+
+            primaryAttributeDTO = PrimaryAttributeDTO.builder()
+                    .id(attributeId)
+                    .name(attributeName)
+                    .values(values)
+                    .build();
+
+            // Get variant images
+            List<ProductImage> variantImageEntities = productImageRepository
+                    .findByProductIdAndImageType(productId, "VARIANT");
+
+            variantImagesMap = variantImageEntities.stream()
+                    .collect(Collectors.toMap(
+                        ProductImage::getVariantAttributeValue,
+                        VariantImageResponse::from,
+                        (existing, replacement) -> replacement // Handle duplicates
+                    ));
+        }
+
+        return ProductImagesResponse.builder()
+                .mainImage(mainImage)
+                .galleryImages(galleryImages)
+                .primaryAttribute(primaryAttributeDTO)
+                .variantImages(variantImagesMap)
                 .build();
     }
 }

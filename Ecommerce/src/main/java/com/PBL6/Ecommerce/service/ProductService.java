@@ -592,7 +592,7 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         ProductImageDTO dto = new ProductImageDTO();
         dto.setId(image.getId());
         dto.setImageUrl(image.getImageUrl());
-        dto.setVariantValueName(image.getVariantValueName());
+        dto.setVariantValueName(image.getVariantAttributeValue());
         return dto;
     }
 
@@ -623,7 +623,9 @@ private void handleProductImagesWithVariantValue(Product product, List<ProductIm
             ProductImage productImage = new ProductImage();
             productImage.setProduct(product);
             productImage.setImageUrl(imageDTO.getImageUrl().trim());
-            productImage.setVariantValueName(imageDTO.getVariantValueName() != null ? imageDTO.getVariantValueName().trim() : null);
+            productImage.setImageType(imageDTO.getVariantValueName() != null ? "VARIANT" : "GALLERY");
+            productImage.setVariantAttributeValue(imageDTO.getVariantValueName() != null ? imageDTO.getVariantValueName().trim() : null);
+            productImage.setUploadedAt(java.time.LocalDateTime.now());
             
             // 🔧 QUAN TRỌNG: Save vào database
             try {
@@ -632,7 +634,7 @@ private void handleProductImagesWithVariantValue(Product product, List<ProductIm
                 
                 System.out.println("✅ DEBUG - Saved product image to database: ID=" + productImage.getId() + 
                     ", URL=" + productImage.getImageUrl() + 
-                    ", VariantValue=" + productImage.getVariantValueName() +
+                    ", VariantValue=" + productImage.getVariantAttributeValue() +
                     ", ProductId=" + product.getId());
                 
             } catch (Exception saveEx) {
@@ -659,7 +661,9 @@ private void handleProductImages(Product product, List<String> imageUrls) {
         for (String imageUrl : imageUrls) {
             ProductImage image = new ProductImage();
             image.setImageUrl(imageUrl);
-            image.setVariantValueName(null); // Hoặc lấy từ request nếu có
+            image.setImageType("GALLERY"); // Default to gallery image
+            image.setVariantAttributeValue(null); // No variant attribute for simple images
+            image.setUploadedAt(java.time.LocalDateTime.now());
             image.setProduct(product); // 🔧 THÊM DÒNG NÀY
             productImageRepository.save(image); // 🔧 THÊM DÒNG NÀY
         }

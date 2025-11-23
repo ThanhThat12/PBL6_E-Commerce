@@ -25,7 +25,6 @@ import com.PBL6.Ecommerce.dto.response.ImageUploadResponse;
 import com.PBL6.Ecommerce.dto.response.ProductImageResponse;
 import com.PBL6.Ecommerce.service.ImageService;
 import com.PBL6.Ecommerce.service.UserService;
-import com.PBL6.Ecommerce.validator.ValidImageFile;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -70,7 +69,7 @@ public class ProductImageController {
     @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
     public ResponseEntity<ResponseDTO<ImageUploadResponse>> uploadMainImage(
             @PathVariable Long productId,
-            @RequestParam("file") @ValidImageFile MultipartFile file,
+            @RequestParam("file") MultipartFile file,
             Authentication authentication) {
         
         log.info("POST /api/products/{}/images/main - Upload main image", productId);
@@ -165,7 +164,7 @@ public class ProductImageController {
             Authentication authentication) {
         
         log.info("PUT /api/products/{}/images/gallery/reorder - Reorder {} images", 
-                 productId, request.getImageIds().size());
+                 productId, request.getImageOrders().size());
         
         Long userId = extractUserId(authentication);
         imageService.reorderProductGalleryImages(productId, request, userId);
@@ -194,6 +193,82 @@ public class ProductImageController {
         ImageDeleteResponse response = imageService.deleteProductGalleryImage(productId, imageId, userId);
         
         return ResponseDTO.success(response, "Gallery image deleted successfully");
+    }
+
+    // ========== VARIANT-SPECIFIC IMAGES (Phase 5) ==========
+
+    /**
+     * Upload a variant-specific image for a primary attribute value.
+     * Example: Upload image for Color="Red" where Color is the primary attribute.
+     * If image already exists for this attribute value, it will be replaced.
+     * 
+     * @param productId Product ID
+     * @param file Image file (JPG, JPEG, PNG, WEBP, max 5MB)
+     * @param attributeValue Attribute value (e.g., "Red", "Blue", "Green")
+     * @param authentication Spring Security authentication
+     * @return VariantImageResponse with image details
+     */
+    @PostMapping(value = "/variant", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    public ResponseEntity<ResponseDTO<com.PBL6.Ecommerce.dto.response.VariantImageResponse>> uploadVariantImage(
+            @PathVariable Long productId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("attributeValue") String attributeValue,
+            Authentication authentication) {
+        
+        log.info("POST /api/products/{}/images/variant - Upload variant image for '{}'", 
+                 productId, attributeValue);
+        
+        Long userId = extractUserId(authentication);
+        com.PBL6.Ecommerce.dto.response.VariantImageResponse response = 
+            imageService.uploadVariantImage(productId, file, attributeValue, userId);
+        
+        return ResponseDTO.success(response, 
+            String.format("Variant image uploaded successfully for '%s'", attributeValue));
+    }
+
+    /**
+     * Delete a variant-specific image for a primary attribute value.
+     * 
+     * @param productId Product ID
+     * @param attributeValue Attribute value (e.g., "Red", "Blue")
+     * @param authentication Spring Security authentication
+     * @return Success response
+     */
+    @DeleteMapping("/variant")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    public ResponseEntity<ResponseDTO<Void>> deleteVariantImage(
+            @PathVariable Long productId,
+            @RequestParam("attributeValue") String attributeValue,
+            Authentication authentication) {
+        
+        log.info("DELETE /api/products/{}/images/variant - Delete variant image for '{}'", 
+                 productId, attributeValue);
+        
+        Long userId = extractUserId(authentication);
+        imageService.deleteVariantImage(productId, attributeValue, userId);
+        
+        return ResponseDTO.success(null, 
+            String.format("Variant image deleted successfully for '%s'", attributeValue));
+    }
+
+    /**
+     * Get all product images including main, gallery, and variant-specific images.
+     * This is a public endpoint for buyers to view all product images.
+     * 
+     * @param productId Product ID
+     * @return ProductImagesResponse with all image types
+     */
+    @GetMapping("")
+    public ResponseEntity<ResponseDTO<com.PBL6.Ecommerce.dto.response.ProductImagesResponse>> getAllProductImages(
+            @PathVariable Long productId) {
+        
+        log.info("GET /api/products/{}/images - Retrieve all product images", productId);
+        
+        com.PBL6.Ecommerce.dto.response.ProductImagesResponse response = 
+            imageService.getProductImages(productId);
+        
+        return ResponseDTO.success(response, "Product images retrieved successfully");
     }
 
     // ========== BATCH VARIANT IMAGE UPLOAD ==========

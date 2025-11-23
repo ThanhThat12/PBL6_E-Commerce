@@ -1,0 +1,441 @@
+{
+	"info": {
+		"_postman_id": "005-product-image-upload",
+		"name": "Product Image Upload APIs",
+		"description": "Complete API collection for testing product image upload feature (main, gallery, variant images)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080/api",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "product_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "gallery_image_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "0. Setup - Login as Seller",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    const jsonData = pm.response.json();",
+							"    if (jsonData.data && jsonData.data.token) {",
+							"        pm.collectionVariables.set('jwt_token', jsonData.data.token);",
+							"        console.log('✅ JWT token saved:', jsonData.data.token.substring(0, 20) + '...');",
+							"    }",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"seller@example.com\",\n    \"password\": \"password123\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/auth/login",
+					"host": ["{{base_url}}"],
+					"path": ["auth", "login"]
+				},
+				"description": "Login as seller to get JWT token. Update email and password with your test seller account."
+			},
+			"response": []
+		},
+		{
+			"name": "1. Main Image - Upload/Replace",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Response has imageUrl', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.have.property('imageUrl');",
+							"    pm.expect(jsonData.data).to.have.property('publicId');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/products/{{product_id}}/images/main",
+					"host": ["{{base_url}}"],
+					"path": ["products", "{{product_id}}", "images", "main"]
+				},
+				"description": "Upload or replace the main product image. Select a JPEG/PNG/WEBP file (max 5MB, min 500x500px)."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Main Image - Delete",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Success message returned', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.equal('SUCCESS');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/products/{{product_id}}/images/main",
+					"host": ["{{base_url}}"],
+					"path": ["products", "{{product_id}}", "images", "main"]
+				},
+				"description": "Delete the main product image. Removes image from Cloudinary and clears DB fields."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Gallery Images - Upload Multiple",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Response has uploadedImages array', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.have.property('uploadedImages');",
+							"    pm.expect(jsonData.data.uploadedImages).to.be.an('array');",
+							"    ",
+							"    if (jsonData.data.uploadedImages.length > 0) {",
+							"        pm.collectionVariables.set('gallery_image_id', jsonData.data.uploadedImages[0].id);",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "files",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "files",
+							"type": "file",
+							"src": []
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/products/{{product_id}}/images/gallery",
+					"host": ["{{base_url}}"],
+					"path": ["products", "{{product_id}}", "images", "gallery"]
+				},
+				"description": "Upload multiple gallery images (max 10 total). Add more file fields to upload more images."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Gallery Images - Get All",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Response has images array', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/products/{{product_id}}/images/gallery",
+					"host": ["{{base_url}}"],
+					"path": ["products", "{{product_id}}", "images", "gallery"]
+				},
+				"description": "Get all gallery images for a product. Returns array ordered by display_order."
+			},
+			"response": []
+		},
+		{
+			"name": "5. Gallery Images - Delete One",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Success message returned', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.equal('SUCCESS');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/products/{{product_id}}/images/gallery/{{gallery_image_id}}",
+					"host": ["{{base_url}}"],
+					"path": ["products", "{{product_id}}", "images", "gallery", "{{gallery_image_id}}"]
+				},
+				"description": "Delete a single gallery image by ID. Updates display_order of remaining images."
+			},
+			"response": []
+		},
+		{
+			"name": "6. Gallery Images - Reorder",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Success message returned', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.equal('SUCCESS');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"imageOrders\": [\n        {\"imageId\": 501, \"displayOrder\": 2},\n        {\"imageId\": 502, \"displayOrder\": 0},\n        {\"imageId\": 503, \"displayOrder\": 1}\n    ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/products/{{product_id}}/images/gallery/reorder",
+					"host": ["{{base_url}}"],
+					"path": ["products", "{{product_id}}", "images", "gallery", "reorder"]
+				},
+				"description": "Reorder gallery images. Update imageId values with real IDs from your database."
+			},
+			"response": []
+		},
+		{
+			"name": "7. Variant Image - Upload",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Response has imageUrl', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.have.property('imageUrl');",
+							"    pm.expect(jsonData.data).to.have.property('publicId');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "attributeValue",
+							"value": "Red",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/products/{{product_id}}/images/variant",
+					"host": ["{{base_url}}"],
+					"path": ["products", "{{product_id}}", "images", "variant"]
+				},
+				"description": "Upload variant-specific image. Requires product to have primary attribute set. Update attributeValue (e.g., Red, Blue, S, M, L)."
+			},
+			"response": []
+		},
+		{
+			"name": "8. Variant Image - Delete",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Success message returned', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.equal('SUCCESS');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/products/{{product_id}}/images/variant?attributeValue=Red",
+					"host": ["{{base_url}}"],
+					"path": ["products", "{{product_id}}", "images", "variant"],
+					"query": [
+						{
+							"key": "attributeValue",
+							"value": "Red"
+						}
+					]
+				},
+				"description": "Delete variant image by attribute value. Update attributeValue parameter."
+			},
+			"response": []
+		},
+		{
+			"name": "9. Get All Images (Public)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Response has complete image structure', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.have.property('mainImage');",
+							"    pm.expect(jsonData.data).to.have.property('galleryImages');",
+							"    pm.expect(jsonData.data).to.have.property('primaryAttribute');",
+							"    pm.expect(jsonData.data).to.have.property('variantImages');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/products/{{product_id}}/images",
+					"host": ["{{base_url}}"],
+					"path": ["products", "{{product_id}}", "images"]
+				},
+				"description": "Get all product images (main, gallery, variants). Public endpoint - no authentication required."
+			},
+			"response": []
+		}
+	]
+}
