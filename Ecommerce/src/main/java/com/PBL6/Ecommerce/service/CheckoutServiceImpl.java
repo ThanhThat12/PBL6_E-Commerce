@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.service;
 
+import com.PBL6.Ecommerce.constant.PaymentTransactionStatus;
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.PaymentTransaction;
 import com.PBL6.Ecommerce.dto.PaymentCallbackRequest;
@@ -30,13 +31,16 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final MoMoPaymentService momoPaymentService;
     private final OrderRepository orderRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final OrderService orderService;
 
     public CheckoutServiceImpl(MoMoPaymentService momoPaymentService,
                               OrderRepository orderRepository,
-                              PaymentTransactionRepository paymentTransactionRepository) {
+                              PaymentTransactionRepository paymentTransactionRepository,
+                              OrderService orderService) {
         this.momoPaymentService = momoPaymentService;
         this.orderRepository = orderRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
+        this.orderService = orderService;
     }
 
     @Override
@@ -70,7 +74,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             transaction.setRequestId(requestId);
             transaction.setOrderIdMomo(momoOrderId); // Sử dụng momoOrderId duy nhất thay vì orderId
             transaction.setAmount(amount);
-            transaction.setStatus(PaymentTransaction.PaymentStatus.PENDING);
+            transaction.setStatus(PaymentTransactionStatus.PENDING);
             
             // Save transaction
             transaction = paymentTransactionRepository.save(transaction);
@@ -93,10 +97,10 @@ public class CheckoutServiceImpl implements CheckoutService {
             
             // Update status based on response
             if (response.isSuccess()) {
-                transaction.setStatus(PaymentTransaction.PaymentStatus.PENDING);
+                transaction.setStatus(PaymentTransactionStatus.PENDING);
                 logger.info("Web Payment created successfully with momoOrderId: {}, user will be redirected to pay.momo.vn", momoOrderId);
             } else {
-                transaction.setStatus(PaymentTransaction.PaymentStatus.FAILED);
+                transaction.setStatus(PaymentTransactionStatus.FAILED);
                 logger.warn("Web Payment creation failed with result code: {}, momoOrderId: {}", response.getResultCode(), momoOrderId);
             }
             
@@ -142,14 +146,14 @@ public class CheckoutServiceImpl implements CheckoutService {
             
             // Update payment status based on result code
             if (momoPaymentService.isPaymentSuccessful(callback)) {
-                transaction.setStatus(PaymentTransaction.PaymentStatus.SUCCESS);
+                transaction.setStatus(PaymentTransactionStatus.SUCCESS);
                 logger.info("Payment successful for order: {}", transaction.getOrder().getId());
                 
                 // Update order payment status
                 updateOrderPaymentStatus(transaction.getOrder(), transaction);
                 
             } else {
-                transaction.setStatus(PaymentTransaction.PaymentStatus.FAILED);
+                transaction.setStatus(PaymentTransactionStatus.FAILED);
                 logger.warn("Payment failed for order: {}, resultCode: {}", 
                            transaction.getOrder().getId(), callback.getResultCode());
             }
@@ -187,15 +191,33 @@ public class CheckoutServiceImpl implements CheckoutService {
     public void updateOrderPaymentStatus(Order order, PaymentTransaction transaction) {
         try {
             logger.info("Updating order payment status for order ID: {}", order.getId());
-            if (transaction.getStatus() == PaymentTransaction.PaymentStatus.SUCCESS) {
+            if (transaction.getStatus() == PaymentTransactionStatus.SUCCESS) {
                 // Update order status and payment status
-                order.setStatus(Order.OrderStatus.PROCESSING);
+                // Sau khi thanh toán thành công, đơn hàng chuyển sang trạng thái PENDING (chờ xác nhận)
+                order.setStatus(Order.OrderStatus.PENDING);
                 order.setPaymentStatus(Order.PaymentStatus.PAID);
                 order.setMethod("MOMO");
                 order.setMomoTransId(transaction.getTransId());
-                order.setPaidAt(LocalDateTime.now());
+                order.setPaidAt(new java.util.Date());
                 orderRepository.save(order);
-                logger.info("Order payment status updated successfully for order: {} (status=PROCESSING, paymentStatus=PAID)", order.getId());
+                logger.info("Order payment status updated successfully for order: {} (status=PENDING, paymentStatus=PAID)", order.getId());
+                
+                // ✅ XÓA CÁC SẢN PHẨM ĐÃ THANH TOÁN KHỊI CART
+                try {
+                    orderService.clearCartAfterSuccessfulPayment(order.getUser().getId(), order.getId());
+                    logger.info("✅ Cart items cleared after successful payment for order: {}", order.getId());
+                } catch (Exception e) {
+                    logger.error("❌ Error clearing cart after payment: {}", e.getMessage(), e);
+                }
+                
+                // ✅ TẠO SHIPMENT SAU KHI THANH TOÁN THÀNH CÔNG
+                try {
+                    orderService.createShipmentAfterPayment(order.getId());
+                    logger.info("✅ Shipment creation initiated after payment for order: {}", order.getId());
+                } catch (Exception e) {
+                    logger.error("❌ Error creating shipment after payment: {}", e.getMessage(), e);
+                    // Không throw exception, order vẫn hợp lệ
+                }
             }
         } catch (Exception e) {
             logger.error("Error updating order payment status: {}", e.getMessage(), e);

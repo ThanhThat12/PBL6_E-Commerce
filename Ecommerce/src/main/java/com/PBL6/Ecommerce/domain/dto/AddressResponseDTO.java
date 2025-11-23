@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 
 public class AddressResponseDTO {
     private Long id;
-    private String label;
     private String fullAddress;
     private Integer provinceId;
     private Integer districtId;
@@ -24,9 +23,6 @@ public class AddressResponseDTO {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-
-    public String getLabel() { return label; }
-    public void setLabel(String label) { this.label = label; }
 
     public String getFullAddress() { return fullAddress; }
     public void setFullAddress(String fullAddress) { this.fullAddress = fullAddress; }

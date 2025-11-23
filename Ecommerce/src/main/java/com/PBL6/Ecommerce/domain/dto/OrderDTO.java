@@ -2,6 +2,7 @@ package com.PBL6.Ecommerce.domain.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class OrderDTO {
     private Long id;
@@ -10,6 +11,7 @@ public class OrderDTO {
     private String status;
     private BigDecimal totalAmount;
     private Long userId;
+    private List<OrderItemDTO> items;
 
     // Constructors
     public OrderDTO() {}
@@ -70,5 +72,13 @@ public class OrderDTO {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public List<OrderItemDTO> getItems() {
+        return items;
+    }
+
+    public void setItems(List<OrderItemDTO> items) {
+        this.items = items;
     }
 }

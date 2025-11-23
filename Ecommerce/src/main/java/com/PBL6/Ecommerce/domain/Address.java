@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -11,7 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-
+import com.PBL6.Ecommerce.constant.TypeAddress;
 @Entity
 @Table(name = "addresses")
 public class Address {
@@ -23,8 +25,9 @@ public class Address {
     @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(length = 100)
-    private String label; // "Nhà riêng", "Kho chính"
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type_address", length = 50)
+    private TypeAddress typeAddress;
 
     @Column(length = 500)
     private String fullAddress;
@@ -62,9 +65,12 @@ public class Address {
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
 
-    public String getLabel() { return label; }
-    public void setLabel(String label) { this.label = label; }
+    public TypeAddress getTypeAddress() { return typeAddress; }
+    public void setTypeAddress(TypeAddress typeAddress) { this.typeAddress = typeAddress; }
 
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
     public String getFullAddress() { return fullAddress; }
     public void setFullAddress(String fullAddress) { this.fullAddress = fullAddress; }
 

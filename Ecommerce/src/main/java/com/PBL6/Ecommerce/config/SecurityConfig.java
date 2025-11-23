@@ -94,11 +94,16 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/products/*/reviews").permitAll() // Public: view product reviews
                 .requestMatchers(HttpMethod.GET, "/api/products/*/rating-summary").permitAll() // Public: rating summary
                 .requestMatchers(HttpMethod.GET, "/api/users/*/reviews").permitAll() // Public: user reviews
-                .requestMatchers(HttpMethod.POST, "/api/reviews").hasRole("BUYER") // Create review
+                .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").hasRole("BUYER") // Create review from product detail page
                 .requestMatchers(HttpMethod.PUT, "/api/reviews/*").hasRole("BUYER") // Update review
                 .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasAnyRole("ADMIN", "BUYER") // Delete review (admin or owner)
                 .requestMatchers(HttpMethod.GET, "/api/my-reviews").hasRole("BUYER") // My reviews
                 .requestMatchers(HttpMethod.POST, "/api/reviews/*/reply").hasRole("SELLER") // Seller reply
+                
+                // Seller shop reviews management
+                .requestMatchers(HttpMethod.GET, "/api/shops/*/reviews").hasRole("SELLER") // Get shop reviews with filters
+                .requestMatchers(HttpMethod.GET, "/api/shops/*/reviews/unreplied").hasRole("SELLER") // Get unreplied reviews
+                .requestMatchers(HttpMethod.GET, "/api/my-shop/reviews/all").hasRole("SELLER") // Get all shop reviews grouped
 
                 // Profile endpoints (Buyer/Seller)
                 .requestMatchers(HttpMethod.GET, "/api/profile").hasAnyRole("BUYER", "SELLER")
@@ -112,6 +117,21 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/seller/shop").hasRole("SELLER")
                 .requestMatchers(HttpMethod.PUT, "/api/seller/shop").hasRole("SELLER")
                 .requestMatchers(HttpMethod.GET, "/api/seller/shop/analytics").hasRole("SELLER")
+                
+                // Seller Orders Management
+                .requestMatchers(HttpMethod.GET, "/api/seller/orders").hasRole("SELLER")
+                .requestMatchers(HttpMethod.GET, "/api/seller/orders/*").hasRole("SELLER")
+                .requestMatchers(HttpMethod.PATCH, "/api/seller/orders/*/status").hasRole("SELLER")
+                
+                // Seller Analytics
+                .requestMatchers(HttpMethod.GET, "/api/seller/analytics/**").hasRole("SELLER")
+                
+                // Seller Vouchers Management
+                .requestMatchers(HttpMethod.POST, "/api/seller/vouchers").hasRole("SELLER")
+                .requestMatchers(HttpMethod.GET, "/api/seller/vouchers").hasRole("SELLER")
+                .requestMatchers(HttpMethod.GET, "/api/seller/vouchers/active").hasRole("SELLER")
+                .requestMatchers(HttpMethod.GET, "/api/seller/vouchers/available").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/seller/vouchers/*/deactivate").hasRole("SELLER")
 
                 .anyRequest().authenticated()
             )

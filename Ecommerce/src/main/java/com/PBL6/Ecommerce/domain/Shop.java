@@ -6,15 +6,15 @@ import java.util.List;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -32,15 +32,20 @@ public class Shop {
     @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(length = 255)
-    private String address;
+
+    // External GHN shop identifier (shop id assigned by GHN). Stored as string to be safe.
+    @Column(name = "ghn_shop_id", length = 100)
+    private String ghnShopId;
+
+    @Column(name = "ghn_token", length = 500)
+    private String ghnToken;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private ShopStatus status = ShopStatus.ACTIVE;
+    private ShopStatus status = ShopStatus.PENDING;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -64,8 +69,9 @@ public class Shop {
 
     // Enum trạng thái shop
     public enum ShopStatus {
-        ACTIVE,
-        INACTIVE
+        PENDING,   // Shop chờ duyệt
+        ACTIVE,    // Shop đang hoạt động
+        INACTIVE   // Shop bị vô hiệu hóa
     }
 
     public Long getId() {
@@ -92,12 +98,21 @@ public class Shop {
         this.name = name;
     }
 
-    public String getAddress() {
-        return address;
+
+    public String getGhnShopId() {
+        return ghnShopId;
     }
 
-    public void setAddress(String address) {
-        this.address = address;
+    public void setGhnShopId(String ghnShopId) {
+        this.ghnShopId = ghnShopId;
+    }
+
+    public String getGhnToken() {
+        return ghnToken;
+    }
+
+    public void setGhnToken(String ghnToken) {
+        this.ghnToken = ghnToken;
     }
 
     public String getDescription() {
@@ -164,5 +179,5 @@ public class Shop {
     public void setBannerPublicId(String bannerPublicId) {
         this.bannerPublicId = bannerPublicId;
     }
-    
+
 }

@@ -2,7 +2,7 @@ package com.PBL6.Ecommerce.repository;
 
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.PaymentTransaction;
-import com.PBL6.Ecommerce.domain.PaymentTransaction.PaymentStatus;
+import com.PBL6.Ecommerce.constant.PaymentTransactionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,16 +31,16 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     Optional<PaymentTransaction> findByOrderIdMomo(String orderIdMomo);
     
     // Tìm theo Order và Status
-    List<PaymentTransaction> findByOrderAndStatus(Order order, PaymentStatus status);
+       List<PaymentTransaction> findByOrderAndStatus(Order order, PaymentTransactionStatus status);
     
     // Tìm theo Order ID và Status
-    List<PaymentTransaction> findByOrderIdAndStatus(Long orderId, PaymentStatus status);
+       List<PaymentTransaction> findByOrderIdAndStatus(Long orderId, PaymentTransactionStatus status);
     
     // Tìm transaction thành công của một Order
-    Optional<PaymentTransaction> findByOrderIdAndStatus(Long orderId, String status);
+       Optional<PaymentTransaction> findByOrderIdAndStatus(Long orderId, String status);
     
     // Tìm tất cả transaction theo Status
-    List<PaymentTransaction> findByStatus(PaymentStatus status);
+       List<PaymentTransaction> findByStatus(PaymentTransactionStatus status);
     
     // Tìm transaction đang pending quá lâu (để xử lý timeout)
     @Query("SELECT pt FROM PaymentTransaction pt WHERE pt.status = 'PENDING' " +
@@ -54,10 +54,13 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     
     // Đếm số transaction theo status
     @Query("SELECT COUNT(pt) FROM PaymentTransaction pt WHERE pt.status = :status")
-    Long countByStatus(@Param("status") PaymentStatus status);
+       Long countByStatus(@Param("status") PaymentTransactionStatus status);
     
-    // Lấy transaction gần nhất của một Order
+    // Tìm transaction gần nhất của một Order
     Optional<PaymentTransaction> findFirstByOrderIdOrderByCreatedAtDesc(Long orderId);
+    
+    // Tìm transaction đầu tiên theo Order ID và Status
+    Optional<PaymentTransaction> findFirstByOrderIdAndStatus(Long orderId, PaymentTransactionStatus status);
     
     // Tìm transaction trong khoảng thời gian
     @Query("SELECT pt FROM PaymentTransaction pt " +

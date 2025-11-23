@@ -10,6 +10,7 @@ public class OrderItemDTO {
     private BigDecimal price;
     private Integer quantity;
     private BigDecimal subtotal; // price * quantity
+    private String status; // COMPLETED, RETURN_REQUESTED, RETURNED
     
     // Product details (optional, for display)
     private String productName;
@@ -108,5 +109,13 @@ public class OrderItemDTO {
 
     public void setProductImage(String productImage) {
         this.productImage = productImage;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

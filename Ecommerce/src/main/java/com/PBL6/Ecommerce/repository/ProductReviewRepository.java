@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -54,6 +55,13 @@ public interface ProductReviewRepository extends JpaRepository<ProductReview, Lo
            "WHERE pr.product.id = :productId " +
            "AND pr.sellerResponse IS NOT NULL")
     Page<ProductReview> findByProductIdWithSellerResponse(@Param("productId") Long productId, Pageable pageable);
+
+    @Query("SELECT pr FROM ProductReview pr " +
+       "JOIN FETCH pr.product p " +
+       "JOIN FETCH p.shop s " +
+       "WHERE s.id = :shopId " +
+       "ORDER BY pr.createdAt DESC")
+              List<ProductReview> findAllByProductShopId(@Param("shopId") Long shopId);
 
     // ========== REVIEW IMAGE QUERIES ==========
 

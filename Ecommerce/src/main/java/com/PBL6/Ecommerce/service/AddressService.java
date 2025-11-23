@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.domain.Address;
+import com.PBL6.Ecommerce.constant.TypeAddress;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.dto.AddressRequestDTO;
 import com.PBL6.Ecommerce.exception.AddressNotFoundException;
@@ -86,7 +87,7 @@ public class AddressService {
         resolveNamesIfNeeded(req);
 
         if (req.primaryAddress) {
-            addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
+            addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
                     .ifPresent(prev -> {
                         prev.setPrimaryAddress(false);
                         addressRepository.save(prev);
@@ -95,7 +96,6 @@ public class AddressService {
 
         Address a = new Address();
         a.setUser(user);
-        a.setLabel(req.label);
         a.setFullAddress(req.fullAddress);
         a.setProvinceId(req.provinceId);
         a.setDistrictId(req.districtId);
@@ -194,7 +194,7 @@ public class AddressService {
         }
 
         if (req.primaryAddress && !a.isPrimaryAddress()) {
-            addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
+            addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
                     .ifPresent(prev -> {
                         if (!prev.getId().equals(a.getId())) {
                             prev.setPrimaryAddress(false);
@@ -203,7 +203,6 @@ public class AddressService {
                     });
         }
         
-        if (req.label != null) a.setLabel(req.label);
         if (req.fullAddress != null) a.setFullAddress(req.fullAddress);
         if (req.provinceId != null) a.setProvinceId(req.provinceId);
         if (req.districtId != null) a.setDistrictId(req.districtId);
@@ -250,7 +249,7 @@ public class AddressService {
             throw new UnauthorizedAddressAccessException(addressId);
         }
 
-        addressRepository.findByUserIdAndPrimaryAddressTrue(userId)
+        addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
                 .ifPresent(prev -> {
                     if (!prev.getId().equals(a.getId())) {
                         prev.setPrimaryAddress(false);

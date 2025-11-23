@@ -198,4 +198,95 @@ public class MoMoPaymentService {
     public String generateRequestId() {
         return MoMoSignatureUtil.generateRequestId();
     }
+
+    /**
+     * Refund a MoMo payment
+     * 
+     * @param orderId Original MoMo orderId (customOrderId)
+     * @param amount Refund amount
+     * @param transId Original transaction ID from MoMo callback
+     * @return true if refund request was successful
+     * @throws MoMoPaymentException if refund fails
+     */
+    public boolean refundMomoPayment(String orderId, BigDecimal amount, String transId) {
+        try {
+            logger.info("Creating MoMo refund request - orderId: {}, amount: {}, transId: {}", 
+                       orderId, amount, transId);
+            
+            // Convert amount to String (MoMo requires string format for VND)
+            String amountStr = amount.setScale(0, java.math.RoundingMode.HALF_UP).toPlainString();
+            String requestId = generateRequestId("REFUND-");
+            String description = "Refund for order " + orderId;
+            
+            // Build raw signature string for refund (alphabetical order)
+            String rawSignature = MoMoSignatureUtil.buildRawSignatureForRefund(
+                momoConfig.getAccessKey(),
+                amountStr,
+                description,
+                orderId,
+                momoConfig.getPartnerCode(),
+                requestId,
+                String.valueOf(transId)
+            );
+            
+            // Generate signature
+            String signature = MoMoSignatureUtil.generateSignature(rawSignature, momoConfig.getSecretKey());
+            
+            logger.debug("Refund raw signature: {}", rawSignature);
+            logger.debug("Refund signature: {}", signature);
+            
+            // Build refund request (MoMo refund endpoint)
+            // Note: Adjust endpoint if needed - typically /pay or /refund endpoint
+            String refundEndpoint = momoConfig.getEndpoint().replace("/pay", "/refund");
+            if (refundEndpoint.equals(momoConfig.getEndpoint())) {
+                // If no /pay in endpoint, append /refund
+                refundEndpoint = momoConfig.getEndpoint() + "/refund";
+            }
+            
+            // Create refund request map
+            java.util.Map<String, String> refundRequest = new java.util.HashMap<>();
+            refundRequest.put("partnerCode", momoConfig.getPartnerCode());
+            refundRequest.put("accessKey", momoConfig.getAccessKey());
+            refundRequest.put("requestId", requestId);
+            refundRequest.put("amount", amountStr);
+            refundRequest.put("orderId", orderId);
+            refundRequest.put("transId", transId);
+            refundRequest.put("description", description);
+            refundRequest.put("signature", signature);
+            
+            // Send refund request to MoMo
+            logger.info("Sending refund request to MoMo endpoint: {}", refundEndpoint);
+            PaymentResponseDTO response = MoMoHttpUtil.sendPostRequest(
+                refundEndpoint,
+                refundRequest,
+                PaymentResponseDTO.class
+            );
+            
+            if (response == null) {
+                logger.warn("Received null response from MoMo refund request");
+                throw new MoMoPaymentException("Received null response from MoMo refund");
+            }
+            
+            logger.info("MoMo refund response - Result code: {}, Message: {}", 
+                       response.getResultCode(), response.getMessage());
+            
+            if (!response.isSuccess()) {
+                logger.warn("MoMo refund failed: {} - {}", response.getResultCode(), response.getMessage());
+                throw new MoMoPaymentException(
+                    "MoMo refund failed: " + response.getMessage(), 
+                    response.getResultCode()
+                );
+            }
+            
+            logger.info("MoMo refund successful for orderId: {}, amount: {}", orderId, amount);
+            return true;
+            
+        } catch (MoMoPaymentException e) {
+            logger.error("MoMo refund error: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to process MoMo refund: {}", e.getMessage(), e);
+            throw new MoMoPaymentException("Failed to process MoMo refund: " + e.getMessage(), e);
+        }
+    }
 }

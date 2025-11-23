@@ -75,6 +75,7 @@ public class Product {
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> productImages = new ArrayList<>();
 
+
      // 🆕 Helper methods để quản lý images
     public void addProductImage(ProductImage image) {
         productImages.add(image);
