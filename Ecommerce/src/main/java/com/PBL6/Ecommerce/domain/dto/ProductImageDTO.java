@@ -3,14 +3,14 @@ package com.PBL6.Ecommerce.domain.dto;
 public class ProductImageDTO {
     private Long id;
     private String imageUrl;
-    private String color;
+    private String variantValueName;
 
      // Constructors
     public ProductImageDTO() {}
 
-    public ProductImageDTO(String imageUrl, String color) {
+    public ProductImageDTO(String imageUrl, String variantValueName) {
         this.imageUrl = imageUrl;
-        this.color = color;
+        this.variantValueName = variantValueName;
     }
 
     // Getters and Setters
@@ -20,6 +20,6 @@ public class ProductImageDTO {
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     
-    public String getColor() { return color; }
-    public void setColor(String color) { this.color = color; }
+    public String getVariantValueName() { return variantValueName; }
+    public void setVariantValueName(String variantValueName) { this.variantValueName = variantValueName; }
 }

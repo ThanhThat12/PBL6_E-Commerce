@@ -47,6 +47,10 @@ import com.PBL6.Ecommerce.exception.UnauthorizedUserActionException;
 import com.PBL6.Ecommerce.exception.UserHasReferencesException;
 import com.PBL6.Ecommerce.exception.UserNotActivatedException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
+import com.PBL6.Ecommerce.exception.ImageUploadException;
+import com.PBL6.Ecommerce.exception.ImageValidationException;
+import com.PBL6.Ecommerce.exception.CloudinaryServiceException;
+import com.PBL6.Ecommerce.exception.ImageNotFoundException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -511,6 +515,55 @@ public class GlobalExceptionHandler {
             null
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    // Image Upload Exception Handlers
+    @ExceptionHandler(ImageUploadException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleImageUploadException(ImageUploadException ex) {
+        log.error("Image upload failed", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            500,
+            "IMAGE_UPLOAD_ERROR",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    @ExceptionHandler(ImageValidationException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleImageValidationException(ImageValidationException ex) {
+        log.warn("Image validation failed", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            400,
+            "IMAGE_VALIDATION_ERROR",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(CloudinaryServiceException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleCloudinaryServiceException(CloudinaryServiceException ex) {
+        log.error("Cloudinary service error", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            503,
+            "CLOUDINARY_SERVICE_ERROR",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+    }
+
+    @ExceptionHandler(ImageNotFoundException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleImageNotFoundException(ImageNotFoundException ex) {
+        log.warn("Image not found", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            404,
+            "IMAGE_NOT_FOUND",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
     @ExceptionHandler(RuntimeException.class)

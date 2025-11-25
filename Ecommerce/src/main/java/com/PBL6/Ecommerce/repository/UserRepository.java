@@ -39,7 +39,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // Thêm method tìm user theo role với phân trang
     Page<User> findByRole(Role role, Pageable pageable);
-    
+
     // Thêm method đếm số lượng user theo role
     long countByRole(Role role);
     
@@ -53,5 +53,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // Method để kiểm tra phone number đã được sử dụng bởi seller chưa
     List<User> findByPhoneNumberAndRole(String phoneNumber, Role role);
 
-    
+    // ========== AVATAR-RELATED QUERIES ==========
+
+    /**
+     * Find users with avatars
+     */
+    @Query("SELECT u FROM User u WHERE u.avatarUrl IS NOT NULL")
+    List<User> findUsersWithAvatars();
+
+    /**
+     * Find user by avatar public_id (for deletion verification)
+     */
+    @Query("SELECT u FROM User u WHERE u.avatarPublicId = :publicId")
+    Optional<User> findByAvatarPublicId(@Param("publicId") String publicId);
+
+
+
 }

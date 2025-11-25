@@ -47,15 +47,12 @@ public class Product {
     @Column(name = "main_image", length = 500)
     private String mainImage;
 
+    @Column(name = "main_image_public_id", length = 255)
+    private String mainImagePublicId;
+
     // Tạm thời comment out created_at vì database chưa có cột này
     // @Column(name = "created_at", nullable = false, updatable = false)
     // private LocalDateTime createdAt = LocalDateTime.now();
-
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ProductVariant> productVariants = new ArrayList<>();
-
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ProductImage> productImages = new ArrayList<>();
 
     // Product-level shipping dimensions (preferred storage place)
     // Trọng lượng 1 đơn vị (gram)
@@ -70,7 +67,14 @@ public class Product {
     private Integer widthCm;
 
     @Column(name = "height_cm")
-    private Integer heightCm;
+    private Integer heightCm; 
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductVariant> productVariants = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductImage> productImages = new ArrayList<>();
+
 
      // 🆕 Helper methods để quản lý images
     public void addProductImage(ProductImage image) {
@@ -168,6 +172,14 @@ public class Product {
 
     public void setMainImage(String mainImage) {
         this.mainImage = mainImage;
+    }
+
+    public String getMainImagePublicId() {
+        return mainImagePublicId;
+    }
+
+    public void setMainImagePublicId(String mainImagePublicId) {
+        this.mainImagePublicId = mainImagePublicId;
     }
 
     // public LocalDateTime getCreatedAt() {
