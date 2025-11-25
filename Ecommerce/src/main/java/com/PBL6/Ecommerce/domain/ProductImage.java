@@ -15,7 +15,7 @@ import jakarta.persistence.UniqueConstraint;
 @Table(name = "product_images",
        uniqueConstraints = @UniqueConstraint(
            name = "uq_product_variant_image",
-           columnNames = {"product_id", "variant_attribute_id", "variant_attribute_value", "image_type"}))
+           columnNames = {"product_id", "variant_attribute_value", "image_type"}))
 public class ProductImage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,10 +30,6 @@ public class ProductImage {
 
     @Column(name = "variant_attribute_value", length = 100)
     private String variantAttributeValue; // e.g., "Red", "Blue"
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "variant_attribute_id")
-    private ProductVariantValue variantAttribute; // FK to product_variant_values
 
     @Column(name = "image_url", nullable = false, length = 500)
     private String imageUrl;
@@ -96,13 +92,7 @@ public class ProductImage {
         this.variantAttributeValue = variantAttributeValue;
     }
 
-    public ProductVariantValue getVariantAttribute() {
-        return variantAttribute;
-    }
 
-    public void setVariantAttribute(ProductVariantValue variantAttribute) {
-        this.variantAttribute = variantAttribute;
-    }
 
     public String getPublicId() {
         return publicId;

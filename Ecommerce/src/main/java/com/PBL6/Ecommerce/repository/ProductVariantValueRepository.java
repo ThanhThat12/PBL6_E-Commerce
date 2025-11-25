@@ -83,4 +83,37 @@ public interface ProductVariantValueRepository extends JpaRepository<ProductVari
     List<String> findDistinctValuesByProductIdAndAttributeId(
         @Param("productId") Long productId,
         @Param("attributeId") Long attributeId);
+
+    /**
+     * Get all primary attribute values for a product.
+     * This is the equivalent of the SQL query you provided:
+     * SELECT DISTINCT pvv.value AS primary_value
+     * FROM product_variant_values pvv
+     * JOIN product_variants v ON v.id = pvv.variant_id
+     * JOIN product_primary_attributes ppa ON ppa.attribute_id = pvv.product_attribute_id
+     * WHERE v.product_id = :productId
+     */
+    @Query("SELECT DISTINCT pvv.value " +
+           "FROM ProductVariantValue pvv " +
+           "JOIN pvv.variant v " +
+           "JOIN ProductPrimaryAttribute ppa ON ppa.attribute.id = pvv.productAttribute.id " +
+           "WHERE v.product.id = :productId " +
+           "AND ppa.product.id = :productId " +
+           "ORDER BY pvv.value")
+    List<String> findPrimaryAttributeValuesByProductId(@Param("productId") Long productId);
+
+    /**
+     * Check if a primary attribute value exists for a product.
+     * More accurate than the general existsByProductIdAndAttributeIdAndValue method.
+     */
+    @Query("SELECT CASE WHEN COUNT(pvv) > 0 THEN true ELSE false END " +
+           "FROM ProductVariantValue pvv " +
+           "JOIN pvv.variant v " +
+           "JOIN ProductPrimaryAttribute ppa ON ppa.attribute.id = pvv.productAttribute.id " +
+           "WHERE v.product.id = :productId " +
+           "AND ppa.product.id = :productId " +
+           "AND pvv.value = :value")
+    boolean existsPrimaryAttributeValueByProductIdAndValue(
+        @Param("productId") Long productId,
+        @Param("value") String value);
 }

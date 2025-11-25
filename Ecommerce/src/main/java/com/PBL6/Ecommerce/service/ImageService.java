@@ -69,10 +69,10 @@ public interface ImageService {
      * Optionally filter by variantId if provided.
      * 
      * @param productId The ID of the product
-     * @param variantId Optional variant ID to filter images (null for main gallery)
+     * @param variantAttributeValue Optional variant attribute value to filter images (null for main gallery)
      * @return List of ProductImageResponse objects with transformation URLs
      */
-    List<ProductImageResponse> getProductGalleryImages(Long productId, Long variantId);
+    List<ProductImageResponse> getProductGalleryImages(Long productId, String variantAttributeValue);
 
     /**
      * Reorder gallery images for a product by updating display_order.
@@ -276,5 +276,14 @@ public interface ImageService {
      * @return ProductImagesResponse with all image types
      */
     com.PBL6.Ecommerce.dto.response.ProductImagesResponse getProductImages(Long productId);
+
+    /**
+     * Get list of primary attribute values for a product.
+     * This helps frontend know which attribute values are available for variant image upload.
+     * 
+     * @param productId The ID of the product
+     * @return List of primary attribute values (e.g., ["Red", "Blue", "Green"])
+     */
+    List<String> getPrimaryAttributeValues(Long productId);
 }
 

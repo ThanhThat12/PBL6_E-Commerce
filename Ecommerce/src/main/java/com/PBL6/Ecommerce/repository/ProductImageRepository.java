@@ -22,21 +22,9 @@ public interface ProductImageRepository extends JpaRepository<ProductImage, Long
      */
     List<ProductImage> findByProductIdAndVariantAttributeValue(Long productId, String variantAttributeValue);
 
-    /**
-     * Find images by product and variant attribute ID (optimized query)
-     */
-    @Query("SELECT pi FROM ProductImage pi " +
-           "WHERE pi.product.id = :productId " +
-           "AND pi.variantAttribute.id = :variantAttributeId " +
-           "ORDER BY pi.displayOrder")
-    List<ProductImage> findByProductIdAndVariantAttributeId(
-        @Param("productId") Long productId,
-        @Param("variantAttributeId") Long variantAttributeId);
 
-    /**
-     * Find images by product and variant attribute (FK to ProductVariantValue)
-     */
-    List<ProductImage> findByProductIdAndVariantAttributeIdOrderByDisplayOrderAsc(Long productId, Long variantAttributeId);
+
+
 
     /**
      * Find images by product and image type
@@ -78,17 +66,18 @@ public interface ProductImageRepository extends JpaRepository<ProductImage, Long
     @Query("SELECT MAX(pi.displayOrder) FROM ProductImage pi WHERE pi.product.id = :productId")
     Integer findMaxDisplayOrderByProductId(@Param("productId") Long productId);
 
+
+
     /**
-     * Find variant image by product, attribute ID, and attribute value (e.g., Color="Red")
-     * Used for checking if variant image exists before upload/replacement
+     * Find variant image by product and primary attribute value only.
+     * This is more accurate for variant image upload as it only considers the primary attribute.
      */
     @Query("SELECT pi FROM ProductImage pi " +
            "WHERE pi.product.id = :productId " +
-           "AND pi.variantAttribute.id = :attributeId " +
+           "AND pi.imageType = 'VARIANT' " +
            "AND pi.variantAttributeValue = :attributeValue")
-    Optional<ProductImage> findByProductIdAndVariantAttributeIdAndVariantAttributeValue(
+    Optional<ProductImage> findVariantImageByProductIdAndAttributeValue(
         @Param("productId") Long productId,
-        @Param("attributeId") Long attributeId,
         @Param("attributeValue") String attributeValue);
 
     /**

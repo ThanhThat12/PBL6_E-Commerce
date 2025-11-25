@@ -1,6 +1,5 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.constant.ImageType;
 import com.PBL6.Ecommerce.constant.TransformationType;
 import com.PBL6.Ecommerce.domain.Product;
 import com.PBL6.Ecommerce.domain.ProductImage;
@@ -324,13 +323,13 @@ public class ImageServiceImpl implements ImageService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ProductImageResponse> getProductGalleryImages(Long productId, Long variantId) {
-        log.debug("Retrieving gallery images for product {} (variantAttributeId: {})", productId, variantId);
+    public List<ProductImageResponse> getProductGalleryImages(Long productId, String variantAttributeValue) {
+        log.debug("Retrieving gallery images for product {} (variantAttributeValue: {})", productId, variantAttributeValue);
 
         List<ProductImage> images;
-        if (variantId != null) {
-            // Get images for specific variant attribute
-            images = productImageRepository.findByProductIdAndVariantAttributeIdOrderByDisplayOrderAsc(productId, variantId);
+        if (variantAttributeValue != null && !variantAttributeValue.isEmpty()) {
+            // Get images for specific variant attribute value
+            images = productImageRepository.findByProductIdAndVariantAttributeValue(productId, variantAttributeValue);
         } else {
             // Get only GALLERY images (not VARIANT images)
             images = productImageRepository.findGalleryImagesByProductId(productId);
@@ -543,7 +542,7 @@ public class ImageServiceImpl implements ImageService {
             productImage.setImageType("VARIANT"); // Mark as variant-specific image
             productImage.setVariantAttributeValue(variantValueName); // Display-friendly name (e.g., "Red")
             productImage.setDisplayOrder(0); // Single image per variant value
-            productImage.setVariantAttribute(variantValue); // FK to ProductVariantValue
+            // Note: variantAttribute FK removed - only using variantAttributeValue string now
             productImage.setUploadedAt(java.time.LocalDateTime.now());
             
             productImageRepository.save(productImage);
@@ -649,7 +648,7 @@ public class ImageServiceImpl implements ImageService {
                 .url(image.getImageUrl())
                 .publicId(image.getPublicId())
                 .displayOrder(image.getDisplayOrder())
-                .variantId(image.getVariantAttribute() != null ? image.getVariantAttribute().getId() : null)
+                .variantId(null) // variantAttribute field removed - no longer available
                 .variantValueName(image.getVariantAttributeValue())
                 .transformations(transformationResponse)
                 .build();
@@ -1154,25 +1153,26 @@ public class ImageServiceImpl implements ImageService {
         // Verify ownership
         Product product = findProductAndVerifyOwnership(productId, userId);
 
-        // Get primary attribute
-        ProductPrimaryAttribute primaryAttr = productPrimaryAttributeRepository.findByProductId(productId)
+        // Verify product has primary attribute
+        productPrimaryAttributeRepository.findByProductId(productId)
                 .orElseThrow(() -> new BusinessException(
                     "Product does not have a primary attribute. Please set a primary attribute before uploading variant images."));
 
-        Long attributeId = primaryAttr.getAttribute().getId();
+        // Validate attribute value exists for this product's primary attribute
+        boolean valueExists = productVariantValueRepository.existsPrimaryAttributeValueByProductIdAndValue(
+            productId, attributeValue);
 
-        // Validate attribute value exists for this product
-        boolean valueExists = productVariantValueRepository.existsByProductIdAndAttributeIdAndValue(
-            productId, attributeId, attributeValue);
-        
         if (!valueExists) {
+            // Get available values for better error message
+            List<String> availableValues = productVariantValueRepository.findPrimaryAttributeValuesByProductId(productId);
             throw new ImageValidationException(
-                String.format("Attribute value '%s' does not exist for product %d", attributeValue, productId));
+                String.format("Primary attribute value '%s' does not exist for product %d. Available values: %s", 
+                    attributeValue, productId, availableValues));
         }
 
-        // Check if variant image already exists
+        // Check if variant image already exists (use simpler query to avoid duplicates)
         ProductImage existingImage = productImageRepository
-                .findByProductIdAndVariantAttributeIdAndVariantAttributeValue(productId, attributeId, attributeValue)
+                .findVariantImageByProductIdAndAttributeValue(productId, attributeValue)
                 .orElse(null);
 
         String oldPublicId = null;
@@ -1206,9 +1206,7 @@ public class ImageServiceImpl implements ImageService {
             productImage.setProduct(product);
             productImage.setImageType("VARIANT");
             productImage.setVariantAttributeValue(attributeValue);
-            productImage.setVariantAttribute(productVariantValueRepository
-                .findByProductIdAndValueName(productId, attributeValue)
-                .orElse(null));
+            // Note: variantAttribute is not set for VARIANT type images as it can have multiple matching records
             productImage.setImageUrl(result.getSecureUrl());
             productImage.setPublicId(result.getPublicId());
             productImage.setDisplayOrder(0);
@@ -1253,16 +1251,14 @@ public class ImageServiceImpl implements ImageService {
         // Verify ownership
         findProductAndVerifyOwnership(productId, userId);
 
-        // Get primary attribute
-        ProductPrimaryAttribute primaryAttr = productPrimaryAttributeRepository.findByProductId(productId)
+        // Verify product has primary attribute
+        productPrimaryAttributeRepository.findByProductId(productId)
                 .orElseThrow(() -> new BusinessException(
                     "Product does not have a primary attribute."));
 
-        Long attributeId = primaryAttr.getAttribute().getId();
-
-        // Find variant image
+        // Find variant image (use simpler query to avoid duplicates)
         ProductImage image = productImageRepository
-                .findByProductIdAndVariantAttributeIdAndVariantAttributeValue(productId, attributeId, attributeValue)
+                .findVariantImageByProductIdAndAttributeValue(productId, attributeValue)
                 .orElseThrow(() -> new ImageNotFoundException(
                     String.format("Variant image not found for attribute value '%s'", attributeValue)));
 
@@ -1348,5 +1344,22 @@ public class ImageServiceImpl implements ImageService {
                 .primaryAttribute(primaryAttributeDTO)
                 .variantImages(variantImagesMap)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getPrimaryAttributeValues(Long productId) {
+        log.debug("Getting primary attribute values for product {}", productId);
+
+        // Verify product exists
+        productRepository.findById(productId)
+                .orElseThrow(() -> new com.PBL6.Ecommerce.exception.ProductNotFoundException(
+                    "Product not found with id: " + productId));
+
+        // Get primary attribute values using the improved query
+        List<String> values = productVariantValueRepository.findPrimaryAttributeValuesByProductId(productId);
+        
+        log.debug("Found {} primary attribute values for product {}: {}", values.size(), productId, values);
+        return values;
     }
 }

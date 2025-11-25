@@ -136,14 +136,14 @@ public class ProductImageController {
      * @return List of ProductImageResponse with transformation URLs
      */
     @GetMapping("/gallery")
-    public ResponseEntity<ResponseDTO<List<ProductImageResponse>>> getGalleryImages(
+    public ResponseEntity<ResponseDTO<List<ProductImageResponse>>> getProductGalleryImages(
             @PathVariable Long productId,
-            @RequestParam(required = false) Long variantId) {
+            @RequestParam(required = false) String variantAttributeValue) {
         
-        log.info("GET /api/products/{}/images/gallery - Retrieve gallery images (variantId: {})", 
-                 productId, variantId);
+        log.info("GET /api/products/{}/images/gallery - Retrieve gallery images (variantAttributeValue: {})", 
+                 productId, variantAttributeValue);
         
-        List<ProductImageResponse> images = imageService.getProductGalleryImages(productId, variantId);
+        List<ProductImageResponse> images = imageService.getProductGalleryImages(productId, variantAttributeValue);
         
         return ResponseDTO.success(images, String.format("Retrieved %d gallery images", images.size()));
     }
@@ -269,6 +269,26 @@ public class ProductImageController {
             imageService.getProductImages(productId);
         
         return ResponseDTO.success(response, "Product images retrieved successfully");
+    }
+
+    /**
+     * Get list of primary attribute values for variant image upload.
+     * This helps frontend know which attribute values are available for image upload.
+     * 
+     * @param productId Product ID
+     * @return List of primary attribute values (e.g., ["Red", "Blue", "Green"])
+     */
+    @GetMapping("/variant/values")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN', 'BUYER')")
+    public ResponseEntity<ResponseDTO<List<String>>> getPrimaryAttributeValues(
+            @PathVariable Long productId) {
+        
+        log.info("GET /api/products/{}/images/variant/values - Get primary attribute values", productId);
+        
+        List<String> values = imageService.getPrimaryAttributeValues(productId);
+        
+        return ResponseDTO.success(values, 
+            String.format("Found %d primary attribute values for product %d", values.size(), productId));
     }
 
     // ========== BATCH VARIANT IMAGE UPLOAD ==========
