@@ -181,11 +181,10 @@ public class OrderService {
             BigDecimal unitPrice = v.getPrice() == null ? BigDecimal.ZERO : v.getPrice();
             BigDecimal line = unitPrice.multiply(BigDecimal.valueOf(it.getQuantity()));
             subtotal = subtotal.add(line);
-
             OrderItem oi = new OrderItem();
             oi.setVariant(v);
             oi.setProductId(v.getProduct().getId());
-            // oi.setVariantName(v.getSku() != null ? v.getSku() : v.getProduct().getName());
+            oi.setVariantName(v.getSku() != null ? v.getSku() : v.getProduct().getName());
             oi.setPrice(unitPrice);
             oi.setQuantity(it.getQuantity());
             items.add(oi);
@@ -509,9 +508,15 @@ public class OrderService {
         System.out.println("  - Current status: " + order.getStatus());
         System.out.println("  - Current payment status: " + order.getPaymentStatus());
 
-        // Mark as PAID, giữ nguyên status (PENDING)
+        if (order.getPaymentStatus() == Order.PaymentStatus.PAID) {
+            System.out.println("⚠️ Order #" + orderId + " already paid. Skipping update.");
+            return order;
+        }
+
+        // Mark as PAID
         order.setPaymentStatus(Order.PaymentStatus.PAID);
         order.setPaidAt(new Date());
+        order.setMethod("SPORTYPAY"); // Set payment method
 
         System.out.println("  - Updated status: " + order.getStatus());
         System.out.println("  - Updated payment status: " + order.getPaymentStatus());
@@ -520,6 +525,26 @@ public class OrderService {
         System.out.println("✅ Order #" + orderId + " updated successfully!");
         System.out.println("  - Saved status: " + saved.getStatus());
         System.out.println("  - Saved payment status: " + saved.getPaymentStatus());
+
+        // 💰 DEPOSIT TO ADMIN WALLET - SportyPay payment
+        try {
+            logger.info("💰 [SportyPay] Depositing {} to admin wallet for order #{}", 
+                       order.getTotalAmount(), order.getId());
+            
+            walletService.depositToAdminWallet(
+                order.getTotalAmount(),
+                order,
+                "SPORTYPAY"
+            );
+            
+            logger.info("✅ Successfully deposited {} to admin wallet for order #{}",
+                       order.getTotalAmount(), order.getId());
+        } catch (Exception e) {
+            logger.error("❌ Failed to deposit to admin wallet for order {}: {}", 
+                        order.getId(), e.getMessage(), e);
+            // Don't throw - order is still valid even if wallet deposit fails
+            // This should be investigated manually
+        }
 
         // ✅ XÓA CÁC SẢN PHẨM ĐÃ THANH TOÁN KHỎI CART
         try {
