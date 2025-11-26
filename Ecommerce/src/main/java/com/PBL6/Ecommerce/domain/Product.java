@@ -14,6 +14,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 @Entity
@@ -50,9 +52,23 @@ public class Product {
     @Column(name = "main_image_public_id", length = 255)
     private String mainImagePublicId;
 
-    // Tạm thời comment out created_at vì database chưa có cột này
-    // @Column(name = "created_at", nullable = false, updatable = false)
-    // private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(name = "product_condition")
+    private String productCondition = "NEW"; // ENUM: 'NEW', 'USED'
+
+    @Column(name = "rating", precision = 3, scale = 2)
+    private BigDecimal rating = BigDecimal.ZERO; // Average rating (0-5)
+
+    @Column(name = "review_count")
+    private Integer reviewCount = 0; // Số lượng reviews
+
+    @Column(name = "sold_count")
+    private Integer soldCount = 0; // Đã bán bao nhiêu
+
+    @Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private java.time.LocalDateTime updatedAt;
 
     // Product-level shipping dimensions (preferred storage place)
     // Trọng lượng 1 đơn vị (gram)
@@ -236,5 +252,78 @@ public class Product {
 
     public void setHeightCm(Integer heightCm) {
         this.heightCm = heightCm;
+    }
+
+    public String getProductCondition() {
+        return productCondition;
+    }
+
+    public void setProductCondition(String productCondition) {
+        this.productCondition = productCondition;
+    }
+
+    public BigDecimal getRating() {
+        return rating;
+    }
+
+    public void setRating(BigDecimal rating) {
+        this.rating = rating;
+    }
+
+    public Integer getReviewCount() {
+        return reviewCount;
+    }
+
+    public void setReviewCount(Integer reviewCount) {
+        this.reviewCount = reviewCount;
+    }
+
+    public Integer getSoldCount() {
+        return soldCount;
+    }
+
+    public void setSoldCount(Integer soldCount) {
+        this.soldCount = soldCount;
+    }
+
+    public java.time.LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(java.time.LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public java.time.LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(java.time.LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+    
+    // JPA lifecycle callbacks for automatic timestamp management
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = java.time.LocalDateTime.now();
+        this.updatedAt = java.time.LocalDateTime.now();
+        // Set default values if null
+        if (this.productCondition == null) {
+            this.productCondition = "NEW";
+        }
+        if (this.rating == null) {
+            this.rating = BigDecimal.ZERO;
+        }
+        if (this.reviewCount == null) {
+            this.reviewCount = 0;
+        }
+        if (this.soldCount == null) {
+            this.soldCount = 0;
+        }
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = java.time.LocalDateTime.now();
     }
 }

@@ -5,40 +5,30 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * Enhanced ProductCreateDTO for creating products with separated concerns:
- * - Product basic info (this DTO)
- * - Images handled by /api/products/{id}/images/* endpoints
- * - Reviews handled by /api/products/{id}/reviews endpoints
- * - Variants can be included or added later
+ * ProductUpdateDTO for updating existing products
+ * All fields are optional - only non-null fields will be updated
+ * Images and reviews are handled by separate endpoints
  */
-public class ProductCreateDTO {
-
-    @NotNull(message = "Category ID is required")
+public class ProductUpdateDTO {
+    
     private Long categoryId;
     
-    // shopId will be automatically set from JWT authentication for sellers
-    private Long shopId;
-    
-    @NotBlank(message = "Product name is required")
     @Size(min = 3, max = 255, message = "Product name must be between 3 and 255 characters")
     private String name;
     
     @Size(max = 1000, message = "Description cannot exceed 1000 characters")
     private String description;
     
-    @NotNull(message = "Base price is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Base price must be greater than 0")
     private BigDecimal basePrice;
     
     // Product condition - NEW or USED
-    private String productCondition = "NEW";
+    private String productCondition;
     
-    private Boolean isActive = true;
+    private Boolean isActive;
     
     // Shipping dimensions (optional)
     private Integer weightGrams;
@@ -46,7 +36,7 @@ public class ProductCreateDTO {
     private Integer widthCm;
     private Integer heightCm;
     
-    // Variants can be added during creation or later via separate endpoint
+    // Variants can be updated, but typically handled by separate variant endpoints
     @Valid
     private List<ProductVariantDTO> variants;
     
@@ -54,14 +44,11 @@ public class ProductCreateDTO {
     private Long primaryAttributeId;
     
     // Default constructor
-    public ProductCreateDTO() {}
+    public ProductUpdateDTO() {}
 
     // Getters and Setters
     public Long getCategoryId() { return categoryId; }
     public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
-    
-    public Long getShopId() { return shopId; }
-    public void setShopId(Long shopId) { this.shopId = shopId; }
     
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

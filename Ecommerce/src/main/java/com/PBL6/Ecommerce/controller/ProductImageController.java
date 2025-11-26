@@ -291,6 +291,29 @@ public class ProductImageController {
             String.format("Found %d primary attribute values for product %d", values.size(), productId));
     }
 
+    /**
+     * Get primary attribute information for a product.
+     * Returns the primary attribute details including ID and name.
+     * 
+     * @param productId Product ID
+     * @return Primary attribute info (id, name) or null if not set
+     */
+    @GetMapping("/primary-attribute")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN', 'BUYER')")
+    public ResponseEntity<ResponseDTO<com.PBL6.Ecommerce.dto.response.PrimaryAttributeDTO>> getPrimaryAttribute(
+            @PathVariable Long productId) {
+        
+        log.info("GET /api/products/{}/images/primary-attribute - Get primary attribute info", productId);
+        
+        com.PBL6.Ecommerce.dto.response.ProductImagesResponse imageResponse = imageService.getProductImages(productId);
+        com.PBL6.Ecommerce.dto.response.PrimaryAttributeDTO primaryAttribute = imageResponse.getPrimaryAttribute();
+        
+        return ResponseDTO.success(primaryAttribute, 
+            primaryAttribute != null ? 
+                String.format("Primary attribute found: %s (ID: %d)", primaryAttribute.getName(), primaryAttribute.getId()) :
+                "No primary attribute set for this product");
+    }
+
     // ========== BATCH VARIANT IMAGE UPLOAD ==========
 
     /**
