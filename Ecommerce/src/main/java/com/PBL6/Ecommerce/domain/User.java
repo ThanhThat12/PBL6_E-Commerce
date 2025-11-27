@@ -54,6 +54,9 @@ public class User {
     @Column(length = 500)
     private String avatarUrl;
 
+    @Column(name = "avatar_public_id", length = 255)
+    private String avatarPublicId;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -143,6 +146,14 @@ public String getPhoneNumber() {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public String getAvatarPublicId() {
+        return avatarPublicId;
+    }
+
+    public void setAvatarPublicId(String avatarPublicId) {
+        this.avatarPublicId = avatarPublicId;
     }
 
     public LocalDateTime getCreatedAt() {

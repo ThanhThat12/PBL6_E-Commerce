@@ -62,4 +62,25 @@ public interface ProductReviewRepository extends JpaRepository<ProductReview, Lo
        "WHERE s.id = :shopId " +
        "ORDER BY pr.createdAt DESC")
               List<ProductReview> findAllByProductShopId(@Param("shopId") Long shopId);
+
+    // ========== REVIEW IMAGE QUERIES ==========
+
+    /**
+     * Find reviews with images
+     */
+    @Query("SELECT pr FROM ProductReview pr WHERE pr.images IS NOT NULL AND pr.images != '[]'")
+    Page<ProductReview> findReviewsWithImages(Pageable pageable);
+
+    /**
+     * Find reviews with images for a specific product
+     */
+    @Query("SELECT pr FROM ProductReview pr WHERE pr.product.id = :productId AND pr.images IS NOT NULL AND pr.images != '[]'")
+    Page<ProductReview> findReviewsWithImagesByProductId(@Param("productId") Long productId, Pageable pageable);
+
+    /**
+     * Count reviews with images for a product
+     */
+    @Query("SELECT COUNT(pr) FROM ProductReview pr WHERE pr.product.id = :productId AND pr.images IS NOT NULL AND pr.images != '[]'")
+    long countReviewsWithImagesByProductId(@Param("productId") Long productId);
+
 }
