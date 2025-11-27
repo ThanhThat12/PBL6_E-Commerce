@@ -3,6 +3,8 @@ package com.PBL6.Ecommerce.domain.dto;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -27,6 +29,20 @@ public class ProductCreateDTO {
     
     @NotNull(message = "Base price is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Base price must be greater than 0")
+
+     @Min(value = 0, message = "Chiều dài phải >= 0")
+    private Integer lengthCm;
+
+    @Min(value = 0, message = "Chiều rộng phải >= 0")
+    private Integer widthCm;
+
+    @Min(value = 0, message = "Chiều cao phải >= 0")
+    private Integer heightCm;
+
+    // Cân nặng (gram) - bắt buộc
+    @NotNull(message = "Cân nặng là bắt buộc")
+    @Min(value = 0, message = "Cân nặng phải >= 0")
+    private Integer weightGrams;
 
     private BigDecimal basePrice;
     
@@ -68,4 +84,17 @@ public class ProductCreateDTO {
     // 🔧 THÊM: Getter/Setter cho images với color
     public List<ProductImageDTO> getImages() { return images; }
     public void setImages(List<ProductImageDTO> images) { this.images = images; }
+
+    public Integer getLengthCm() { return lengthCm; }
+    public void setLengthCm(Integer lengthCm) { this.lengthCm = lengthCm; }
+
+    public Integer getWidthCm() { return widthCm; }
+    public void setWidthCm(Integer widthCm) { this.widthCm = widthCm; }
+
+    public Integer getHeightCm() { return heightCm; }
+    public void setHeightCm(Integer heightCm) { this.heightCm = heightCm; }
+
+    public Integer getWeightGrams() { return weightGrams; }
+    public void setWeightGrams(Integer weightGrams) { this.weightGrams = weightGrams; }
+
 }
