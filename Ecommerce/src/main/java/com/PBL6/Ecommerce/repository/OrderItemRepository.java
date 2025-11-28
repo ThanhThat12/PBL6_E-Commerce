@@ -31,4 +31,10 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
     List<com.PBL6.Ecommerce.domain.dto.TopProductDTO> findTopSellingProductsByShop(
         @Param("shopId") Long shopId, 
         org.springframework.data.domain.Pageable pageable);
+    
+    // Admin Tính tổng số lượng sản phẩm đã bán (COMPLETED orders) theo productId
+    @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi " +
+           "JOIN oi.order o " +
+           "WHERE oi.variant.product.id = :productId AND o.status = 'COMPLETED'")
+    Long getTotalSoldByProductId(@Param("productId") Long productId);
 }
