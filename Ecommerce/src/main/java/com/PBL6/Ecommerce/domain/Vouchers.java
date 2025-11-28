@@ -36,7 +36,7 @@ public class Vouchers {
     private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id", nullable = false)
+    @JoinColumn(name = "shop_id")
     private Shop shop;
 
     @Enumerated(EnumType.STRING)
@@ -126,19 +126,4 @@ public class Vouchers {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    @PrePersist
-    @PreUpdate
-    private void updateStatusFromDates() {
-        if (this.startDate != null && this.endDate != null) {
-            LocalDateTime now = LocalDateTime.now();
-            if (now.isBefore(this.startDate)) {
-                this.status = Status.UPCOMING;
-            } else if (now.isAfter(this.endDate)) {
-                this.status = Status.EXPIRED;
-            } else {
-                this.status = Status.ACTIVE;
-            }
-        }
-    }
 }
