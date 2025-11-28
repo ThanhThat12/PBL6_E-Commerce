@@ -154,113 +154,144 @@ public class OrderService {
     }
 
 
-@Transactional
+    @Transactional
     public Order createOrder(CreateOrderRequestDTO req) {
-        var user = userRepository.findById(req.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        List<Long> variantIds = req.getItems().stream()
-                .map(CreateOrderRequestDTO.Item::getVariantId)
-                .collect(Collectors.toList());
-
-        Map<Long, ProductVariant> variantMap = productVariantRepository.findAllById(variantIds)
-                .stream().collect(Collectors.toMap(ProductVariant::getId, v -> v));
-
-        BigDecimal subtotal = BigDecimal.ZERO;
-        List<OrderItem> items = new ArrayList<>();
-
-        for (var it : req.getItems()) {
-            ProductVariant v = variantMap.get(it.getVariantId());
-            if (v == null) throw new IllegalArgumentException("Variant not found: " + it.getVariantId());
-            if (v.getStock() == null || v.getStock() < it.getQuantity()) {
-                throw new IllegalStateException("Insufficient stock for variant " + v.getId());
-            }
-            v.setStock(v.getStock() - it.getQuantity());
-            productVariantRepository.save(v);
-
-            BigDecimal unitPrice = v.getPrice() == null ? BigDecimal.ZERO : v.getPrice();
-            BigDecimal line = unitPrice.multiply(BigDecimal.valueOf(it.getQuantity()));
-            subtotal = subtotal.add(line);
-            OrderItem oi = new OrderItem();
-            oi.setVariant(v);
-            oi.setProductId(v.getProduct().getId());
-            oi.setVariantName(v.getSku() != null ? v.getSku() : v.getProduct().getName());
-            oi.setPrice(unitPrice);
-            oi.setQuantity(it.getQuantity());
-            items.add(oi);
+        logger.info("[ORDER] >>> createOrder called with req: {}", req);
+    // Nếu thiếu thông tin địa chỉ nhận hàng, truy vấn từ Address
+    logger.info("[ORDER] Before snapshot: receiverName={}, receiverPhone={}, receiverAddress={}, province={}, district={}, ward={}, addressId={}",
+        req.getReceiverName(), req.getReceiverPhone(), req.getReceiverAddress(), req.getProvince(), req.getDistrict(), req.getWard(), req.getAddressId());
+    if ((req.getReceiverName() == null || req.getReceiverName().isBlank() ||
+        req.getReceiverPhone() == null || req.getReceiverPhone().isBlank() ||
+        req.getReceiverAddress() == null || req.getReceiverAddress().isBlank() ||
+        req.getProvince() == null || req.getProvince().isBlank() ||
+        req.getDistrict() == null || req.getDistrict().isBlank() ||
+        req.getWard() == null || req.getWard().isBlank()) && req.getAddressId() != null) {
+        // Truy vấn Address
+        Address address = addressRepository.findById(req.getAddressId())
+            .orElse(null);
+        if (address != null) {
+            logger.info("[ORDER] Snapshotting from Address entity: {}", address);
+            if (req.getReceiverName() == null || req.getReceiverName().isBlank()) req.setReceiverName(address.getContactName());
+            if (req.getReceiverPhone() == null || req.getReceiverPhone().isBlank()) req.setReceiverPhone(address.getContactPhone());
+            if (req.getReceiverAddress() == null || req.getReceiverAddress().isBlank()) req.setReceiverAddress(address.getFullAddress());
+            if (req.getProvince() == null || req.getProvince().isBlank()) req.setProvince(address.getProvinceName());
+            if (req.getDistrict() == null || req.getDistrict().isBlank()) req.setDistrict(address.getDistrictName());
+            if (req.getWard() == null || req.getWard().isBlank()) req.setWard(address.getWardName());
+        } else {
+            logger.warn("[ORDER] Address entity not found for addressId={}", req.getAddressId());
         }
+    }
+    logger.info("[ORDER] After snapshot: receiverName=" + req.getReceiverName()
+    + ", receiverPhone=" + req.getReceiverPhone()
+    + ", receiverAddress=" + req.getReceiverAddress()
+    + ", province=" + req.getProvince()
+    + ", district=" + req.getDistrict()
+    + ", ward=" + req.getWard());
+    var user = userRepository.findById(req.getUserId())
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        BigDecimal shippingFee = req.getShippingFee() != null ? req.getShippingFee() : null;
-        BigDecimal voucherDiscount = req.getVoucherDiscount() != null ? req.getVoucherDiscount() : BigDecimal.ZERO;
+    List<Long> variantIds = req.getItems().stream()
+            .map(CreateOrderRequestDTO.Item::getVariantId)
+            .collect(Collectors.toList());
 
-        // If frontend did not provide shippingFee, call GHN /fee to estimate
-        if (shippingFee == null) {
+    Map<Long, ProductVariant> variantMap = productVariantRepository.findAllById(variantIds)
+            .stream().collect(Collectors.toMap(ProductVariant::getId, v -> v));
+
+    BigDecimal subtotal = BigDecimal.ZERO;
+    List<OrderItem> items = new ArrayList<>();
+
+    for (var it : req.getItems()) {
+        ProductVariant v = variantMap.get(it.getVariantId());
+        if (v == null) throw new IllegalArgumentException("Variant not found: " + it.getVariantId());
+        if (v.getStock() == null || v.getStock() < it.getQuantity()) {
+            throw new IllegalStateException("Insufficient stock for variant " + v.getId());
+        }
+        v.setStock(v.getStock() - it.getQuantity());
+        productVariantRepository.save(v);
+
+        BigDecimal unitPrice = v.getPrice() == null ? BigDecimal.ZERO : v.getPrice();
+        BigDecimal line = unitPrice.multiply(BigDecimal.valueOf(it.getQuantity()));
+        subtotal = subtotal.add(line);
+        OrderItem oi = new OrderItem();
+        oi.setVariant(v);
+        oi.setProductId(v.getProduct().getId());
+        oi.setVariantName(v.getSku() != null ? v.getSku() : v.getProduct().getName());
+        oi.setPrice(unitPrice);
+        oi.setQuantity(it.getQuantity());
+        items.add(oi);
+    }
+
+    BigDecimal shippingFee = req.getShippingFee() != null ? req.getShippingFee() : null;
+    BigDecimal voucherDiscount = req.getVoucherDiscount() != null ? req.getVoucherDiscount() : BigDecimal.ZERO;
+
+    // If frontend did not provide shippingFee, call GHN /fee to estimate
+    if (shippingFee == null) {
+        try {
+            int totalWeight = calculateTotalChargeableWeightGrams(items);
+            Map<String, Object> feePayload = new HashMap<>();
+
+            // Resolve seller pickup address (from shop -> owner -> addresses)
+            Long shopId = null;
+            if (!items.isEmpty() && !variantMap.isEmpty()) {
+                ProductVariant firstVariant = variantMap.values().iterator().next();
+                Shop s = firstVariant.getProduct().getShop();
+                if (s != null) {
+                    shopId = s.getId();
+                    // resolve pickup address from shop owner (Shop has no Address relation)
+                    if (s.getOwner() != null && s.getOwner().getId() != null) {
+                        var ownerPickup = addressRepository.findFirstByUserIdAndTypeAddress(s.getOwner().getId(), TypeAddress.STORE);
+                        if (ownerPickup.isPresent()) {
+                            var pa = ownerPickup.get();
+                            if (pa.getDistrictId() != null) feePayload.put("from_district_id", pa.getDistrictId());
+                            if (pa.getWardCode() != null) feePayload.put("from_ward_code", pa.getWardCode());
+                        }
+                    }
+                }
+            }
+
+            // Resolve buyer address: prefer DTO values, otherwise buyer primary address
+            Integer toDistrict = null;
+            String toWard = null;
             try {
-                int totalWeight = calculateTotalChargeableWeightGrams(items);
-                Map<String, Object> feePayload = new HashMap<>();
+                if (req.getToDistrictId() != null) toDistrict = Integer.parseInt(req.getToDistrictId());
+            } catch (Exception ignored) {}
+            if (req.getToWardCode() != null && !req.getToWardCode().isBlank()) toWard = req.getToWardCode();
 
-                // Resolve seller pickup address (from shop -> owner -> addresses)
-                Long shopId = null;
-                if (!items.isEmpty() && !variantMap.isEmpty()) {
-                    ProductVariant firstVariant = variantMap.values().iterator().next();
-                    Shop s = firstVariant.getProduct().getShop();
-                    if (s != null) {
-                        shopId = s.getId();
-                        // resolve pickup address from shop owner (Shop has no Address relation)
-                        if (s.getOwner() != null && s.getOwner().getId() != null) {
-                            var ownerPickup = addressRepository.findFirstByUserIdAndTypeAddress(s.getOwner().getId(), TypeAddress.STORE);
-                            if (ownerPickup.isPresent()) {
-                                var pa = ownerPickup.get();
-                                if (pa.getDistrictId() != null) feePayload.put("from_district_id", pa.getDistrictId());
-                                if (pa.getWardCode() != null) feePayload.put("from_ward_code", pa.getWardCode());
-                            }
-                        }
-                    }
+            if (toDistrict == null || toWard == null) {
+                var buyerAddr = addressRepository.findFirstByUserIdAndTypeAddress(user.getId(), TypeAddress.HOME);
+                if (buyerAddr.isPresent()) {
+                    var ba = buyerAddr.get();
+                    if (toDistrict == null && ba.getDistrictId() != null) toDistrict = ba.getDistrictId();
+                    if (toWard == null && ba.getWardCode() != null) toWard = ba.getWardCode();
                 }
-
-                // Resolve buyer address: prefer DTO values, otherwise buyer primary address
-                Integer toDistrict = null;
-                String toWard = null;
-                try {
-                    if (req.getToDistrictId() != null) toDistrict = Integer.parseInt(req.getToDistrictId());
-                } catch (Exception ignored) {}
-                if (req.getToWardCode() != null && !req.getToWardCode().isBlank()) toWard = req.getToWardCode();
-
-                if (toDistrict == null || toWard == null) {
-                    var buyerAddr = addressRepository.findFirstByUserIdAndTypeAddress(user.getId(), TypeAddress.HOME);
-                    if (buyerAddr.isPresent()) {
-                        var ba = buyerAddr.get();
-                        if (toDistrict == null && ba.getDistrictId() != null) toDistrict = ba.getDistrictId();
-                        if (toWard == null && ba.getWardCode() != null) toWard = ba.getWardCode();
-                    }
-                }
-
-                if (toDistrict != null) feePayload.put("to_district_id", toDistrict);
-                if (toWard != null) feePayload.put("to_ward_code", toWard);
-
-                feePayload.put("weight", totalWeight);
-                feePayload.put("insurance_value", subtotal.intValue());
-                feePayload.put("cod_amount", req.getCodAmount() != null ? req.getCodAmount().intValue() : 0);
-
-                Map<String, Object> feeResp = ghnService.calculateFee(feePayload, shopId);
-                if (feeResp != null && feeResp.get("code") != null && Integer.valueOf(String.valueOf(feeResp.get("code"))) == 200) {
-                    Object data = feeResp.get("data");
-                    if (data instanceof Map) {
-                        Object totalFee = ((Map<?, ?>) data).get("total_fee");
-                        if (totalFee instanceof Number) shippingFee = BigDecimal.valueOf(((Number) totalFee).doubleValue());
-                        else if (totalFee != null) {
-                            try { shippingFee = new BigDecimal(String.valueOf(totalFee)); } catch (Exception ignored) {}
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
-                // fallback to zero if GHN fee fails
             }
+
+            if (toDistrict != null) feePayload.put("to_district_id", toDistrict);
+            if (toWard != null) feePayload.put("to_ward_code", toWard);
+
+            feePayload.put("weight", totalWeight);
+            feePayload.put("insurance_value", subtotal.intValue());
+            feePayload.put("cod_amount", req.getCodAmount() != null ? req.getCodAmount().intValue() : 0);
+
+            Map<String, Object> feeResp = ghnService.calculateFee(feePayload, shopId);
+            if (feeResp != null && feeResp.get("code") != null && Integer.valueOf(String.valueOf(feeResp.get("code"))) == 200) {
+                Object data = feeResp.get("data");
+                if (data instanceof Map) {
+                    Object totalFee = ((Map<?, ?>) data).get("total_fee");
+                    if (totalFee instanceof Number) shippingFee = BigDecimal.valueOf(((Number) totalFee).doubleValue());
+                    else if (totalFee != null) {
+                        try { shippingFee = new BigDecimal(String.valueOf(totalFee)); } catch (Exception ignored) {}
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // fallback to zero if GHN fee fails
         }
+    }
 
-        if (shippingFee == null) shippingFee = BigDecimal.ZERO;
+    if (shippingFee == null) shippingFee = BigDecimal.ZERO;
 
-        BigDecimal finalTotal = subtotal.add(shippingFee).subtract(voucherDiscount);
+    BigDecimal finalTotal = subtotal.add(shippingFee).subtract(voucherDiscount);
         if (finalTotal.compareTo(BigDecimal.ZERO) < 0) finalTotal = BigDecimal.ZERO;
 
         Shop shop = null;
@@ -278,6 +309,15 @@ public class OrderService {
             throw new IllegalArgumentException("Phải chọn phương thức thanh toán (method)!");
         }
         order.setMethod(req.getMethod());
+        // Set receiver and address info
+        order.setReceiverName(req.getReceiverName());
+        order.setReceiverPhone(req.getReceiverPhone());
+        order.setReceiverAddress(req.getReceiverAddress());
+        order.setProvince(req.getProvince());
+        order.setDistrict(req.getDistrict());
+        order.setWard(req.getWard());
+        // Set shipping fee
+        order.setShippingFee(shippingFee);
 
         Order saved = orderRepository.save(order);
         for (OrderItem oi : items) oi.setOrder(saved);
@@ -315,48 +355,12 @@ public class OrderService {
         logger.info("📦 GHN Payload for order #{}: to_district_id={}, to_ward_code={}, to_address={}", 
             saved.getId(), ghnPayload.get("to_district_id"), ghnPayload.get("to_ward_code"), ghnPayload.get("to_address"));
 
-        // Create shipment based on payment method
-        // COD: Tạo shipment ngay, nếu GHN fail thì rollback toàn bộ order
-        // Online payment (MOMO/SPORTYPAY): Chỉ tạo shipment sau khi thanh toán thành công
-        if ("COD".equalsIgnoreCase(saved.getMethod())) {
-            try {
-                var shipment = ghnService.createShippingOrderAsync(saved.getId(), ghnPayload);
-                if (shipment != null && shipment.getGhnOrderCode() != null) {
-                    saved.setShipment(shipment);
-                    orderRepository.save(saved);
-                    logger.info("✅ Shipment created successfully for COD order: {}", saved.getId());
-                } else {
-                    // GHN trả về null hoặc không có order code → rollback
-                    throw new RuntimeException("GHN không tạo được vận đơn. Vui lòng kiểm tra địa chỉ giao hàng.");
-                }
-            } catch (Exception ex) {
-                // Với COD, GHN fail là không thể tiếp tục → rollback order
-                logger.error("❌ GHN shipment creation failed for COD order: {}", ex.getMessage());
-                logger.error("GHN Payload: to_district_id={}, to_ward_code={}, to_address={}", 
-                    ghnPayload.get("to_district_id"), ghnPayload.get("to_ward_code"), ghnPayload.get("to_address"));
-                throw new RuntimeException("Không thể tạo vận đơn giao hàng. Vui lòng kiểm tra: " +
-                    "1) Địa chỉ giao hàng đầy đủ và chính xác, " +
-                    "2) Mã quận/huyện và phường/xã hợp lệ. " +
-                    "Chi tiết lỗi: " + ex.getMessage());
-            }
-            
-            // Xóa cart cho COD ngay sau khi tạo order thành công
-            try {
-                clearCartAfterSuccessfulPayment(user.getId(), saved.getId());
-                logger.info("✅ Cart cleared for COD order #{}", saved.getId());
-            } catch (Exception ex) {
-                logger.error("❌ Error clearing cart for COD: {}", ex.getMessage());
-            }
-        } else {
-            // Online payment: Chưa tạo shipment, chờ thanh toán xong mới tạo
-            logger.info("⏳ Shipment will be created after payment confirmation for method: {}", saved.getMethod());
-            logger.info("⏳ Cart will be cleared after payment confirmation");
-        }
-
+        // Shipment will only be created when seller confirms (PENDING → PROCESSING)
+        // For COD, shipment is NOT created here. For online payment, shipment is created after payment.
         return saved;
     }
 
-    /**
+    /***
      * Tạo shipment cho order sau khi thanh toán thành công (với online payment)
      * Được gọi từ CheckoutService sau khi xác nhận thanh toán
      */
@@ -368,7 +372,8 @@ public class OrderService {
             .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
         
         // Kiểm tra nếu đã có shipment thì không tạo nữa
-        if (order.getShipment() != null && order.getShipment().getGhnOrderCode() != null) {
+        var existingShipment = shipmentRepository.findByOrderId(order.getId()).orElse(null);
+        if (existingShipment != null && existingShipment.getGhnOrderCode() != null) {
             logger.info("Shipment already exists for order: {}", orderId);
             return;
         }
@@ -380,28 +385,28 @@ public class OrderService {
         }
         
         // Lấy shipment cũ (có thể là GHN_ERROR) để lấy thông tin
-        var existingShipment = order.getShipment();
-        if (existingShipment == null) {
+        var shipmentForRetry = shipmentRepository.findByOrderId(order.getId()).orElse(null);
+        if (shipmentForRetry == null) {
             logger.warn("No shipment record found for order: {}, cannot retry", orderId);
             return;
         }
         
-        // Chuẩn bị GHN payload từ thông tin shipment cũ
+        // Chuẩn bị GHN payload từ thông tin order
         Map<String, Object> ghnPayload = new HashMap<>();
-        ghnPayload.put("to_name", existingShipment.getReceiverName());
-        ghnPayload.put("to_phone", existingShipment.getReceiverPhone());
-        ghnPayload.put("to_address", existingShipment.getReceiverAddress());
-        ghnPayload.put("province", existingShipment.getProvince());
-        ghnPayload.put("district", existingShipment.getDistrict());
-        ghnPayload.put("ward", existingShipment.getWard());
+        ghnPayload.put("to_name", order.getReceiverName());
+        ghnPayload.put("to_phone", order.getReceiverPhone());
+        ghnPayload.put("to_address", order.getReceiverAddress());
+        ghnPayload.put("province", order.getProvince());
+        ghnPayload.put("district", order.getDistrict());
+        ghnPayload.put("ward", order.getWard());
         
         // Parse GHN payload cũ nếu có
-        if (existingShipment.getGhnPayload() != null) {
+        if (shipmentForRetry.getGhnPayload() != null) {
             try {
                 var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 @SuppressWarnings("unchecked")
                 Map<String, Object> oldPayload = objectMapper.readValue(
-                    existingShipment.getGhnPayload(), 
+                    shipmentForRetry.getGhnPayload(), 
                     Map.class
                 );
                 
@@ -427,7 +432,7 @@ public class OrderService {
         try {
             var shipment = ghnService.createShippingOrderAsync(orderId, ghnPayload);
             if (shipment != null && shipment.getGhnOrderCode() != null) {
-                order.setShipment(shipment);
+                // Shipment is managed separately via repository
                 orderRepository.save(order);
                 logger.info("✅ Shipment created successfully after payment for order: {}", orderId);
             } else {
@@ -928,7 +933,7 @@ public class OrderService {
         }
 
         // ⚠️ BUSINESS RULE: Seller không được tự ý chuyển sang COMPLETED hoặc CANCELLED
-        // COMPLETED: Chỉ buyer hoặc system (auto after 1 day) mới set được
+        // COMPLETED: Chỉ buyer hoặc hệ thống (auto after 1 day) mới set được
         // CANCELLED: Chỉ được phép từ PENDING hoặc PROCESSING (đã check ở controller)
         Order.OrderStatus currentStatus = order.getStatus();
         
@@ -980,7 +985,7 @@ public class OrderService {
         dto.setId(order.getId());
         // Convert Date to LocalDateTime
         if (order.getCreatedAt() != null) {
-            dto.setCreatedAt(LocalDateTime.ofInstant(order.getCreatedAt().toInstant(), ZoneId.systemDefault()));
+            dto.setCreatedAt(order.getCreatedAt() == null ? null : LocalDateTime.ofInstant(order.getCreatedAt().toInstant(), ZoneId.systemDefault()));
         }
         dto.setMethod(order.getMethod());
         dto.setStatus(order.getStatus() != null ? order.getStatus().name() : null);
@@ -1007,24 +1012,22 @@ public class OrderService {
         dto.setId(order.getId());
         // Convert Date to LocalDateTime
         if (order.getCreatedAt() != null) {
-            dto.setCreatedAt(LocalDateTime.ofInstant(order.getCreatedAt().toInstant(), ZoneId.systemDefault()));
+            dto.setCreatedAt(order.getCreatedAt() == null ? null : LocalDateTime.ofInstant(order.getCreatedAt().toInstant(), ZoneId.systemDefault()));
         }
         dto.setMethod(order.getMethod());
         dto.setStatus(order.getStatus() != null ? order.getStatus().name() : null);
         dto.setTotalAmount(order.getTotalAmount());
         // Convert Date to LocalDateTime
         if (order.getUpdatedAt() != null) {
-            dto.setUpdatedAt(LocalDateTime.ofInstant(order.getUpdatedAt().toInstant(), ZoneId.systemDefault()));
+            dto.setUpdatedAt(order.getUpdatedAt() == null ? null : LocalDateTime.ofInstant(order.getUpdatedAt().toInstant(), ZoneId.systemDefault()));
         }
         dto.setShopId(order.getShop() != null ? order.getShop().getId() : null);
         dto.setUserId(order.getUser() != null ? order.getUser().getId() : null);
 
-        // Thêm đoạn này để lấy thông tin giao hàng từ shipment
-        if (order.getShipment() != null) {
-            dto.setReceiverName(order.getShipment().getReceiverName());
-            dto.setReceiverPhone(order.getShipment().getReceiverPhone());
-            dto.setReceiverAddress(order.getShipment().getReceiverAddress());
-        }
+        // Lấy thông tin giao hàng từ Order (không cần shipment nữa)
+        dto.setReceiverName(order.getReceiverName());
+        dto.setReceiverPhone(order.getReceiverPhone());
+        dto.setReceiverAddress(order.getReceiverAddress());
 
         // Convert order items
         if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
@@ -1246,15 +1249,16 @@ public class OrderService {
         int completedCount = 0;
         for (Order order : shippingOrders) {
             // Kiểm tra xem có shipment và đã quá 1 ngày chưa
-            if (order.getShipment() != null && 
-                order.getShipment().getCreatedAt() != null &&
-                order.getShipment().getCreatedAt().isBefore(oneDayAgo)) {
+            var shipment = shipmentRepository.findByOrderId(order.getId()).orElse(null);
+            if (shipment != null && 
+                shipment.getCreatedAt() != null &&
+                shipment.getCreatedAt().isBefore(oneDayAgo)) {
                 
                 order.setStatus(Order.OrderStatus.COMPLETED);
                 order.setUpdatedAt(new Date());
                 orderRepository.save(order);
                 logger.info("Auto-completed order: {} (shipment created: {})", 
-                    order.getId(), order.getShipment().getCreatedAt());
+                    order.getId(), shipment.getCreatedAt());
                 completedCount++;
             }
         }
@@ -1329,113 +1333,8 @@ public class OrderService {
     private void createGhnShipmentForOrder(Order order) throws Exception {
         logger.info("Auto creating GHN shipment for order {}", order.getId());
         
-        // 1. Parse GHN info from order.notes
-        if (order.getNotes() == null || order.getNotes().trim().isEmpty()) {
-            logger.warn("Order {} has no GHN info in notes, skipping shipment creation", order.getId());
-            return;
-        }
-        
-        ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> ghnInfo;
-        try {
-            ghnInfo = mapper.readValue(order.getNotes(), new TypeReference<Map<String, Object>>() {});
-        } catch (Exception e) {
-            logger.error("Failed to parse GHN info from order {} notes: {}", order.getId(), e.getMessage());
-            throw new RuntimeException("Invalid GHN info format in order notes");
-        }
-        
-        Integer serviceId = (Integer) ghnInfo.get("serviceId");
-        Integer serviceTypeId = (Integer) ghnInfo.get("serviceTypeId");
-        Long addressId = ghnInfo.get("addressId") != null ? 
-            Long.valueOf(ghnInfo.get("addressId").toString()) : null;
-        String buyerNote = (String) ghnInfo.get("note");
-        
-        if (serviceId == null || addressId == null) {
-            throw new RuntimeException("Missing required GHN info: serviceId or addressId");
-        }
-        
-        // 2. Get buyer address
-        Address buyerAddress = addressRepository.findById(addressId)
-            .orElseThrow(() -> new RuntimeException("Buyer address not found: " + addressId));
-        
-        // 3. Get shop address (warehouse)
-        Shop shop = order.getShop();
-        if (shop == null) {
-            throw new RuntimeException("Order has no shop");
-        }
-        
-        Address shopAddress = addressRepository.findFirstByUserIdAndTypeAddress(shop.getId(), TypeAddress.STORE)
-            .stream()
-            .findFirst()
-            .orElseThrow(() -> new RuntimeException("Shop has no warehouse address"));
-        
-        // 4. Calculate COD amount (for COD payment method)
-        int codAmount = 0;
-        if ("COD".equalsIgnoreCase(order.getMethod())) {
-            codAmount = order.getTotalAmount().intValue();
-        }
-        
-        // 5. Prepare items for GHN
-        List<Map<String, Object>> items = new ArrayList<>();
-        for (OrderItem item : order.getOrderItems()) {
-            Map<String, Object> itemMap = new HashMap<>();
-            itemMap.put("name", item.getVariantName() != null ? item.getVariantName() : "Product");
-            itemMap.put("quantity", item.getQuantity());
-            itemMap.put("price", item.getPrice().intValue());
-            items.add(itemMap);
-        }
-        
-        // 6. Call GHN API to create order
-        Map<String, Object> createOrderRequest = new HashMap<>();
-        createOrderRequest.put("to_name", buyerAddress.getContactName());
-        createOrderRequest.put("to_phone", buyerAddress.getContactPhone());
-        createOrderRequest.put("to_address", buyerAddress.getFullAddress());
-        createOrderRequest.put("to_ward_code", buyerAddress.getWardCode());
-        createOrderRequest.put("to_district_id", buyerAddress.getDistrictId());
-        createOrderRequest.put("service_id", serviceId);
-        createOrderRequest.put("service_type_id", serviceTypeId != null ? serviceTypeId : 2);
-        createOrderRequest.put("payment_type_id", codAmount > 0 ? 2 : 1); // 2=COD, 1=Prepaid
-        createOrderRequest.put("required_note", "KHONGCHOXEMHANG"); // Standard note
-        createOrderRequest.put("weight", 1000); // Default 1kg
-        createOrderRequest.put("length", 20);
-        createOrderRequest.put("width", 20);
-        createOrderRequest.put("height", 10);
-        createOrderRequest.put("cod_amount", codAmount);
-        createOrderRequest.put("items", items);
-        
-        if (buyerNote != null && !buyerNote.trim().isEmpty()) {
-            createOrderRequest.put("note", buyerNote);
-        }
-        
-        // Call GHN API
-        Map<String, Object> ghnResponse = ghnService.createShippingOrder(createOrderRequest, shop.getId());
-        
-        if (ghnResponse == null || !ghnResponse.containsKey("order_code")) {
-            throw new RuntimeException("GHN API failed to create order");
-        }
-        
-        String ghnOrderCode = (String) ghnResponse.get("order_code");
-        Integer totalFee = (Integer) ghnResponse.getOrDefault("total_fee", 0);
-        String expectedDeliveryTime = (String) ghnResponse.get("expected_delivery_time");
-        
-        // 7. Create Shipment entity
-        Shipment shipment = new Shipment();
-        shipment.setOrder(order);
-        shipment.setGhnOrderCode(ghnOrderCode);
-        shipment.setShippingFee(new BigDecimal(totalFee));
-        shipment.setStatus("READY_TO_PICK"); // Initial status
-        shipment.setReceiverName(buyerAddress.getContactName());
-        shipment.setReceiverPhone(buyerAddress.getContactPhone());
-        shipment.setReceiverAddress(buyerAddress.getFullAddress());
-        shipment.setWard(buyerAddress.getWardName());
-        shipment.setDistrict(buyerAddress.getDistrictName());
-        shipment.setProvince(buyerAddress.getProvinceName());
-        shipment.setExpectedDeliveryTime(expectedDeliveryTime);
-        shipment.setCreatedAt(LocalDateTime.now());
-        
-        shipmentRepository.save(shipment);
-        
-        logger.info("Successfully created GHN shipment for order {}: {}", order.getId(), ghnOrderCode);
+        // TODO: Implement new shipment creation logic if needed, or remove this method if not used.
+        logger.warn("createGhnShipmentForOrder is deprecated: notes field and related shipment logic removed.");
     }
 }
 

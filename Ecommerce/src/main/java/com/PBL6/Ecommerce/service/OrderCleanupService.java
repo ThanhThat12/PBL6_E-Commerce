@@ -58,8 +58,9 @@ public class OrderCleanupService {
             userVouchersRepository.deleteByOrderId(order.getId());
             
             // 5. Xóa shipment nếu có (nếu không xóa, FK fk_order_shipment sẽ gây lỗi)
-            if (order.getShipment() != null) {
-                shipmentRepository.deleteById(order.getShipment().getId());
+            var shipment = shipmentRepository.findByOrderId(order.getId()).orElse(null);
+            if (shipment != null) {
+                shipmentRepository.deleteById(shipment.getId());
             }
             
             // 6. Xóa order (order_items sẽ tự động xóa vì ON DELETE CASCADE)

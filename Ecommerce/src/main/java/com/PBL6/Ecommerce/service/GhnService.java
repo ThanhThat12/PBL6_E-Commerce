@@ -87,28 +87,29 @@ public class GhnService {
      * Lấy danh sách dịch vụ vận chuyển khả dụng
      */
     public List<Map<String,Object>> getAvailableServices(Map<String,Object> payload, Long shopId) {
+        System.out.println("========== GHN SERVICE getAvailableServices ===========");
+        System.out.println("Received payload: " + payload);
+        System.out.println("ShopId: " + shopId);
+        
         try {
             Shop shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new RuntimeException("Shop not found"));
+            
+            System.out.println("Found shop: " + shop.getName());
+            System.out.println("Shop GHN Token: " + shop.getGhnToken());
+            System.out.println("Shop GHN ShopId: " + shop.getGhnShopId());
 
             // MOCK LOGIC: If token is 'DUMMY_TOKEN', return mock data
             if ("DUMMY_TOKEN".equals(shop.getGhnToken())) {
-                System.out.println("[MOCK] Returning mock GHN available services for shopId=" + shopId);
+                System.out.println("[MOCK] Returning standard delivery service for shopId=" + shopId);
                 List<Map<String, Object>> mockServices = new ArrayList<>();
-                Map<String, Object> service1 = new HashMap<>();
-                service1.put("service_id", 53320);
-                service1.put("short_name", "GHN Express");
-                service1.put("service_type_id", 1);
-                service1.put("service_name", "GHN Nhanh");
-                service1.put("description", "Giao hàng nhanh trong ngày");
-                mockServices.add(service1);
-                Map<String, Object> service2 = new HashMap<>();
-                service2.put("service_id", 53321);
-                service2.put("short_name", "GHN Saver");
-                service2.put("service_type_id", 2);
-                service2.put("service_name", "GHN Tiết kiệm");
-                service2.put("description", "Giao hàng tiết kiệm 2-3 ngày");
-                mockServices.add(service2);
+                Map<String, Object> standardService = new HashMap<>();
+                standardService.put("service_id", 53320);
+                standardService.put("short_name", "Giao hàng tiêu chuẩn");
+                standardService.put("service_type_id", 1);
+                standardService.put("service_name", "Giao hàng tiêu chuẩn");
+                standardService.put("description", "Dịch vụ giao hàng tiêu chuẩn");
+                mockServices.add(standardService);
                 return mockServices;
             }
 
@@ -128,13 +129,30 @@ public class GhnService {
             String url = ghnApiUrl + "/v2/shipping-order/available-services";
 
             ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+            
+            System.out.println("========== GHN AVAILABLE SERVICES RESPONSE ==========");
+            System.out.println("Status Code: " + response.getStatusCode());
+            System.out.println("Response Body: " + response.getBody());
+            System.out.println("====================================================");
 
             Map<String,Object> body = response.getBody();
             System.out.println("GHN Response: " + body);
 
             if (body != null && body.get("data") instanceof List) {
-                return (List<Map<String,Object>>) body.get("data");
+                List<Map<String,Object>> allServices = (List<Map<String,Object>>) body.get("data");
+                // Only return the first service as "Standard Delivery"
+                List<Map<String,Object>> standardServices = new ArrayList<>();
+                if (!allServices.isEmpty()) {
+                    Map<String,Object> firstService = new HashMap<>(allServices.get(0));
+                    firstService.put("short_name", "Giao hàng tiêu chuẩn");
+                    firstService.put("service_name", "Giao hàng tiêu chuẩn");
+                    firstService.put("description", "Dịch vụ giao hàng tiêu chuẩn");
+                    standardServices.add(firstService);
+                }
+                System.out.println("Returning " + standardServices.size() + " standard delivery service to client");
+                return standardServices;
             }
+            System.out.println("No services found - returning empty list");
             return new ArrayList<>();
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             System.err.println("❌ GHN Error Response: " + e.getResponseBodyAsString());
@@ -150,14 +168,62 @@ public class GhnService {
             Shop shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new RuntimeException("Shop not found"));
             
+            // ✅ Weight-based service selection logic
+            Integer totalWeight = (Integer) payload.getOrDefault("weight", 0);
+            String packageType = totalWeight < 1000 ? "light" : "heavy"; // Under 1kg = light, over 1kg = heavy
+            
+            System.out.println("========== WEIGHT-BASED CALCULATION ==========");
+            System.out.println("Total Weight: " + totalWeight + "g");
+            System.out.println("Package Type: " + packageType);
+            System.out.println("==============================================");
+            
+            // For DUMMY_TOKEN shops, return mock fee based on weight
+            if ("DUMMY_TOKEN".equals(shop.getGhnToken())) {
+                System.out.println("[MOCK] Calculating fee based on weight and location");
+                Map<String, Object> mockResponse = new HashMap<>();
+                Map<String, Object> data = new HashMap<>();
+                
+                // Base fee calculation based on weight and location
+                int baseFee = packageType.equals("light") ? 25000 : 45000; // Light: 25k, Heavy: 45k
+                
+                // Location factor (can be enhanced with real province/district mapping)
+                Integer toDistrictId = (Integer) payload.get("to_district_id");
+                Integer fromDistrictId = (Integer) payload.get("from_district_id");
+                double locationMultiplier = 1.0;
+                
+                if (toDistrictId != null && fromDistrictId != null) {
+                    // Simple distance simulation - in reality this would be more complex
+                    int distanceFactor = Math.abs(toDistrictId - fromDistrictId);
+                    locationMultiplier = 1.0 + (distanceFactor > 100 ? 0.4 : distanceFactor > 50 ? 0.2 : 0.1);
+                }
+                
+                int finalFee = (int) (baseFee * locationMultiplier);
+                
+                data.put("total", finalFee);
+                data.put("service_fee", finalFee);
+                data.put("insurance_fee", 0);
+                data.put("cod_fee", 0);
+                data.put("coupon_value", 0);
+                data.put("package_type", packageType);
+                data.put("weight_category", packageType.equals("light") ? "Hàng nhẹ" : "Hàng nặng");
+                
+                mockResponse.put("code", 200);
+                mockResponse.put("message", "Success");
+                mockResponse.put("data", data);
+                
+                System.out.println("Mock fee calculated: " + finalFee + " VND for " + packageType + " package");
+                return mockResponse;
+            }
+            
             HttpHeaders headers = getGhnHeaders(shop);
             
-            // ✅ Chuẩn hóa payload
+            // ✅ Chuẩn hóa payload và thêm thông tin trọng lượng
             Map<String, Object> normalizedPayload = normalizePayload(payload, shop);
             
             System.out.println("========== GHN CALCULATE FEE REQUEST ==========");
             System.out.println("URL: " + ghnApiUrl + "/v2/shipping-order/fee");
             System.out.println("Payload: " + normalizedPayload);
+            System.out.println("Package Type: " + packageType);
             System.out.println("==============================================");
             
             HttpEntity<Map<String,Object>> request = new HttpEntity<>(normalizedPayload, headers);
@@ -166,11 +232,19 @@ public class GhnService {
             
             ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
             
+            // Enhance response with weight information
+            Map<String, Object> responseBody = response.getBody();
+            if (responseBody != null && responseBody.get("data") instanceof Map) {
+                Map<String, Object> data = (Map<String, Object>) responseBody.get("data");
+                data.put("package_type", packageType);
+                data.put("weight_category", packageType.equals("light") ? "Hàng nhẹ" : "Hàng nặng");
+            }
+            
             System.out.println("========== GHN CALCULATE FEE RESPONSE ==========");
-            System.out.println("Response: " + response.getBody());
+            System.out.println("Response: " + responseBody);
             System.out.println("================================================");
             
-            return response.getBody();
+            return responseBody;
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             System.err.println("❌ GHN Error Response: " + e.getResponseBodyAsString());
             throw new RuntimeException("Lỗi tính phí: " + e.getMessage() + " - " + e.getResponseBodyAsString());
@@ -316,14 +390,7 @@ public class GhnService {
                 return null;
             }
             
-            // Tạo entity Shipment
             Shipment shipment = new Shipment();
-            shipment.setReceiverName(getString(payload, "to_name"));
-            shipment.setReceiverPhone(getString(payload, "to_phone"));
-            shipment.setReceiverAddress(getString(payload, "to_address"));
-            shipment.setProvince(getString(payload, "province"));
-            shipment.setDistrict(getString(payload, "district"));
-            shipment.setWard(getString(payload, "ward"));
             
             // Lấy thông tin từ GHN response
             Object data = ghnResponse.get("data");
@@ -337,19 +404,12 @@ public class GhnService {
                 }
                 
                 // Shipping fee
-                Object totalFee = dataMap.get("total_fee");
-                if (totalFee instanceof Number) {
-                    shipment.setShippingFee(BigDecimal.valueOf(((Number) totalFee).doubleValue()));
-                } else if (totalFee != null) {
-                    try {
-                        shipment.setShippingFee(new BigDecimal(String.valueOf(totalFee)));
-                    } catch (Exception ignored) {}
-                }
+                // Shipping fee now set on Order, not Shipment
                 
                 // Expected delivery time
-                Object expectedDeliveryTime = dataMap.get("expected_delivery_time");
-                if (expectedDeliveryTime != null) {
-                    shipment.setExpectedDeliveryTime(String.valueOf(expectedDeliveryTime));
+                Object expectedDelivery = dataMap.get("expected_delivery_time");
+                if (expectedDelivery != null) {
+                    // Parse to LocalDateTime if needed, or store as string in another field
                 }
             }
             
