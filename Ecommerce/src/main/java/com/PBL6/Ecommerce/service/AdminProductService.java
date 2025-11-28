@@ -10,11 +10,16 @@ import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.OrderItemRepository;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ProductReviewRepository;
+import com.PBL6.Ecommerce.repository.ProductVariantRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class AdminProductService {
@@ -23,31 +28,45 @@ public class AdminProductService {
     private final CartItemRepository cartItemRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductReviewRepository productReviewRepository;
+    private final ProductVariantRepository productVariantRepository;
 
     public AdminProductService(ProductRepository productRepository, 
                               CartItemRepository cartItemRepository,
                               OrderItemRepository orderItemRepository,
-                              ProductReviewRepository productReviewRepository) {
+                              ProductReviewRepository productReviewRepository,
+                              ProductVariantRepository productVariantRepository) {
         this.productRepository = productRepository;
         this.cartItemRepository = cartItemRepository;
         this.orderItemRepository = orderItemRepository;
         this.productReviewRepository = productReviewRepository;
+        this.productVariantRepository = productVariantRepository;
     }
 
     /**
      * Lấy danh sách sản phẩm với thông tin tổng hợp cho Admin (có phân trang)
+     * Logic xử lý ở Service layer thay vì Repository
      * @param pageable - Thông tin phân trang
      * @return Page<AdminListProductDTO> - Danh sách sản phẩm với thông tin tổng hợp
      */
     public Page<AdminListProductDTO> getProductsWithPaging(Pageable pageable) {
-        return productRepository.findAllProductsForAdmin(pageable)
-                .map(this::convertToDTO);
+        Page<Product> productPage = productRepository.findAllWithCategory(pageable);
+        
+        List<AdminListProductDTO> dtoList = productPage.getContent().stream()
+            .map(this::convertToAdminListProductDTO)
+            .collect(Collectors.toList());
+        
+        return new PageImpl<>(dtoList, pageable, productPage.getTotalElements());
     }
 
     public Page<AdminListProductDTO> searchProducts(String name, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return productRepository.findAllProductsForAdminWithSearch(name, pageable)
-                .map(this::convertToDTO);
+        Page<Product> productPage = productRepository.findByNameContaining(name, pageable);
+        
+        List<AdminListProductDTO> dtoList = productPage.getContent().stream()
+            .map(this::convertToAdminListProductDTO)
+            .collect(Collectors.toList());
+        
+        return new PageImpl<>(dtoList, pageable, productPage.getTotalElements());
     }
 
     /**
@@ -55,10 +74,15 @@ public class AdminProductService {
      * @return AdminProductStats - Thống kê sản phẩm
      */
     public AdminProductStats getProductStats() {
-        Long totalProducts = productRepository.countTotalProducts();
-        Long activeProducts = productRepository.countActiveProducts();
-        Long pendingProducts = productRepository.countPendingProducts();
-        Long totalProductsSold = productRepository.countTotalProductsSold();
+        Long totalProducts = productRepository.count();
+        Long activeProducts = productRepository.countByIsActiveFalse();
+        Long pendingProducts = productRepository.countByIsActiveFalse();
+        
+        // Tính tổng sản phẩm đã bán từ tất cả COMPLETED orders
+        Long totalProductsSold = orderItemRepository.findAll().stream()
+            .filter(oi -> oi.getOrder() != null && "COMPLETED".equals(oi.getOrder().getStatus()))
+            .mapToLong(oi -> oi.getQuantity())
+            .sum();
         
         return new AdminProductStats(totalProducts, activeProducts, pendingProducts, totalProductsSold);
     }
@@ -70,8 +94,13 @@ public class AdminProductService {
      * @return Page<AdminListProductDTO> - Danh sách sản phẩm theo category
      */
     public Page<AdminListProductDTO> getProductsByCategory(String categoryName, Pageable pageable) {
-        return productRepository.findProductsByCategory(categoryName, pageable)
-                .map(this::convertToDTO);
+        Page<Product> productPage = productRepository.findByCategoryName(categoryName, pageable);
+        
+        List<AdminListProductDTO> dtoList = productPage.getContent().stream()
+            .map(this::convertToAdminListProductDTO)
+            .collect(Collectors.toList());
+        
+        return new PageImpl<>(dtoList, pageable, productPage.getTotalElements());
     }
 
     /**
@@ -82,8 +111,40 @@ public class AdminProductService {
      */
     public Page<AdminListProductDTO> getProductsByStatus(String status, Pageable pageable) {
         Boolean isActive = "Active".equalsIgnoreCase(status);
-        return productRepository.findProductsByStatus(isActive, pageable)
-                .map(this::convertToDTO);
+        Page<Product> productPage = productRepository.findByIsActive(isActive, pageable);
+        
+        List<AdminListProductDTO> dtoList = productPage.getContent().stream()
+            .map(this::convertToAdminListProductDTO)
+            .collect(Collectors.toList());
+        
+        return new PageImpl<>(dtoList, pageable, productPage.getTotalElements());
+    }
+
+    /**
+     * Chuyển đổi Product entity sang AdminListProductDTO
+     * Xử lý logic tính toán các trường: totalStock, sales, rating
+     */
+    private AdminListProductDTO convertToAdminListProductDTO(Product product) {
+        // Lấy tổng stock từ tất cả variants
+        Long totalStock = productVariantRepository.getTotalStockByProductId(product.getId());
+        
+        // Lấy tổng số lượng đã bán (chỉ COMPLETED orders)
+        Long totalSold = orderItemRepository.getTotalSoldByProductId(product.getId());
+        
+        // Lấy rating trung bình
+        Double avgRating = productReviewRepository.getAverageRatingByProductId(product.getId());
+        
+        return new AdminListProductDTO(
+            product.getId(),
+            product.getName(),
+            product.getMainImage(),
+            product.getCategory() != null ? product.getCategory().getName() : "Uncategorized",
+            product.getBasePrice(),
+            totalStock != null ? totalStock : 0L,
+            product.getIsActive(),
+            totalSold != null ? totalSold : 0L,
+            avgRating != null ? avgRating : 0.0
+        );
     }
 
     /**

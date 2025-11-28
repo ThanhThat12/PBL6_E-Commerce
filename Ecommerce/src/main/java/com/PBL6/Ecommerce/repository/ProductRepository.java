@@ -1,7 +1,6 @@
 package com.PBL6.Ecommerce.repository;
 
 import com.PBL6.Ecommerce.domain.Product;
-import com.PBL6.Ecommerce.domain.dto.admin.AdminListProductProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -121,112 +120,20 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p WHERE p.mainImagePublicId = :publicId")
     List<Product> findByMainImagePublicId(@Param("publicId") String publicId);
 
-    // 🆕 Admin: Lấy danh sách sản phẩm với thông tin tổng hợp (phân trang)
-    @Query(value = "SELECT p.id AS productId, " +
-           "p.name AS productName, " +
-           "p.main_image AS mainImage, " +
-           "c.name AS categoryName, " +
-           "p.base_price AS basePrice, " +
-           "COALESCE(SUM(pv.stock), 0) AS totalStock, " +
-           "p.is_active AS isActive, " +
-           "COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) AS sales, " +
-           "COALESCE(AVG(pr.rating), 0.0) AS rating " +
-           "FROM products p " +
-           "LEFT JOIN categories c ON p.category_id = c.id " +
-           "LEFT JOIN product_variants pv ON pv.product_id = p.id " +
-           "LEFT JOIN order_items oi ON oi.variant_id = pv.id " +
-           "LEFT JOIN orders o ON oi.order_id = o.id " +
-           "LEFT JOIN product_reviews pr ON pr.product_id = p.id " +
-           "GROUP BY p.id, p.name, p.main_image, c.name, p.base_price, p.is_active",
-           countQuery = "SELECT COUNT(DISTINCT p.id) FROM products p",
-           nativeQuery = true)
-    Page<AdminListProductProjection> findAllProductsForAdmin(Pageable pageable);
+    // Đơn giản hóa: Chỉ lấy Product entities, logic xử lý sẽ ở Service
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category")
+    Page<Product> findAllWithCategory(Pageable pageable);
 
-    // 🆕 Admin: Lấy danh sách sản phẩm theo category
-    @Query(value = "SELECT p.id AS productId, " +
-           "p.name AS productName, " +
-           "p.main_image AS mainImage, " +
-           "c.name AS categoryName, " +
-           "p.base_price AS basePrice, " +
-           "COALESCE(SUM(pv.stock), 0) AS totalStock, " +
-           "p.is_active AS isActive, " +
-           "COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) AS sales, " +
-           "COALESCE(AVG(pr.rating), 0.0) AS rating " +
-           "FROM products p " +
-           "LEFT JOIN categories c ON p.category_id = c.id " +
-           "LEFT JOIN product_variants pv ON pv.product_id = p.id " +
-           "LEFT JOIN order_items oi ON oi.variant_id = pv.id " +
-           "LEFT JOIN orders o ON oi.order_id = o.id " +
-           "LEFT JOIN product_reviews pr ON pr.product_id = p.id " +
-           "WHERE c.name = :categoryName " +
-           "GROUP BY p.id, p.name, p.main_image, c.name, p.base_price, p.is_active",
-           countQuery = "SELECT COUNT(DISTINCT p.id) FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE c.name = :categoryName",
-           nativeQuery = true)
-    Page<AdminListProductProjection> findProductsByCategory(@Param("categoryName") String categoryName, Pageable pageable);
+    //ADMIN Lấy products theo category name
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category c WHERE c.name = :categoryName")
+    Page<Product> findByCategoryName(@Param("categoryName") String categoryName, Pageable pageable);
 
-    // 🆕 Admin: Lấy danh sách sản phẩm theo status
-    @Query(value = "SELECT p.id AS productId, " +
-           "p.name AS productName, " +
-           "p.main_image AS mainImage, " +
-           "c.name AS categoryName, " +
-           "p.base_price AS basePrice, " +
-           "COALESCE(SUM(pv.stock), 0) AS totalStock, " +
-           "p.is_active AS isActive, " +
-           "COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) AS sales, " +
-           "COALESCE(AVG(pr.rating), 0.0) AS rating " +
-           "FROM products p " +
-           "LEFT JOIN categories c ON p.category_id = c.id " +
-           "LEFT JOIN product_variants pv ON pv.product_id = p.id " +
-           "LEFT JOIN order_items oi ON oi.variant_id = pv.id " +
-           "LEFT JOIN orders o ON oi.order_id = o.id " +
-           "LEFT JOIN product_reviews pr ON pr.product_id = p.id " +
-           "WHERE p.is_active = :isActive " +
-           "GROUP BY p.id, p.name, p.main_image, c.name, p.base_price, p.is_active",
-           countQuery = "SELECT COUNT(DISTINCT p.id) FROM products p WHERE p.is_active = :isActive",
-           nativeQuery = true)
-    Page<AdminListProductProjection> findProductsByStatus(@Param("isActive") Boolean isActive, Pageable pageable);
+    //ADMIN Lấy products theo isActive status
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE p.isActive = :isActive")
+    Page<Product> findByIsActive(@Param("isActive") Boolean isActive, Pageable pageable);
 
-    // 🆕 Admin: Tìm kiếm sản phẩm theo tên
-    @Query(value = "SELECT p.id AS productId, " +
-           "p.name AS productName, " +
-           "p.main_image AS mainImage, " +
-           "c.name AS categoryName, " +
-           "p.base_price AS basePrice, " +
-           "COALESCE(SUM(pv.stock), 0) AS totalStock, " +
-           "p.is_active AS isActive, " +
-           "COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) AS sales, " +
-           "COALESCE(AVG(pr.rating), 0.0) AS rating " +
-           "FROM products p " +
-           "LEFT JOIN categories c ON p.category_id = c.id " +
-           "LEFT JOIN product_variants pv ON pv.product_id = p.id " +
-           "LEFT JOIN order_items oi ON oi.variant_id = pv.id " +
-           "LEFT JOIN orders o ON oi.order_id = o.id " +
-           "LEFT JOIN product_reviews pr ON pr.product_id = p.id " +
-           "WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')) " +
-           "GROUP BY p.id, p.name, p.main_image, c.name, p.base_price, p.is_active",
-           countQuery = "SELECT COUNT(DISTINCT p.id) FROM products p " +
-                  "WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))",
-           nativeQuery = true)
-    Page<AdminListProductProjection> findAllProductsForAdminWithSearch(
-    @Param("name") String name, Pageable pageable);
-
-    // 🆕 Admin Stats: Đếm tổng số sản phẩm
-    @Query("SELECT COUNT(p) FROM Product p")
-    Long countTotalProducts();
-
-    // 🆕 Admin Stats: Đếm sản phẩm Active
-    @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true")
-    Long countActiveProducts();
-
-    // 🆕 Admin Stats: Đếm sản phẩm Pending
-    @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = false")
-    Long countPendingProducts();
-
-    // 🆕 Admin Stats: Tổng sản phẩm đã bán (COMPLETED orders)
-    @Query("SELECT COALESCE(SUM(oi.quantity), 0L) FROM OrderItem oi " +
-           "LEFT JOIN oi.order o " +
-           "WHERE o.status = 'COMPLETED'")
-    Long countTotalProductsSold();
-
+    //ADMIN Search products by name
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+    Page<Product> findByNameContaining(@Param("name") String name, Pageable pageable);
+    
 }
-
