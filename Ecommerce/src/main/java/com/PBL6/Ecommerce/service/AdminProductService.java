@@ -2,6 +2,7 @@ package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.domain.Product;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminListProductDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminListProductProjection;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminProductStats;
 import com.PBL6.Ecommerce.exception.BadRequestException;
 import com.PBL6.Ecommerce.exception.ProductNotFoundException;
@@ -178,6 +179,25 @@ public class AdminProductService {
 
         // Xóa sản phẩm (cascade sẽ tự động xóa product_variants và product_images)
         productRepository.delete(product);
+    }
+
+    /**
+     * Convert AdminListProductProjection to AdminListProductDTO
+     * @param projection - Interface projection from native query
+     * @return AdminListProductDTO - Converted DTO
+     */
+    private AdminListProductDTO convertToDTO(AdminListProductProjection projection) {
+        return new AdminListProductDTO(
+                projection.getProductId(),
+                projection.getProductName(),
+                projection.getMainImage(),
+                projection.getCategoryName(),
+                projection.getBasePrice(),
+                projection.getTotalStock(),
+                projection.getIsActive(),
+                projection.getSales(),
+                projection.getRating()
+        );
     }
 
     

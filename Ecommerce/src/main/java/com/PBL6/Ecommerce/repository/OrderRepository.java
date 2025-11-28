@@ -218,6 +218,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         @Param("shopId") Long shopId, 
         @Param("startDate") LocalDateTime startDate);
 
+    // Lấy đơn hàng theo shop và status
+    List<Order> findByShopIdAndStatus(Long shopId, Order.OrderStatus status);
+    
+    // Lấy đơn hàng theo shop, sắp xếp theo ngày tạo
+    List<Order> findByShopIdOrderByCreatedAtDesc(Long shopId);
    
 }
 
