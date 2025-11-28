@@ -100,7 +100,7 @@ public class AddressService {
         a.setProvinceId(req.provinceId);
         a.setDistrictId(req.districtId);
         a.setWardCode(req.wardCode);
-        
+        a.setTypeAddress(TypeAddress.HOME);
         // Set names from request if provided, otherwise resolve from GHN
         if (req.provinceName != null && !req.provinceName.isBlank()) {
             a.setProvinceName(req.provinceName);

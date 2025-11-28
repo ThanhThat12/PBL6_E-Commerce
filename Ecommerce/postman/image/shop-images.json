@@ -1,0 +1,188 @@
+{
+  "info": {
+    "name": "Shop Branding Images",
+    "_postman_id": "shop-images-collection",
+    "description": "Shop logo and banner image management endpoints. Test upload, replacement, and deletion of shop branding images.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Shop Logo Operations",
+      "item": [
+        {
+          "name": "Upload Shop Logo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/logo.png",
+                  "description": "Shop logo image file (recommended: 400x400 PNG with transparency)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/shops/:shopId/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shops", ":shopId", "logo"],
+              "variable": [
+                {
+                  "key": "shopId",
+                  "value": "1",
+                  "description": "The ID of the shop"
+                }
+              ]
+            },
+            "description": "Upload or replace shop logo. If a logo already exists, it will be deleted and replaced. Recommended dimensions: 400x400. Supports PNG with transparency."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Shop Logo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/shops/:shopId/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shops", ":shopId", "logo"],
+              "variable": [
+                {
+                  "key": "shopId",
+                  "value": "1",
+                  "description": "The ID of the shop"
+                }
+              ]
+            },
+            "description": "Delete shop logo. Removes the image from Cloudinary and sets logo fields to NULL in the database."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints for managing shop logo (400x400 with transparency support)"
+    },
+    {
+      "name": "Shop Banner Operations",
+      "item": [
+        {
+          "name": "Upload Shop Banner",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/banner.jpg",
+                  "description": "Shop banner image file (recommended: 1200x400 JPG)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/shops/:shopId/banner",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shops", ":shopId", "banner"],
+              "variable": [
+                {
+                  "key": "shopId",
+                  "value": "1",
+                  "description": "The ID of the shop"
+                }
+              ]
+            },
+            "description": "Upload or replace shop banner. If a banner already exists, it will be deleted and replaced. Recommended dimensions: 1200x400. Will be cropped to fill if aspect ratio doesn't match."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Shop Banner",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/shops/:shopId/banner",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shops", ":shopId", "banner"],
+              "variable": [
+                {
+                  "key": "shopId",
+                  "value": "1",
+                  "description": "The ID of the shop"
+                }
+              ]
+            },
+            "description": "Delete shop banner. Removes the image from Cloudinary and sets banner fields to NULL in the database."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints for managing shop banner (1200x400 crop fill)"
+    },
+    {
+      "name": "Complete Shop Branding Setup",
+      "item": [
+        {
+          "name": "Setup Complete Branding (Logo + Banner)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/logo.png",
+                  "description": "Upload logo first"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/shops/:shopId/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shops", ":shopId", "logo"],
+              "variable": [
+                {
+                  "key": "shopId",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Step 1: Upload shop logo. After this completes, run the banner upload request."
+          },
+          "response": []
+        }
+      ],
+      "description": "Complete workflow for setting up shop branding"
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT access token for authentication (SELLER or ADMIN role required)"
+    }
+  ]
+}

@@ -1,0 +1,479 @@
+{
+  "info": {
+    "name": "Product Variant Images API - Enhanced",
+    "description": "Enhanced API collection for testing variant image upload with improved validation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.1.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "product_id", 
+      "value": "10",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Login Seller",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.accessToken) {",
+                  "        pm.collectionVariables.set('access_token', response.data.accessToken);",
+                  "        console.log('✅ Access token saved');",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"seller@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Primary Attribute Values",
+      "item": [
+        {
+          "name": "Get Primary Attribute Values",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has primary attribute values', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "    console.log('📝 Available primary attribute values:', response.data);",
+                  "    ",
+                  "    // Save first available value for variant image upload",
+                  "    if (response.data && response.data.length > 0) {",
+                  "        pm.collectionVariables.set('first_primary_value', response.data[0]);",
+                  "        pm.collectionVariables.set('second_primary_value', response.data[1] || response.data[0]);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}/images/variant/values",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}", "images", "variant", "values"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🖼️ Variant Image Upload - Enhanced",
+      "item": [
+        {
+          "name": "Upload Variant Image - Valid Value",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains variant image data', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('imageUrl');",
+                  "    pm.expect(response.data).to.have.property('publicId');",
+                  "    pm.expect(response.data).to.have.property('attributeValue');",
+                  "    console.log('✅ Variant image uploaded:', response.data.attributeValue);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "attributeValue",
+                  "value": "{{first_primary_value}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}/images/variant",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}", "images", "variant"]
+            }
+          }
+        },
+        {
+          "name": "Upload Variant Image - Second Value",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains variant image data', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('imageUrl');",
+                  "    pm.expect(response.data).to.have.property('publicId');",
+                  "    console.log('✅ Second variant image uploaded:', response.data.attributeValue);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "attributeValue",
+                  "value": "{{second_primary_value}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}/images/variant",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}", "images", "variant"]
+            }
+          }
+        },
+        {
+          "name": "Upload Variant Image - Invalid Value (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 (Bad Request)', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions available values', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.include('Available values');",
+                  "    console.log('✅ Validation error as expected:', response.message);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "attributeValue",
+                  "value": "InvalidValue123",
+                  "type": "text",
+                  "description": "This should fail with improved error message"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}/images/variant",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}", "images", "variant"]
+            }
+          }
+        },
+        {
+          "name": "Replace Existing Variant Image",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response indicates replacement', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('imageUrl');",
+                  "    console.log('✅ Variant image replaced successfully');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "attributeValue",
+                  "value": "{{first_primary_value}}",
+                  "type": "text",
+                  "description": "Upload new image for same attribute value to test replacement"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}/images/variant",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}", "images", "variant"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🗑️ Delete Variant Images",
+      "item": [
+        {
+          "name": "Delete Variant Image - Valid Value",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Success message returned', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.include('deleted');",
+                  "    console.log('✅ Variant image deleted successfully');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}/images/variant?attributeValue={{second_primary_value}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}", "images", "variant"],
+              "query": [
+                {
+                  "key": "attributeValue",
+                  "value": "{{second_primary_value}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Non-Existent Variant Image (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 (Not Found)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates not found', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.message).to.include('not found');",
+                  "    console.log('✅ Expected 404 error for non-existent image');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}/images/variant?attributeValue=NonExistentValue",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}", "images", "variant"],
+              "query": [
+                {
+                  "key": "attributeValue",
+                  "value": "NonExistentValue"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Get Product Images",
+      "item": [
+        {
+          "name": "Get All Product Images",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains image data structure', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.data).to.have.property('mainImage');",
+                  "    pm.expect(response.data).to.have.property('galleryImages');",
+                  "    pm.expect(response.data).to.have.property('variantImages');",
+                  "    pm.expect(response.data).to.have.property('primaryAttribute');",
+                  "    ",
+                  "    console.log('📊 Product images summary:');",
+                  "    console.log('Main image:', response.data.mainImage ? '✅' : '❌');",
+                  "    console.log('Gallery images:', response.data.galleryImages.length);",
+                  "    console.log('Variant images:', Object.keys(response.data.variantImages).length);",
+                  "    console.log('Primary attribute:', response.data.primaryAttribute?.name);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}/images",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}", "images"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧪 Test Scenarios",
+      "item": [
+        {
+          "name": "Test Query Accuracy - Multiple Values",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// This test simulates the scenario you mentioned:",
+                  "// When you upload 'Home' then 'Away', the old query would find 'Home, Away'",
+                  "// The new query should only find exact matches",
+                  "console.log('🧪 Testing query accuracy with multiple attribute values');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Primary attribute values query is accurate', function () {",
+                  "    const response = pm.response.json();",
+                  "    const values = response.data;",
+                  "    ",
+                  "    // Each value should be a distinct string, not a comma-separated list",
+                  "    values.forEach(value => {",
+                  "        pm.expect(value).to.be.a('string');",
+                  "        pm.expect(value).to.not.include(',', 'Values should not contain commas (indicating concatenated results)');",
+                  "    });",
+                  "    ",
+                  "    console.log('✅ All values are distinct:', values);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}/images/variant/values",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}", "images", "variant", "values"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

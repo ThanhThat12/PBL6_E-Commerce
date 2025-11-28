@@ -52,7 +52,7 @@ public class GhnController {
                 Object orderCode = ((Map<?, ?>) data).get("order_code");
                 if (orderCode != null) s.setGhnOrderCode(String.valueOf(orderCode));
                 Object totalFee = ((Map<?, ?>) data).get("total_fee");
-                if (totalFee instanceof Number) s.setShippingFee(java.math.BigDecimal.valueOf(((Number) totalFee).doubleValue()));
+                // Shipping fee now set on Order, not Shipment
             }
             s.setGhnPayload(ghnService.toJson(resp));
             s.setStatus("CREATED");
@@ -102,7 +102,7 @@ public class GhnController {
                 Object orderCode = ((Map<?, ?>) data).get("order_code");
                 if (orderCode != null) s.setGhnOrderCode(String.valueOf(orderCode));
                 Object totalFee = ((Map<?, ?>) data).get("total_fee");
-                if (totalFee instanceof Number) s.setShippingFee(java.math.BigDecimal.valueOf(((Number) totalFee).doubleValue()));
+                // Shipping fee now set on Order, not Shipment
             }
             s.setGhnPayload(ghnService.toJson(resp));
             s.setStatus("CREATED");

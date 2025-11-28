@@ -60,7 +60,10 @@ public class ProductReview {
     private String comment;
 
     @Column(columnDefinition = "JSON")
-    private String images; // JSON array: ["url1", "url2"]
+    private String images; // JSON array: [{"url": "...", "publicId": "..."}, ...]
+
+    @Column(name = "images_count", columnDefinition = "INT DEFAULT 0")
+    private Integer imagesCount = 0;
 
     @Column(nullable = false, columnDefinition = "bit(1) default 1")
     private Boolean verifiedPurchase = true;
@@ -147,6 +150,14 @@ public class ProductReview {
 
     public void setImages(String images) {
         this.images = images;
+    }
+
+    public Integer getImagesCount() {
+        return imagesCount;
+    }
+
+    public void setImagesCount(Integer imagesCount) {
+        this.imagesCount = imagesCount;
     }
 
     public Boolean getVerifiedPurchase() {

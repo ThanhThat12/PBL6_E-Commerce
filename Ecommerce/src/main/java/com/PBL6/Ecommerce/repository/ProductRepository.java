@@ -47,7 +47,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // Tìm theo shop entity
     @Query("SELECT p FROM Product p WHERE p.shop = :shop")
     List<Product> findByShop(@Param("shop") com.PBL6.Ecommerce.domain.Shop shop);
-    
+
     // Tìm sản phẩm đang hoạt động
     Page<Product> findByIsActiveTrue(Pageable pageable);
 
@@ -100,6 +100,25 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      // Tìm sản phẩm theo shop ID và trạng thái
     Page<Product> findByShopIdAndIsActive(Long shopId, Boolean isActive, Pageable pageable);
     List<Product> findByShopIdAndIsActive(Long shopId, Boolean isActive);
+    // ========== IMAGE-RELATED QUERIES ==========
+
+    /**
+     * Find products with main images
+     */
+    @Query("SELECT p FROM Product p WHERE p.mainImage IS NOT NULL")
+    Page<Product> findProductsWithMainImages(Pageable pageable);
+
+    /**
+     * Find products without main images
+     */
+    @Query("SELECT p FROM Product p WHERE p.mainImage IS NULL AND p.shop.owner.id = :sellerId")
+    List<Product> findProductsWithoutMainImagesBySeller(@Param("sellerId") Long sellerId);
+
+    /**
+     * Find product by main image public_id (for deletion verification)
+     */
+    @Query("SELECT p FROM Product p WHERE p.mainImagePublicId = :publicId")
+    List<Product> findByMainImagePublicId(@Param("publicId") String publicId);
 
     // Đơn giản hóa: Chỉ lấy Product entities, logic xử lý sẽ ở Service
     @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category")
