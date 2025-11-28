@@ -31,18 +31,9 @@ public class OrdersController {
     }
 
     /**
-     * API lấy danh sách đơn hàng của seller
-     * GET /api/seller/orders
-     * Lấy tất cả orders của shop thuộc seller đang đăng nhập
-     * Chỉ SELLER mới có quyền truy cập
+     * NOTE: API lấy danh sách đơn hàng đã được chuyển sang SellerOrderController
+     * Sử dụng endpoint: GET /api/seller/orders (có hỗ trợ filter theo status)
      */
-    @GetMapping("/orders")
-    @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ResponseDTO<List<OrderDTO>>> getSellerOrders(Authentication authentication) {
-        String username = authentication.getName();
-        List<OrderDTO> orders = orderService.getSellerOrders(username);
-        return ResponseDTO.success(orders, "Lấy danh sách đơn hàng thành công");
-    }
 
     /**
      * API lấy chi tiết đơn hàng theo ID
@@ -57,6 +48,7 @@ public class OrdersController {
             Authentication authentication) {
         String username = authentication.getName();
         OrderDetailDTO order = orderService.getOrderDetail(id, username);
+        // Các trường shipping/receiver đã được map đầy đủ trong OrderDetailDTO
         return ResponseDTO.success(order, "Lấy chi tiết đơn hàng thành công");
     }
 
