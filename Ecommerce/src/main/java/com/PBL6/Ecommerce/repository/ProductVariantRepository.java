@@ -18,4 +18,8 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     
     @Query("SELECT pv FROM ProductVariant pv WHERE pv.product.id = :productId AND pv.stock > 0")
     List<ProductVariant> findInStockVariantsByProductId(@Param("productId") Long productId);
+    
+    // Tính tổng stock cho một product
+    @Query("SELECT COALESCE(SUM(pv.stock), 0) FROM ProductVariant pv WHERE pv.product.id = :productId")
+    Long getTotalStockByProductId(@Param("productId") Long productId);
 }
