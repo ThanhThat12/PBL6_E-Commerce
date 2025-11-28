@@ -7,30 +7,49 @@ public class ProductDTO {
     private Long id;
     private String name;
     private String description;
-    private String mainImage; // thay vì image
-    private BigDecimal basePrice; // thay vì price
-    private Boolean isActive; // thêm field này
-    private CategoryDTO category; // thay vì categoryName
-    private String shopName; // có thể giữ hoặc đổi thành ShopDTO
-    private List<ProductVariantDTO> variants; // thêm variants
-    private List<ProductImageDTO> images; // thêm images
-    private Long shopId; // Thêm field shopId
+    private String mainImage;
+    private String mainImagePublicId;
+    private BigDecimal basePrice;
+    private Boolean isActive;
+    private String productCondition; // NEW, USED
+    private BigDecimal rating; // Average rating (0-5)
+    private Integer reviewCount; // Số lượng reviews
+    private Integer soldCount; // Đã bán bao nhiêu
+    private java.time.LocalDateTime createdAt;
+    private java.time.LocalDateTime updatedAt;
+    
+    // Shipping dimensions
+    private Integer weightGrams;
+    private Integer lengthCm;
+    private Integer widthCm;
+    private Integer heightCm;
+    
+    // Relationships
+    private CategoryDTO category;
+    private Long shopId;
+    private String shopName;
+    private List<ProductVariantDTO> variants;
+    private List<ProductImageDTO> images;
 
     // Constructor mặc định
     public ProductDTO() {}
 
-    // Constructor với các fields cơ bản (backward compatibility)
+    // Constructor with basic fields (backward compatibility)
     public ProductDTO(Long id, String name, String description, String image, BigDecimal price, 
-                     Integer stock, String condition, String categoryName, String shopName) {
+                     String categoryName, String shopName) {
         this.id = id;
         this.name = name;
         this.description = description;
         this.mainImage = image;
         this.basePrice = price;
         this.shopName = shopName;
-        // Tạo category object
         this.category = new CategoryDTO();
         this.category.setName(categoryName);
+        this.isActive = true;
+        this.productCondition = "NEW";
+        this.rating = BigDecimal.ZERO;
+        this.reviewCount = 0;
+        this.soldCount = 0;
     }
 
     // Getters and Setters
@@ -64,8 +83,41 @@ public class ProductDTO {
     public List<ProductImageDTO> getImages() { return images; }
     public void setImages(List<ProductImageDTO> images) { this.images = images; }
 
-    public Long getShopId() { return shopId; } // Thêm getter cho shopId
-    public void setShopId(Long shopId) { this.shopId = shopId; } // Thêm setter cho shopId
+    public Long getShopId() { return shopId; }
+    public void setShopId(Long shopId) { this.shopId = shopId; }
+
+    public String getMainImagePublicId() { return mainImagePublicId; }
+    public void setMainImagePublicId(String mainImagePublicId) { this.mainImagePublicId = mainImagePublicId; }
+
+    public String getProductCondition() { return productCondition; }
+    public void setProductCondition(String productCondition) { this.productCondition = productCondition; }
+
+    public BigDecimal getRating() { return rating; }
+    public void setRating(BigDecimal rating) { this.rating = rating; }
+
+    public Integer getReviewCount() { return reviewCount; }
+    public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
+
+    public Integer getSoldCount() { return soldCount; }
+    public void setSoldCount(Integer soldCount) { this.soldCount = soldCount; }
+
+    public java.time.LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(java.time.LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public java.time.LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(java.time.LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public Integer getWeightGrams() { return weightGrams; }
+    public void setWeightGrams(Integer weightGrams) { this.weightGrams = weightGrams; }
+
+    public Integer getLengthCm() { return lengthCm; }
+    public void setLengthCm(Integer lengthCm) { this.lengthCm = lengthCm; }
+
+    public Integer getWidthCm() { return widthCm; }
+    public void setWidthCm(Integer widthCm) { this.widthCm = widthCm; }
+
+    public Integer getHeightCm() { return heightCm; }
+    public void setHeightCm(Integer heightCm) { this.heightCm = heightCm; }
 
     // Backward compatibility methods
     public String getImage() { return mainImage; }
@@ -82,16 +134,21 @@ public class ProductDTO {
         category.setName(categoryName);
     }
 
-    // Các fields cũ không còn dùng
+    // Deprecated methods for backward compatibility - use variants or productCondition instead
+    @Deprecated
     public Integer getStock() { 
-        // Có thể trả về stock của variant đầu tiên
         if (variants != null && !variants.isEmpty()) {
             return variants.get(0).getStock();
         }
         return null; 
     }
-    public void setStock(Integer stock) { /* deprecated */ }
+    
+    @Deprecated
+    public void setStock(Integer stock) { /* Use variants instead */ }
 
-    public String getCondition() { return null; } // deprecated
-    public void setCondition(String condition) { /* deprecated */ }
+    @Deprecated
+    public String getCondition() { return productCondition; }
+    
+    @Deprecated
+    public void setCondition(String condition) { this.productCondition = condition; }
 }

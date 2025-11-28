@@ -1,0 +1,310 @@
+{
+  "info": {
+    "name": "Review Image Management",
+    "description": "API endpoints for uploading and managing review images (up to 5 photos per review)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "review_id",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Upload Review Images (1-5)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "First image file"
+            },
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Second image file (optional)"
+            },
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Third image file (optional)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/reviews/{{review_id}}/images",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "{{review_id}}", "images"]
+        },
+        "description": "Upload 1-5 images to a product review. Images stored as JSON array. Maximum 5 images total per review."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Single Review Image",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Single review image"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/reviews/{{review_id}}/images",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "{{review_id}}", "images"]
+        },
+        "description": "Upload a single image to review for visual evidence."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Review Image (By Index)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/reviews/{{review_id}}/images/0",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "{{review_id}}", "images", "0"]
+        },
+        "description": "Delete image at index 0 (first image). Index is 0-based. Deletes from Cloudinary and updates JSON array."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Second Image (Index 1)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/reviews/{{review_id}}/images/1",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "{{review_id}}", "images", "1"]
+        },
+        "description": "Delete image at index 1 (second image)."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Too Many Images (Error Test)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Image 1"
+            },
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Image 2"
+            },
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Image 3"
+            },
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Image 4"
+            },
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Image 5"
+            },
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Image 6 (exceeds limit)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/reviews/{{review_id}}/images",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "{{review_id}}", "images"]
+        },
+        "description": "Test error handling: Upload more than 5 images in one request. Should return 400 Bad Request."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Invalid Format (Error Test)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Upload invalid file type (e.g., .txt, .pdf, .doc)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/reviews/{{review_id}}/images",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "{{review_id}}", "images"]
+        },
+        "description": "Test error handling: Upload file with invalid format (not JPG/PNG/WEBP). Should return 400 Bad Request."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload to Non-Owned Review (Error Test)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "file",
+              "src": ""
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/reviews/999/images",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "999", "images"]
+        },
+        "description": "Test security: Upload image to a review owned by another user. Should return 403 Forbidden or 404 Not Found."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Invalid Index (Error Test)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/reviews/{{review_id}}/images/99",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "{{review_id}}", "images", "99"]
+        },
+        "description": "Test error handling: Delete image at invalid index. Should return 404 Not Found."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete From Review With No Images (Error Test)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/reviews/{{review_id}}/images/0",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "{{review_id}}", "images", "0"]
+        },
+        "description": "Test error handling: Delete image from review that has no images. Should return 404 Not Found."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Without Authentication (Error Test)",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "file",
+              "src": ""
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/reviews/{{review_id}}/images",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "{{review_id}}", "images"]
+        },
+        "description": "Test security: Upload without authentication token. Should return 401 Unauthorized."
+      },
+      "response": []
+    },
+    {
+      "name": "Rate Limit Test (Multiple Rapid Uploads)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "file",
+              "src": "",
+              "description": "Upload same file multiple times rapidly"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/reviews/{{review_id}}/images",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reviews", "{{review_id}}", "images"]
+        },
+        "description": "Test rate limiting: Upload images multiple times rapidly (>10 times in 1 minute). Should return 429 Too Many Requests after limit exceeded."
+      },
+      "response": []
+    }
+  ]
+}

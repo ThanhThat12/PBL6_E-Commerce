@@ -32,3 +32,21 @@ build/
 ### VS Code ###
 .vscode/
 /docs
+### Environment Variables & Secrets ###
+.env
+.env.*
+!.env.example
+application-local.properties
+application-local.yml
+
+### Cloudinary ###
+# Never commit Cloudinary credentials
+cloudinary.properties
+cloudinary-config.json
+
+### Java ###
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
