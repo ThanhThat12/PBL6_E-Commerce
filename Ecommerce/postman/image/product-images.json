@@ -1,0 +1,792 @@
+{
+    "info":  {
+                 "name":  "Product Images API",
+                 "description":  "API endpoints for managing product images (main image and gallery) with Cloudinary integration",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+                 "_postman_id":  "cloudinary-product-images-001",
+                 "version":  "1.0.0"
+             },
+    "auth":  {
+                 "type":  "bearer",
+                 "bearer":  [
+                                {
+                                    "key":  "token",
+                                    "value":  "{{access_token}}",
+                                    "type":  "string"
+                                }
+                            ]
+             },
+    "variable":  [
+                     {
+                         "key":  "base_url",
+                         "value":  "http://localhost:8080",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "product_id",
+                         "value":  "1",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "image_id",
+                         "value":  "1",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "access_token",
+                         "value":  "",
+                         "type":  "string"
+                     }
+                 ],
+    "item":  [
+                 {
+                     "name":  "Main Image Operations",
+                     "item":  [
+                                  {
+                                      "name":  "Upload Main Image",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "formdata",
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "file",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image.jpg",
+                                                                                        "description":  "Image file (JPG, PNG, WEBP, max 5MB)"
+                                                                                    }
+                                                                                ]
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/main",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "main"
+                                                                           ]
+                                                              },
+                                                      "description":  "Upload or replace the main product image. If an image already exists, it will be deleted from Cloudinary and replaced."
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Delete Main Image",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/main",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "main"
+                                                                           ]
+                                                              },
+                                                      "description":  "Delete the main product image from Cloudinary and database"
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Gallery Image Operations",
+                     "item":  [
+                                  {
+                                      "name":  "Upload Gallery Images (Batch)",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "formdata",
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image1.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image2.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image3.jpg"
+                                                                                    }
+                                                                                ]
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery"
+                                                                           ]
+                                                              },
+                                                      "description":  "Upload multiple gallery images (1-10 files). Max 10 total gallery images per product."
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Get Gallery Images",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery"
+                                                                           ],
+                                                                  "query":  [
+                                                                                {
+                                                                                    "key":  "variantId",
+                                                                                    "value":  "",
+                                                                                    "description":  "Optional: Filter images by variant ID",
+                                                                                    "disabled":  true
+                                                                                }
+                                                                            ]
+                                                              },
+                                                      "description":  "Retrieve all gallery images for a product, ordered by display_order. Optionally filter by variantId."
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Reorder Gallery Images",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"imageIds\": [3, 1, 2, 5, 4]\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery/reorder",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery",
+                                                                               "reorder"
+                                                                           ]
+                                                              },
+                                                      "description":  "Reorder gallery images by providing an ordered list of image IDs. display_order will be updated sequentially (0, 1, 2, ...)."
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Delete Gallery Image",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery/{{image_id}}",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery",
+                                                                               "{{image_id}}"
+                                                                           ]
+                                                              },
+                                                      "description":  "Delete a single gallery image by its ID"
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Test Scenarios",
+                     "item":  [
+                                  {
+                                      "name":  "Test: Upload Invalid File Type",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "formdata",
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "file",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/document.pdf",
+                                                                                        "description":  "Should fail - PDF not allowed"
+                                                                                    }
+                                                                                ]
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/main",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "main"
+                                                                           ]
+                                                              },
+                                                      "description":  "Expected: 400 Bad Request - Invalid file format"
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Test: Upload File Too Large",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "formdata",
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "file",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/large-image.jpg",
+                                                                                        "description":  "Should fail - File \u003e 5MB"
+                                                                                    }
+                                                                                ]
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/main",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "main"
+                                                                           ]
+                                                              },
+                                                      "description":  "Expected: 400 Bad Request - File size exceeds 5MB"
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Test: Upload Too Many Gallery Images",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "formdata",
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image1.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image2.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image3.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image4.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image5.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image6.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image7.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image8.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image9.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image10.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image11.jpg"
+                                                                                    }
+                                                                                ]
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery"
+                                                                           ]
+                                                              },
+                                                      "description":  "Expected: 400 Bad Request - Maximum 10 images allowed"
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Test: Delete Non-Existent Main Image",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/999999/images/main",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "999999",
+                                                                               "images",
+                                                                               "main"
+                                                                           ]
+                                                              },
+                                                      "description":  "Expected: 404 Not Found - Product does not have a main image"
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Test: Unauthorized Access",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "auth":  {
+                                                                   "type":  "noauth"
+                                                               },
+                                                      "body":  {
+                                                                   "mode":  "formdata",
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "file",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/image.jpg"
+                                                                                    }
+                                                                                ]
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/main",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "main"
+                                                                           ]
+                                                              },
+                                                      "description":  "Expected: 401 Unauthorized - No auth token provided"
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Variant-Specific Image Operations",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "url":  {
+                                                                  "query":  [
+                                                                                {
+                                                                                    "key":  "variantId",
+                                                                                    "value":  "1"
+                                                                                }
+                                                                            ],
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery?variantId=1",
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery"
+                                                                           ]
+                                                              },
+                                                      "method":  "POST",
+                                                      "body":  {
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "description":  "Image for blue variant",
+                                                                                        "type":  "file",
+                                                                                        "src":  ""
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "variantId",
+                                                                                        "type":  "text",
+                                                                                        "description":  "ID of the blue color variant",
+                                                                                        "value":  "1"
+                                                                                    }
+                                                                                ],
+                                                                   "mode":  "formdata"
+                                                               },
+                                                      "description":  "Upload images specifically for the blue color variant. Variant ID must belong to the product.",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "Upload Images for Variant (Blue)",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "query":  [
+                                                                                {
+                                                                                    "key":  "variantId",
+                                                                                    "description":  "Filter by variant ID",
+                                                                                    "value":  "1"
+                                                                                }
+                                                                            ],
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery?variantId=1",
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery"
+                                                                           ]
+                                                              },
+                                                      "description":  "Retrieve gallery images for a specific variant. Returns variant-specific images if available, otherwise falls back to main product images.",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "Get Gallery Images for Variant",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "url":  {
+                                                                  "query":  [
+                                                                                {
+                                                                                    "key":  "variantId",
+                                                                                    "value":  "2"
+                                                                                }
+                                                                            ],
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery?variantId=2",
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery"
+                                                                           ]
+                                                              },
+                                                      "method":  "POST",
+                                                      "body":  {
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  ""
+                                                                                    }
+                                                                                ],
+                                                                   "mode":  "formdata"
+                                                               },
+                                                      "description":  "Upload images for red color variant (variantId=2)",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "Upload Images for Different Variant (Red)",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "query":  [
+                                                                                {
+                                                                                    "key":  "variantId",
+                                                                                    "value":  "99"
+                                                                                }
+                                                                            ],
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery?variantId=99",
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery"
+                                                                           ]
+                                                              },
+                                                      "description":  "Test fallback logic: Request images for a variant that has no specific images. Should return main product gallery images.",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "Test Fallback - Get Images for Variant Without Images",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "url":  {
+                                                                  "query":  [
+                                                                                {
+                                                                                    "key":  "variantId",
+                                                                                    "value":  "999"
+                                                                                }
+                                                                            ],
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery?variantId=999",
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery"
+                                                                           ]
+                                                              },
+                                                      "method":  "POST",
+                                                      "body":  {
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  ""
+                                                                                    }
+                                                                                ],
+                                                                   "mode":  "formdata"
+                                                               },
+                                                      "description":  "Test error handling: Upload with non-existent variant ID. Should return 400 Bad Request.",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "Upload with Invalid Variant ID (Error Test)",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "url":  {
+                                                                  "query":  [
+                                                                                {
+                                                                                    "key":  "variantId",
+                                                                                    "value":  "100"
+                                                                                }
+                                                                            ],
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery?variantId=100",
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery"
+                                                                           ]
+                                                              },
+                                                      "method":  "POST",
+                                                      "body":  {
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  ""
+                                                                                    }
+                                                                                ],
+                                                                   "mode":  "formdata"
+                                                               },
+                                                      "description":  "Test security: Upload with variant ID that belongs to a different product. Should return 400 Bad Request.",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "Upload with Variant from Different Product (Error Test)",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Batch Variant Image Operations",
+                     "item":  [
+                                  {
+                                      "name":  "Batch Upload Images for Multiple Variants",
+                                      "request":  {
+                                                      "body":  {
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/red-variant.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/blue-variant.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "files",
+                                                                                        "type":  "file",
+                                                                                        "src":  "/path/to/green-variant.jpg"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "variantMappings",
+                                                                                        "type":  "text",
+                                                                                        "value":  "{\"Red\":[0],\"Blue\":[1],\"Green\":[2]}"
+                                                                                    }
+                                                                                ],
+                                                                   "mode":  "formdata"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "protocol":  "http",
+                                                                  "raw":  "{{base_url}}/api/products/{{product_id}}/images/gallery/batch-variants",
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "products",
+                                                                               "{{product_id}}",
+                                                                               "images",
+                                                                               "gallery",
+                                                                               "batch-variants"
+                                                                           ]
+                                                              },
+                                                      "description":  "Upload images for multiple variants in one request. Each Group 1 variant value gets exactly 1 image: Red variant gets image 0, Blue variant gets image 1, Green variant gets image 2. This enforces the 1:1 mapping constraint.",
+                                                      "header":  [
+
+                                                                 ]
+                                                  }
+                                  }
+                              ]
+                 }
+             ]
+}

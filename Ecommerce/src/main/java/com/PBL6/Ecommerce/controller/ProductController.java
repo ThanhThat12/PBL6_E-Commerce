@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
+import com.PBL6.Ecommerce.domain.dto.ProductUpdateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.service.ProductService;
@@ -199,15 +200,15 @@ public class ProductController {
     
 
     // Cập nhật sản phẩm - Admin hoặc seller sở hữu sản phẩm
-    // @PutMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN') or (hasRole('SELLER') and @productService.isProductOwner(#id, authentication.name))")
-    // public ResponseEntity<ResponseDTO<ProductDTO>> updateProduct(
-    //         @PathVariable Long id, 
-    //         @Valid @RequestBody ProductCreateDTO request,
-    //         Authentication authentication) {
-    //     ProductDTO product = productService.updateProduct(id, request, authentication);
-    //     return ResponseDTO.success(product, "Cập nhật sản phẩm thành công");
-    // }
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<ProductDTO>> updateProduct(
+            @PathVariable Long id, 
+            @Valid @RequestBody ProductUpdateDTO request,
+            Authentication authentication) {
+        ProductDTO product = productService.updateProduct(id, request, authentication);
+        return ResponseDTO.success(product, "Cập nhật sản phẩm thành công");
+    }
 
     // Xóa sản phẩm - Admin hoặc seller sở hữu sản phẩm
      @DeleteMapping("/{id}")

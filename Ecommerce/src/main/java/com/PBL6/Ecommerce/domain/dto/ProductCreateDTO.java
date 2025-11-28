@@ -1,42 +1,61 @@
 package com.PBL6.Ecommerce.domain.dto;
 
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 import java.util.List;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Enhanced ProductCreateDTO for creating products with separated concerns:
+ * - Product basic info (this DTO)
+ * - Images handled by /api/products/{id}/images/* endpoints
+ * - Reviews handled by /api/products/{id}/reviews endpoints
+ * - Variants can be included or added later
+ */
 public class ProductCreateDTO {
 
     @NotNull(message = "Category ID is required")
     private Long categoryId;
     
-    private Long shopId; // Optional - will be set from authentication for sellers
+    // shopId will be automatically set from JWT authentication for sellers
+    private Long shopId;
     
     @NotBlank(message = "Product name is required")
-    @Size(min = 3, max = 200, message = "Product name must be between 3 and 200 characters")
+    @Size(min = 3, max = 255, message = "Product name must be between 3 and 255 characters")
     private String name;
     
-    @Size(max = 2000, message = "Description cannot exceed 2000 characters")
+    @Size(max = 1000, message = "Description cannot exceed 1000 characters")
     private String description;
     
     @NotNull(message = "Base price is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Base price must be greater than 0")
-
     private BigDecimal basePrice;
+    
+    // Product condition - NEW or USED
+    private String productCondition = "NEW";
     
     private Boolean isActive = true;
     
-    private String mainImage;
-    private List<ProductVariantDTO> variants;
-    private List<String> imageUrls; // Giữ để backward compatibility
-    private List<ProductImageDTO> images; // 🔧 THÊM: Images với color
+    // Shipping dimensions (optional)
+    private Integer weightGrams;
+    private Integer lengthCm;
+    private Integer widthCm;
+    private Integer heightCm;
     
+    // Variants can be added during creation or later via separate endpoint
+    @Valid
+    private List<ProductVariantDTO> variants;
+    
+    // Primary attribute ID for variant images (optional)
+    private Long primaryAttributeId;
+    
+    // Default constructor
+    public ProductCreateDTO() {}
+
     // Getters and Setters
     public Long getCategoryId() { return categoryId; }
     public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
@@ -53,19 +72,27 @@ public class ProductCreateDTO {
     public BigDecimal getBasePrice() { return basePrice; }
     public void setBasePrice(BigDecimal basePrice) { this.basePrice = basePrice; }
     
+    public String getProductCondition() { return productCondition; }
+    public void setProductCondition(String productCondition) { this.productCondition = productCondition; }
+    
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
     
-    public String getMainImage() { return mainImage; }
-    public void setMainImage(String mainImage) { this.mainImage = mainImage; }
+    public Integer getWeightGrams() { return weightGrams; }
+    public void setWeightGrams(Integer weightGrams) { this.weightGrams = weightGrams; }
+    
+    public Integer getLengthCm() { return lengthCm; }
+    public void setLengthCm(Integer lengthCm) { this.lengthCm = lengthCm; }
+    
+    public Integer getWidthCm() { return widthCm; }
+    public void setWidthCm(Integer widthCm) { this.widthCm = widthCm; }
+    
+    public Integer getHeightCm() { return heightCm; }
+    public void setHeightCm(Integer heightCm) { this.heightCm = heightCm; }
     
     public List<ProductVariantDTO> getVariants() { return variants; }
     public void setVariants(List<ProductVariantDTO> variants) { this.variants = variants; }
     
-    public List<String> getImageUrls() { return imageUrls; }
-    public void setImageUrls(List<String> imageUrls) { this.imageUrls = imageUrls; }
-    
-    // 🔧 THÊM: Getter/Setter cho images với color
-    public List<ProductImageDTO> getImages() { return images; }
-    public void setImages(List<ProductImageDTO> images) { this.images = images; }
+    public Long getPrimaryAttributeId() { return primaryAttributeId; }
+    public void setPrimaryAttributeId(Long primaryAttributeId) { this.primaryAttributeId = primaryAttributeId; }
 }
