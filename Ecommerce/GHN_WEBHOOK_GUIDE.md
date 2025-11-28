@@ -37,24 +37,24 @@ POST https://your-domain.com/api/webhook/ghn/status
 
 ## 🔄 Mapping trạng thái GHN → Order Status
 
-| GHN Status | Order Status | Mô tả |
-|------------|--------------|-------|
-| `ready_to_pick` | `SHIPPING` | Chờ lấy hàng |
-| `picking` | `SHIPPING` | Đang lấy hàng |
-| `picked` | `SHIPPING` | Đã lấy hàng |
-| `storing` | `SHIPPING` | Đang lưu kho |
-| `transporting` | `SHIPPING` | Đang vận chuyển |
-| `sorting` | `SHIPPING` | Đang phân loại |
-| `delivering` | `SHIPPING` | Đang giao hàng |
-| `delivered` | `COMPLETED` | ✅ Đã giao thành công |
-| `delivery_fail` | `SHIPPING` | Giao thất bại (chờ giao lại) |
-| `waiting_to_return` | `SHIPPING` | Chờ hoàn trả |
-| `return` | `SHIPPING` | Đang hoàn trả |
-| `returned` | `SHIPPING` | Đã hoàn về shop |
-| `cancel` | `CANCELLED` | ❌ Đơn bị hủy |
-| `exception` | `SHIPPING` | Bất thường (cần xử lý) |
-| `damage` | `SHIPPING` | Hàng hư hỏng |
-| `lost` | `SHIPPING` | Thất lạc |
+| GHN Status          | Order Status | Mô tả                        |
+| ------------------- | ------------ | ---------------------------- |
+| `ready_to_pick`     | `SHIPPING`   | Chờ lấy hàng                 |
+| `picking`           | `SHIPPING`   | Đang lấy hàng                |
+| `picked`            | `SHIPPING`   | Đã lấy hàng                  |
+| `storing`           | `SHIPPING`   | Đang lưu kho                 |
+| `transporting`      | `SHIPPING`   | Đang vận chuyển              |
+| `sorting`           | `SHIPPING`   | Đang phân loại               |
+| `delivering`        | `SHIPPING`   | Đang giao hàng               |
+| `delivered`         | `COMPLETED`  | ✅ Đã giao thành công        |
+| `delivery_fail`     | `SHIPPING`   | Giao thất bại (chờ giao lại) |
+| `waiting_to_return` | `SHIPPING`   | Chờ hoàn trả                 |
+| `return`            | `SHIPPING`   | Đang hoàn trả                |
+| `returned`          | `SHIPPING`   | Đã hoàn về shop              |
+| `cancel`            | `CANCELLED`  | ❌ Đơn bị hủy                |
+| `exception`         | `SHIPPING`   | Bất thường (cần xử lý)       |
+| `damage`            | `SHIPPING`   | Hàng hư hỏng                 |
+| `lost`              | `SHIPPING`   | Thất lạc                     |
 
 ## 📱 WebSocket Notifications cho Buyer
 
@@ -63,6 +63,7 @@ Khi có cập nhật từ GHN webhook, hệ thống tự động gửi notificat
 **Channel**: `/topic/orderws/{buyerId}`
 
 **Payload mẫu**:
+
 ```json
 {
   "type": "ORDER_STATUS_UPDATE",
@@ -77,13 +78,13 @@ Khi có cập nhật từ GHN webhook, hệ thống tự động gửi notificat
 
 ## 🎯 Các thông báo tự động
 
-| GHN Status | Icon | Message |
-|------------|------|---------|
-| `delivered` | 🎉 | Đơn hàng #{id} đã được giao thành công! |
-| `delivering` | 🚚 | Đơn hàng #{id} đang được giao đến bạn |
-| `picked` | 📦 | Đơn hàng #{id} đã được lấy hàng |
-| `return/returned` | 🔄 | Đơn hàng #{id} đang được hoàn trả |
-| `delivery_fail` | ⚠️ | Giao hàng thất bại cho đơn #{id} |
+| GHN Status        | Icon | Message                                 |
+| ----------------- | ---- | --------------------------------------- |
+| `delivered`       | 🎉   | Đơn hàng #{id} đã được giao thành công! |
+| `delivering`      | 🚚   | Đơn hàng #{id} đang được giao đến bạn   |
+| `picked`          | 📦   | Đơn hàng #{id} đã được lấy hàng         |
+| `return/returned` | 🔄   | Đơn hàng #{id} đang được hoàn trả       |
+| `delivery_fail`   | ⚠️   | Giao hàng thất bại cho đơn #{id}        |
 
 ## 🧪 Test Webhook
 
@@ -138,12 +139,12 @@ Nếu muốn verify webhook từ GHN (tránh fake requests):
 public Map<String,Object> updateStatus(
         @RequestBody Map<String,Object> payload,
         @RequestHeader(value = "X-GHN-Signature", required = false) String signature) {
-    
+
     // Verify signature (nếu GHN cung cấp)
     if (!verifySignature(payload, signature)) {
         return Map.of("success", false, "error", "Invalid signature");
     }
-    
+
     // Process webhook...
 }
 ```

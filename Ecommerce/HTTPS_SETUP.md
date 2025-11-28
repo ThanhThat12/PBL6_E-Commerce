@@ -11,6 +11,7 @@ keytool -genkeypair -alias ecommerce -keyalg RSA -keysize 2048 -storetype PKCS12
 ```
 
 ### Giải thích các tham số:
+
 - `-alias ecommerce`: Tên alias cho certificate
 - `-keyalg RSA`: Thuật toán RSA
 - `-keysize 2048`: Độ dài key 2048 bit
@@ -23,6 +24,7 @@ keytool -genkeypair -alias ecommerce -keyalg RSA -keysize 2048 -storetype PKCS12
 ## Bước 2: Xác nhận file đã được tạo
 
 Sau khi chạy lệnh trên, file `keystore.p12` sẽ được tạo trong thư mục:
+
 ```
 D:\PBL6\PBL6_E-Commerce\Ecommerce\src\main\resources\keystore.p12
 ```
@@ -43,23 +45,27 @@ Backend sẽ chạy trên: **https://localhost:8081**
 
 ## Bước 4: Tin cậy certificate trong trình duyệt
 
-Khi truy cập lần đầu, trình duyệt sẽ cảnh báo về certificate không tin cậy (vì đây là self-signed certificate). 
+Khi truy cập lần đầu, trình duyệt sẽ cảnh báo về certificate không tin cậy (vì đây là self-signed certificate).
 
 Để bypass:
+
 1. Chrome/Edge: Click "Advanced" → "Proceed to localhost (unsafe)"
 2. Firefox: Click "Advanced" → "Accept the Risk and Continue"
 
 ## Bước 5: Kiểm tra WebSocket
 
 Frontend (https://localhost:3000) sẽ kết nối đến:
+
 - WebSocket URL: `wss://localhost:8081/ws` (secure WebSocket)
 - REST API: `https://localhost:8081/api/...`
 
 Code trong `useNotifications.js` đã được cấu hình để tự động detect protocol:
+
 ```javascript
-const WS_URL = window.location.protocol === 'https:' 
-  ? 'https://localhost:8081/ws' 
-  : 'http://localhost:8081/ws';
+const WS_URL =
+  window.location.protocol === "https:"
+    ? "https://localhost:8081/ws"
+    : "http://localhost:8081/ws";
 ```
 
 ## Lưu ý

@@ -17,11 +17,13 @@ keytool -exportcert -alias ecommerce -keystore keystore.p12 -storetype PKCS12 -s
 ### Bước 2: Import vào Windows Trusted Root
 
 1. **Mở Certificate Manager:**
+
    - Nhấn `Win + R`
    - Gõ `certmgr.msc`
    - Nhấn Enter
 
 2. **Import Certificate:**
+
    - Trong cửa sổ Certificate Manager
    - Mở rộng **"Trusted Root Certification Authorities"**
    - Click chuột phải vào **"Certificates"**
