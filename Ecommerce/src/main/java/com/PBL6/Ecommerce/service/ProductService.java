@@ -21,6 +21,7 @@ import com.PBL6.Ecommerce.domain.Category;
 import com.PBL6.Ecommerce.domain.Product;
 import com.PBL6.Ecommerce.domain.ProductAttribute;
 import com.PBL6.Ecommerce.domain.ProductImage;
+import com.PBL6.Ecommerce.domain.ProductPrimaryAttribute;
 import com.PBL6.Ecommerce.domain.ProductVariant;
 import com.PBL6.Ecommerce.domain.ProductVariantValue;
 import com.PBL6.Ecommerce.domain.Role;
@@ -31,12 +32,11 @@ import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductImageDTO;
+import com.PBL6.Ecommerce.domain.dto.ProductUpdateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantValueDTO;
-import com.PBL6.Ecommerce.exception.CategoryNotFoundException;
 import com.PBL6.Ecommerce.exception.DuplicateSKUException;
 import com.PBL6.Ecommerce.exception.InvalidProductDataException;
-import com.PBL6.Ecommerce.exception.ProductHasReferencesException;
 import com.PBL6.Ecommerce.exception.ProductNotFoundException;
 import com.PBL6.Ecommerce.exception.ShopNotFoundException;
 import com.PBL6.Ecommerce.exception.UnauthorizedProductAccessException;
@@ -86,7 +86,10 @@ public class ProductService {
     private OrderItemRepository orderItemRepository;
 
     @Autowired
-private ProductVariantValueRepository productVariantValueRepository;
+    private ProductVariantValueRepository productVariantValueRepository;
+    
+    @Autowired
+    private com.PBL6.Ecommerce.repository.ProductPrimaryAttributeRepository productPrimaryAttributeRepository;
 
     // Lấy tất cả sản phẩm
     @Transactional(readOnly = true)
@@ -116,7 +119,7 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     System.out.println("🔍 DEBUG - Starting createProduct");
     System.out.println("🔍 DEBUG - Request: " + request.getName());
     System.out.println("🔍 DEBUG - Has variants: " + (request.getVariants() != null ? request.getVariants().size() : 0));
-    System.out.println("🔍 DEBUG - Has images: " + (request.getImageUrls() != null ? request.getImageUrls().size() : 0));
+    System.out.println("🔍 DEBUG - Images will be handled separately");
     User currentUser = getCurrentUser(authentication);
     
     // Null checks
@@ -155,9 +158,15 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     product.setName(request.getName());
     product.setDescription(request.getDescription());
     product.setBasePrice(request.getBasePrice());
-    product.setMainImage(request.getMainImage());
+    product.setProductCondition(request.getProductCondition());
     product.setCategory(category);
     product.setShop(shop);
+    
+    // Set shipping dimensions if provided
+    product.setWeightGrams(request.getWeightGrams());
+    product.setLengthCm(request.getLengthCm());
+    product.setWidthCm(request.getWidthCm());
+    product.setHeightCm(request.getHeightCm());
     
     // Set active status
     if (isAdmin(authentication)) {
@@ -171,17 +180,9 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     product = productRepository.save(product);
     System.out.println("🔍 DEBUG - Product saved with ID: " + product.getId());
     
-    // 🔧 3. Handle images SAU KHI product đã có ID
-    // Xử lý images với color information (ưu tiên)
-    if (request.getImages() != null && !request.getImages().isEmpty()) {
-        handleProductImagesWithColor(product, request.getImages());
-        System.out.println("✅ DEBUG - Processed " + request.getImages().size() + " images with color info");
-    }
-    // Fallback: xử lý imageUrls cũ (backward compatibility)
-    else if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
-        handleProductImages(product, request.getImageUrls());
-        System.out.println("✅ DEBUG - Processed " + request.getImageUrls().size() + " simple image URLs");
-    }
+    // 🔧 3. Images are now handled separately via /api/products/{id}/images/* endpoints
+    // This separates concerns and allows for better image management
+    System.out.println("ℹ️ Images will be handled by separate endpoints after product creation");
     
     // 🔧 4. Handle variants SAU KHI product đã có ID  
     if (request.getVariants() != null && !request.getVariants().isEmpty()) {
@@ -190,12 +191,95 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         System.out.println("✅ DEBUG - Completed handling all variants");
     }
     
-    // 🔧 5. Reload product để có relationships mới
+    // 🆕 5. Handle primary attribute if provided
+    if (request.getPrimaryAttributeId() != null) {
+        System.out.println("🔍 DEBUG - Setting primary attribute ID: " + request.getPrimaryAttributeId());
+        handlePrimaryAttribute(product.getId(), request.getPrimaryAttributeId());
+    }
+    
+    // 🔧 6. Reload product để có relationships mới
     product = productRepository.findById(product.getId()).orElse(product);
     System.out.println("🔍 DEBUG - Final product has " + 
         (product.getProductVariants() != null ? product.getProductVariants().size() : 0) + " variants");
     
     return convertToProductDTO(product);
+}
+
+// 🆕 Cập nhật sản phẩm
+@Transactional
+public ProductDTO updateProduct(Long productId, ProductUpdateDTO request, Authentication authentication) {
+    // Tìm sản phẩm
+    Product product = productRepository.findById(productId)
+        .orElseThrow(() -> new ProductNotFoundException("Product not found with id: " + productId));
+    
+    // Validate ownership
+    validateProductOwnership(product, authentication);
+    
+    // Update only non-null fields
+    if (request.getName() != null) {
+        product.setName(request.getName());
+    }
+    if (request.getDescription() != null) {
+        product.setDescription(request.getDescription());
+    }
+    if (request.getBasePrice() != null) {
+        product.setBasePrice(request.getBasePrice());
+    }
+    if (request.getCategoryId() != null) {
+        Category category = categoryRepository.findById(request.getCategoryId())
+            .orElseThrow(() -> new RuntimeException("Category not found"));
+        product.setCategory(category);
+    }
+    if (request.getProductCondition() != null) {
+        product.setProductCondition(request.getProductCondition());
+    }
+    if (request.getIsActive() != null) {
+        product.setIsActive(request.getIsActive());
+    }
+    
+    // Update shipping dimensions
+    if (request.getWeightGrams() != null) product.setWeightGrams(request.getWeightGrams());
+    if (request.getLengthCm() != null) product.setLengthCm(request.getLengthCm());
+    if (request.getWidthCm() != null) product.setWidthCm(request.getWidthCm());
+    if (request.getHeightCm() != null) product.setHeightCm(request.getHeightCm());
+    
+    // Handle variants if provided
+    if (request.getVariants() != null) {
+        handleProductVariants(product, request.getVariants());
+    }
+    
+    // Handle primary attribute if provided
+    if (request.getPrimaryAttributeId() != null) {
+        System.out.println("🔍 DEBUG - Updating primary attribute ID: " + request.getPrimaryAttributeId());
+        handlePrimaryAttribute(product.getId(), request.getPrimaryAttributeId());
+    }
+    
+    productRepository.save(product);
+    return convertToProductDTO(product);
+}
+
+private void validateProductOwnership(Product product, Authentication authentication) {
+    String userEmail = authentication.getName();
+    User user = userRepository.findByEmail(userEmail)
+        .orElseThrow(() -> new RuntimeException("User not found"));
+    
+    // Admin can modify any product
+    if (user.getRole() == Role.ADMIN) {
+        return;
+    }
+    
+    // Seller can only modify their own shop's products
+    if (user.getRole() == Role.SELLER) {
+        if (user.getShop() == null) {
+            throw new UnauthorizedProductAccessException("Seller must have a shop to modify products");
+        }
+        if (!product.getShop().getId().equals(user.getShop().getId())) {
+            throw new UnauthorizedProductAccessException("You can only modify your own shop's products");
+        }
+        return;
+    }
+    
+    throw new UnauthorizedProductAccessException("Insufficient permissions to modify product");
 }
 
      // 🆕 Admin duyệt/từ chối sản phẩm
@@ -523,6 +607,25 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         dto.setBasePrice(product.getBasePrice());
         dto.setIsActive(product.getIsActive());
         dto.setMainImage(product.getMainImage());
+        dto.setMainImagePublicId(product.getMainImagePublicId());
+        
+        // Set product condition with default if null
+        dto.setProductCondition(product.getProductCondition() != null ? product.getProductCondition() : "NEW");
+        
+        // Set rating and counts with defaults
+        dto.setRating(product.getRating() != null ? product.getRating() : BigDecimal.ZERO);
+        dto.setReviewCount(product.getReviewCount() != null ? product.getReviewCount() : 0);
+        dto.setSoldCount(product.getSoldCount() != null ? product.getSoldCount() : 0);
+        
+        // Set timestamps
+        dto.setCreatedAt(product.getCreatedAt());
+        dto.setUpdatedAt(product.getUpdatedAt());
+        
+        // Set shipping dimensions
+        dto.setWeightGrams(product.getWeightGrams());
+        dto.setLengthCm(product.getLengthCm());
+        dto.setWidthCm(product.getWidthCm());
+        dto.setHeightCm(product.getHeightCm());
         
         // Convert category
         if (product.getCategory() != null) {
@@ -532,8 +635,9 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
             dto.setCategory(categoryDTO);
         }
         
-        // Set shop name (theo ProductDTO hiện tại)
+        // Set shop info (both name and ID)
         if (product.getShop() != null) {
+            dto.setShopId(product.getShop().getId());
             dto.setShopName(product.getShop().getName());
         }
         
@@ -556,6 +660,35 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         return dto;
     }
     
+    // Handle primary attribute for product
+    private void handlePrimaryAttribute(Long productId, Long attributeId) {
+        try {
+            System.out.println("🔍 DEBUG - Creating primary attribute: productId=" + productId + ", attributeId=" + attributeId);
+            
+            // Check if primary attribute already exists
+            Optional<ProductPrimaryAttribute> existingPrimary = productPrimaryAttributeRepository.findByProductId(productId);
+            
+            if (existingPrimary.isPresent()) {
+                // Update existing
+                ProductPrimaryAttribute primary = existingPrimary.get();
+                primary.setAttribute(productAttributeRepository.findById(attributeId)
+                    .orElseThrow(() -> new RuntimeException("Attribute not found: " + attributeId)));
+                productPrimaryAttributeRepository.save(primary);
+                System.out.println("✅ DEBUG - Updated existing primary attribute");
+            } else {
+                // Create new
+                ProductPrimaryAttribute primaryAttribute = new ProductPrimaryAttribute();
+                primaryAttribute.setProductId(productId);
+                primaryAttribute.setAttribute(productAttributeRepository.findById(attributeId)
+                    .orElseThrow(() -> new RuntimeException("Attribute not found: " + attributeId)));
+                productPrimaryAttributeRepository.save(primaryAttribute);
+                System.out.println("✅ DEBUG - Created new primary attribute");
+            }
+        } catch (Exception e) {
+            System.err.println("❌ ERROR - Failed to handle primary attribute: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
     
     // Convert ProductVariant to ProductVariantDTO
@@ -600,18 +733,18 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
         ProductImageDTO dto = new ProductImageDTO();
         dto.setId(image.getId());
         dto.setImageUrl(image.getImageUrl());
-        dto.setColor(image.getColor());
+        dto.setVariantValueName(image.getVariantAttributeValue());
         return dto;
     }
 
-    // 🆕 Handle product images với color information
-private void handleProductImagesWithColor(Product product, List<ProductImageDTO> imageDTOs) {
+    // 🆕 Handle product images with variant value information
+private void handleProductImagesWithVariantValue(Product product, List<ProductImageDTO> imageDTOs) {
     if (imageDTOs == null || imageDTOs.isEmpty()) {
         System.out.println("⚠️ DEBUG - No images to process");
         return;
     }
     
-    System.out.println("🔍 DEBUG - Processing " + imageDTOs.size() + " images with color info");
+    System.out.println("🔍 DEBUG - Processing " + imageDTOs.size() + " images with variant value info");
     
     try {
         List<ProductImage> savedImages = new ArrayList<>();
@@ -620,7 +753,7 @@ private void handleProductImagesWithColor(Product product, List<ProductImageDTO>
             ProductImageDTO imageDTO = imageDTOs.get(i);
             
             System.out.println("🔍 DEBUG - Processing image " + (i+1) + ": " + imageDTO.getImageUrl() + 
-                " (color: " + imageDTO.getColor() + ")");
+                " (variant value: " + imageDTO.getVariantValueName() + ")");
             
             // Validation
             if (imageDTO.getImageUrl() == null || imageDTO.getImageUrl().trim().isEmpty()) {
@@ -631,7 +764,9 @@ private void handleProductImagesWithColor(Product product, List<ProductImageDTO>
             ProductImage productImage = new ProductImage();
             productImage.setProduct(product);
             productImage.setImageUrl(imageDTO.getImageUrl().trim());
-            productImage.setColor(imageDTO.getColor() != null ? imageDTO.getColor().trim() : null);
+            productImage.setImageType(imageDTO.getVariantValueName() != null ? "VARIANT" : "GALLERY");
+            productImage.setVariantAttributeValue(imageDTO.getVariantValueName() != null ? imageDTO.getVariantValueName().trim() : null);
+            productImage.setUploadedAt(java.time.LocalDateTime.now());
             
             // 🔧 QUAN TRỌNG: Save vào database
             try {
@@ -640,7 +775,7 @@ private void handleProductImagesWithColor(Product product, List<ProductImageDTO>
                 
                 System.out.println("✅ DEBUG - Saved product image to database: ID=" + productImage.getId() + 
                     ", URL=" + productImage.getImageUrl() + 
-                    ", Color=" + productImage.getColor() +
+                    ", VariantValue=" + productImage.getVariantAttributeValue() +
                     ", ProductId=" + product.getId());
                 
             } catch (Exception saveEx) {
@@ -655,7 +790,7 @@ private void handleProductImagesWithColor(Product product, List<ProductImageDTO>
         System.out.println("✅ DEBUG - Successfully processed " + savedImages.size() + " product images");
         
     } catch (Exception e) {
-        System.err.println("❌ ERROR in handleProductImagesWithColor: " + e.getMessage());
+        System.err.println("❌ ERROR in handleProductImagesWithVariantValue: " + e.getMessage());
         e.printStackTrace();
         throw new RuntimeException("Lỗi khi xử lý product images: " + e.getMessage(), e);
     }
@@ -667,7 +802,9 @@ private void handleProductImages(Product product, List<String> imageUrls) {
         for (String imageUrl : imageUrls) {
             ProductImage image = new ProductImage();
             image.setImageUrl(imageUrl);
-            image.setColor(null); // Hoặc lấy từ request nếu có
+            image.setImageType("GALLERY"); // Default to gallery image
+            image.setVariantAttributeValue(null); // No variant attribute for simple images
+            image.setUploadedAt(java.time.LocalDateTime.now());
             image.setProduct(product); // 🔧 THÊM DÒNG NÀY
             productImageRepository.save(image); // 🔧 THÊM DÒNG NÀY
         }

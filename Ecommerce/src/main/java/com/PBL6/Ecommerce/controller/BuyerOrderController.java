@@ -63,7 +63,14 @@ public class BuyerOrderController {
             order.getCreatedAt() != null ? java.time.LocalDateTime.ofInstant(order.getCreatedAt().toInstant(), java.time.ZoneId.systemDefault()) : null,
             null // GHN info if needed
         );
-        
+        // Map address fields
+        response.setShippingFee(order.getShippingFee());
+        response.setReceiverName(order.getReceiverName());
+        response.setReceiverPhone(order.getReceiverPhone());
+        response.setReceiverAddress(order.getReceiverAddress());
+        response.setProvince(order.getProvince());
+        response.setDistrict(order.getDistrict());
+        response.setWard(order.getWard());
         return ResponseDTO.created(response, "Đặt hàng thành công");
     }
 
