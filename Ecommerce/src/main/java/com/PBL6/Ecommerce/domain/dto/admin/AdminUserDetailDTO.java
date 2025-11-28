@@ -31,7 +31,6 @@ public class AdminUserDetailDTO {
     private Integer cartItemsCount;
     
     // Thông tin địa chỉ chính của BUYER/CUSTOMER
-    private String primaryAddressLabel;
     private String primaryAddressFullAddress;
     private String primaryAddressProvince;
     private String primaryAddressDistrict;

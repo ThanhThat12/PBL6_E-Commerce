@@ -31,6 +31,7 @@ import com.PBL6.Ecommerce.domain.dto.admin.ListCustomerUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.ListSellerUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.SellerStatsDTO;
 import com.PBL6.Ecommerce.service.UserService;
+import com.PBL6.Ecommerce.domain.Shop;
 
 
 
@@ -161,6 +162,43 @@ public class UserController {
         Pageable pageable = PageRequest.of(page, size);
         Page<ListSellerUserDTO> sellerUsers = userService.getSellerUsers(pageable);
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Seller users retrieved successfully", sellerUsers));
+    }
+
+    /**
+     * API lấy danh sách sellers theo trạng thái với phân trang
+     * GET /api/admin/users/sellers/status?status=ACTIVE&page=0&size=10
+     * @param status - Trạng thái cần lọc: ACTIVE, PENDING, INACTIVE hoặc ALL (mặc định lấy tất cả)
+     * @param page - Trang hiện tại (bắt đầu từ 0)
+     * @param size - Số lượng items trên mỗi trang (mặc định 10)
+     */
+    @GetMapping("/admin/users/sellers/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Page<ListSellerUserDTO>>> getSellersByStatusWithPaging(
+            @RequestParam(value = "status", required = false, defaultValue = "ALL") String status,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        
+        // Validate status parameter
+        if (status != null && !status.isEmpty() && !"ALL".equalsIgnoreCase(status)) {
+            try {
+                // Kiểm tra status có hợp lệ không
+                Shop.ShopStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(
+                    new ResponseDTO<>(400, "INVALID_STATUS", 
+                        "Invalid status. Valid values: ACTIVE, PENDING, INACTIVE, ALL", null)
+                );
+            }
+        }
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ListSellerUserDTO> sellerUsers = userService.getSellersByStatusWithPaging(status, pageable);
+        
+        String message = status == null || "ALL".equalsIgnoreCase(status) 
+            ? "All sellers retrieved successfully" 
+            : String.format("Sellers with status '%s' retrieved successfully", status.toUpperCase());
+            
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, message, sellerUsers));
     }
 
     @GetMapping("/admin/users/sellers/stats")

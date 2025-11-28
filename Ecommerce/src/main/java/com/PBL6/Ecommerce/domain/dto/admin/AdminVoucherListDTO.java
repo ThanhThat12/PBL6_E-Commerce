@@ -14,11 +14,12 @@ public class AdminVoucherListDTO {
     private BigDecimal minOrderValue;
     private Integer usageLimit;
     private Integer usedCount;
+    private String status;
     
 
     // Constructor for projection
     public AdminVoucherListDTO(Long id, String code, String discountType, BigDecimal discountValue, 
-                               BigDecimal minOrderValue, Integer usageLimit, Integer usedCount) {
+                               BigDecimal minOrderValue, Integer usageLimit, Integer usedCount, String status) {
         this.id = id;
         this.code = code;
         this.discountType = discountType;
@@ -26,6 +27,7 @@ public class AdminVoucherListDTO {
         this.minOrderValue = minOrderValue;
         this.usageLimit = usageLimit;
         this.usedCount = usedCount;
+        this.status = status;
     }
 
     // Getters and Setters
@@ -49,4 +51,7 @@ public class AdminVoucherListDTO {
 
     public Integer getUsedCount() { return usedCount; }
     public void setUsedCount(Integer usedCount) { this.usedCount = usedCount; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 }
