@@ -371,7 +371,7 @@ public class UserService {
             return new UserNotFoundException("User not found");
         });
 
-        return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name());
+        return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name(), user.getFullName());
     }
 
     /**

@@ -4,6 +4,7 @@ import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.PaymentTransaction;
 import com.PBL6.Ecommerce.dto.PaymentCallbackRequest;
 import com.PBL6.Ecommerce.dto.PaymentResponseDTO;
+import com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO;
 
 import java.math.BigDecimal;
 
@@ -15,4 +16,5 @@ public interface MoMoService {
     PaymentTransaction getPaymentByOrderId(Long orderId);
     boolean hasSuccessfulPayment(Long orderId);
     void updateOrderPaymentStatus(Order order, PaymentTransaction transaction);
+    MoMoRefundResponseDTO refundPayment(Long orderId, BigDecimal amount, String description);
 }

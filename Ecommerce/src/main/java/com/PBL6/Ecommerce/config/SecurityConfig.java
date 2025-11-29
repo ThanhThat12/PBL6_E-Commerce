@@ -74,6 +74,8 @@ public class SecurityConfig {
                     "/api/payment/momo/return",
                     "/api/payment/momo/callback",
                     "/api/payment/momo/test-callback",
+                    // Wallet deposit callback - must be public for MoMo IPN
+                    "/api/wallet/deposit/callback",
                     // WebSocket endpoints - allow SockJS handshake and STOMP connections
                     "/ws/**",
                     "/ws"
