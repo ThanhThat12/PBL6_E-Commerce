@@ -47,7 +47,8 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
            "v.discountValue, " +
            "v.minOrderValue, " +
            "v.usageLimit, " +
-           "v.usedCount) " +
+           "v.usedCount, " +
+           "CAST(v.status AS string)) " +
            "FROM Vouchers v " +
            "ORDER BY v.id ASC")
     Page<com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO> findAllVouchersForAdmin(Pageable pageable);

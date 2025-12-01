@@ -64,13 +64,21 @@ public class CheckoutController {
      * POST /api/checkout/available-services
      */
     @PostMapping("/available-services")
-    @PreAuthorize("isAuthenticated()")
+    // @PreAuthorize("isAuthenticated()") // TODO: Re-enable after testing
     public ResponseEntity<ResponseDTO<List<Map<String,Object>>>> getAvailableServices(
             @Valid @RequestBody CheckoutInitRequestDTO req) {
+        System.out.println("========== CHECKOUT AVAILABLE SERVICES REQUEST ==========");
+        System.out.println("Request DTO: " + req);
+        System.out.println("ShopId: " + req.getShopId());
+        System.out.println("AddressId: " + req.getAddressId());
+        System.out.println("CartItemIds: " + Arrays.toString(req.getCartItemIds()));
+        System.out.println("========================================================");
         try {
             // 2. Lấy địa chỉ HOME của buyer
             Address buyerAddress = addressRepository.findById(req.getAddressId())
                 .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại"));
+            
+            System.out.println("Buyer Address: " + buyerAddress.getDistrictId() + ", " + buyerAddress.getWardCode());
             
             if (buyerAddress.getTypeAddress() != TypeAddress.HOME) {
                 throw new RuntimeException("Địa chỉ phải là loại HOME");
@@ -80,10 +88,14 @@ public class CheckoutController {
             Shop shop = shopRepository.findById(req.getShopId())
                 .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
             
+            System.out.println("Shop: " + shop.getName() + ", GhnShopId: " + shop.getGhnShopId() + ", GhnToken: " + shop.getGhnToken());
+            
             Address shopAddress = addressRepository.findByUserAndTypeAddress(
                 shop.getOwner(), TypeAddress.STORE)
                 .stream().findFirst()
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ STORE của shop"));
+            
+            System.out.println("Shop Address: " + shopAddress.getDistrictId() + ", " + shopAddress.getWardCode());
 
             // 4. Tính tổng trọng lượng từ cartItems
             int totalWeight = 0;
@@ -109,7 +121,11 @@ public class CheckoutController {
             payload.put("from_district", shopAddress.getDistrictId());
             payload.put("to_district", buyerAddress.getDistrictId());
             
+            System.out.println("GHN Payload: " + payload);
+            
             List<Map<String,Object>> services = ghnService.getAvailableServices(payload, req.getShopId());
+            
+            System.out.println("GHN Services Result: " + services);
             
             // 6. Trả về danh sách dịch vụ
             Map<String,Object> response = new HashMap<>();
@@ -126,6 +142,8 @@ public class CheckoutController {
             
             return ResponseDTO.ok(List.of(response), "Lấy danh sách dịch vụ thành công");
         } catch (Exception e) {
+            System.err.println("ERROR in getAvailableServices: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest()
                 .body(new ResponseDTO<>(400, e.getMessage(), "Lỗi", null));
         }
@@ -136,7 +154,7 @@ public class CheckoutController {
      * POST /api/checkout/calculate-fee
      */
     @PostMapping("/calculate-fee")
-    @PreAuthorize("isAuthenticated()")
+    // @PreAuthorize("isAuthenticated()") // TODO: Re-enable after testing
     public ResponseEntity<ResponseDTO<Map<String,Object>>> calculateShippingFee(
             @Valid @RequestBody CheckoutCalculateFeeRequestDTO req) {
         try {
@@ -245,6 +263,19 @@ public class CheckoutController {
             Map<String,Object> feeResponse = ghnService.calculateFee(payload, req.getShopId());
             
             return ResponseDTO.ok(feeResponse, "Tính phí thành công");
+        } catch (RuntimeException e) {
+            // Check if it's GHN route not found error
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && errorMsg.contains("route not found")) {
+                return ResponseEntity.badRequest()
+                    .body(new ResponseDTO<>(400, 
+                        "GHN không hỗ trợ dịch vụ vận chuyển này cho địa chỉ đã chọn. Vui lòng chọn dịch vụ khác.", 
+                        "GHN_ROUTE_NOT_FOUND", 
+                        null));
+            }
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                .body(new ResponseDTO<>(400, "Lỗi tính phí: " + errorMsg, "ERROR", null));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest()
@@ -281,9 +312,14 @@ public class CheckoutController {
                 throw new RuntimeException("Địa chỉ phải là loại HOME");
             }
 
-            // Tìm shop
+            // Tìm shop và địa chỉ shop
             Shop shop = shopRepository.findById(req.getShopId())
                 .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
+            
+            Address shopAddress = addressRepository.findByUserAndTypeAddress(
+                shop.getOwner(), TypeAddress.STORE)
+                .stream().findFirst()
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ STORE của shop"));
 
             // Lấy cart items và validate
             List<Long> requestedIds = Arrays.asList(req.getCartItemIds());
@@ -293,13 +329,90 @@ public class CheckoutController {
                 throw new RuntimeException("Không tìm thấy sản phẩm trong giỏ hàng");
             }
 
-            // Tính tổng tiền
-            BigDecimal totalAmount = BigDecimal.ZERO;
+            // Tính tổng tiền sản phẩm
+            BigDecimal subtotal = BigDecimal.ZERO;
+            int totalWeight = 0;
+            int maxLength = 0, maxWidth = 0, maxHeight = 0;
+            List<Map<String, Object>> items = new ArrayList<>();
+            
             for (var cartItem : cartItems) {
                 var variant = cartItem.getProductVariant();
-                BigDecimal itemTotal = variant.getPrice().multiply(new BigDecimal(cartItem.getQuantity()));
-                totalAmount = totalAmount.add(itemTotal);
+                var product = variant.getProduct();
+                int quantity = cartItem.getQuantity();
+                
+                // Tính subtotal
+                BigDecimal itemTotal = variant.getPrice().multiply(new BigDecimal(quantity));
+                subtotal = subtotal.add(itemTotal);
+                
+                // Tính weight và dimensions cho GHN
+                Integer weight = product.getWeightGrams();
+                if (weight != null) {
+                    totalWeight += weight * quantity;
+                }
+                
+                if (product.getLengthCm() != null) {
+                    maxLength = Math.max(maxLength, product.getLengthCm());
+                }
+                if (product.getWidthCm() != null) {
+                    maxWidth = Math.max(maxWidth, product.getWidthCm());
+                }
+                if (product.getHeightCm() != null) {
+                    maxHeight = Math.max(maxHeight, product.getHeightCm());
+                }
+                
+                // Tạo items array cho GHN
+                Map<String, Object> item = new HashMap<>();
+                item.put("name", product.getName());
+                item.put("quantity", quantity);
+                item.put("weight", weight != null ? weight : 200);
+                item.put("length", product.getLengthCm() != null ? product.getLengthCm() : 20);
+                item.put("width", product.getWidthCm() != null ? product.getWidthCm() : 20);
+                item.put("height", product.getHeightCm() != null ? product.getHeightCm() : 10);
+                items.add(item);
             }
+            
+            // Default values
+            if (totalWeight == 0) totalWeight = 200;
+            if (maxLength == 0) maxLength = 20;
+            if (maxWidth == 0) maxWidth = 20;
+            if (maxHeight == 0) maxHeight = 10;
+            
+            // ✅ TÍNH SHIPPING FEE TỪ GHN
+            BigDecimal shippingFee = BigDecimal.ZERO;
+            try {
+                Map<String, Object> feePayload = new HashMap<>();
+                feePayload.put("from_district_id", shopAddress.getDistrictId());
+                feePayload.put("from_ward_code", shopAddress.getWardCode());
+                feePayload.put("to_district_id", buyerAddress.getDistrictId());
+                feePayload.put("to_ward_code", buyerAddress.getWardCode());
+                feePayload.put("service_id", req.getServiceId());
+                if (req.getServiceTypeId() != null) {
+                    feePayload.put("service_type_id", req.getServiceTypeId());
+                }
+                feePayload.put("weight", totalWeight);
+                feePayload.put("length", maxLength);
+                feePayload.put("width", maxWidth);
+                feePayload.put("height", maxHeight);
+                feePayload.put("items", items);
+                feePayload.put("insurance_value", 0);
+                
+                Map<String, Object> feeResponse = ghnService.calculateFee(feePayload, req.getShopId());
+                
+                // Parse shipping fee từ response
+                if (feeResponse != null && feeResponse.get("data") != null) {
+                    Map<String, Object> data = (Map<String, Object>) feeResponse.get("data");
+                    Object totalFee = data.get("total");
+                    if (totalFee instanceof Number) {
+                        shippingFee = BigDecimal.valueOf(((Number) totalFee).doubleValue());
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Không thể tính shipping fee: " + e.getMessage());
+                // Tiếp tục với shipping fee = 0
+            }
+            
+            // Tính tổng cuối cùng
+            BigDecimal totalAmount = subtotal.add(shippingFee);
 
             // ========== TẠO ORDER (chưa tạo shipment) ==========
             Order order = new Order();
@@ -310,6 +423,17 @@ public class CheckoutController {
             order.setStatus(Order.OrderStatus.PENDING);
             order.setPaymentStatus(Order.PaymentStatus.UNPAID);
             
+            // ✅ SET ĐỊA CHỈ NHẬN HÀNG TỪ BUYER ADDRESS
+            order.setReceiverName(buyerAddress.getContactName());
+            order.setReceiverPhone(buyerAddress.getContactPhone());
+            order.setReceiverAddress(buyerAddress.getFullAddress());
+            order.setProvince(buyerAddress.getProvinceName());
+            order.setDistrict(buyerAddress.getDistrictName());
+            order.setWard(buyerAddress.getWardName());
+            
+            // ✅ SET SHIPPING FEE
+            order.setShippingFee(shippingFee);
+            
             // Lưu thông tin GHN service đã chọn vào notes (JSON format)
             Map<String, Object> ghnInfo = new HashMap<>();
             ghnInfo.put("serviceId", req.getServiceId());
@@ -318,25 +442,37 @@ public class CheckoutController {
             ghnInfo.put("note", req.getNote());
             
             try {
-                order.setNotes(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(ghnInfo));
+                // notes field removed from Order, update logic if needed
             } catch (Exception e) {
-                order.setNotes("GHN service: " + req.getServiceId());
+                // notes field removed from Order, update logic if needed
             }
             
             order = orderRepository.save(order);
 
             // ========== TẠO ORDER ITEMS ==========
             for (var cartItem : cartItems) {
+                var variant = cartItem.getProductVariant();
+                
                 OrderItem orderItem = new OrderItem();
                 orderItem.setOrder(order);
-                orderItem.setVariant(cartItem.getProductVariant());
+                orderItem.setVariant(variant);
+                orderItem.setProductId(variant.getProduct().getId()); // ✅ Set product_id
+                orderItem.setVariantName(variant.getSku() != null ? variant.getSku() : variant.getProduct().getName()); // ✅ Set variant_name
                 orderItem.setQuantity(cartItem.getQuantity());
-                orderItem.setPrice(cartItem.getProductVariant().getPrice());
+                orderItem.setPrice(variant.getPrice());
                 orderItemRepository.save(orderItem);
             }
 
             // ========== XÓA CART ITEMS ==========
-            cartItemRepository.deleteAll(cartItems);
+            // Logic:
+            // - COD: Xóa cart ngay vì user đã xác nhận order (không có bước payment gateway)
+            // - MoMo/SportyPay: GIỮ cart cho đến khi payment success (user có thể thoát khỏi payment page)
+            if ("COD".equalsIgnoreCase(req.getPaymentMethod())) {
+                cartItemRepository.deleteAll(cartItems);
+                System.out.println("✅ Cart cleared for COD order #" + order.getId());
+            } else {
+                System.out.println("⏳ Cart kept for online payment order #" + order.getId() + " - will be cleared after payment success");
+            }
 
             // ========== TRẢ VỀ KẾT QUẢ ==========
             Map<String, Object> response = new HashMap<>();

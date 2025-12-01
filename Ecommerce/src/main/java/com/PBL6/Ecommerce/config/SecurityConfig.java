@@ -68,10 +68,17 @@ public class SecurityConfig {
                     "/api/ghn/master/**",
                     "/api/users/*/addresses",
                     "/api/users/*/addresses/**",
+                    // Checkout endpoints for mobile testing
+                    "/api/checkout/**",
                     // MoMo Payment callbacks - must be public for MoMo to call
                     "/api/payment/momo/return",
                     "/api/payment/momo/callback",
-                    "/api/payment/momo/test-callback"
+                    "/api/payment/momo/test-callback",
+                    // Wallet deposit callback - must be public for MoMo IPN
+                    "/api/wallet/deposit/callback",
+                    // WebSocket endpoints - allow SockJS handshake and STOMP connections
+                    "/ws/**",
+                    "/ws"
                 ).permitAll()
 
                 // Allow unauthenticated GET for the products collection

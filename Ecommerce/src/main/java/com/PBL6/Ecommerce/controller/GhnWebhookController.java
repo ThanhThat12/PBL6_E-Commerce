@@ -6,9 +6,11 @@ import com.PBL6.Ecommerce.domain.Shipment;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.ShipmentRepository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/webhook/ghn")
@@ -18,10 +20,15 @@ public class GhnWebhookController {
     
     private final ShipmentRepository shipmentRepository;
     private final OrderRepository orderRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public GhnWebhookController(ShipmentRepository shipmentRepository, OrderRepository orderRepository) {
+    public GhnWebhookController(
+            ShipmentRepository shipmentRepository, 
+            OrderRepository orderRepository,
+            SimpMessagingTemplate messagingTemplate) {
         this.shipmentRepository = shipmentRepository;
         this.orderRepository = orderRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     /**
@@ -60,16 +67,30 @@ public class GhnWebhookController {
             }
             
             // Cập nhật trạng thái shipment
+            String oldStatus = shipment.getStatus();
             shipment.setStatus(status);
             shipmentRepository.save(shipment);
-            logger.info("Updated shipment {} status to: {}", shipment.getId(), status);
+            logger.info("Updated shipment {} status: {} → {}", shipment.getId(), oldStatus, status);
             
-            // Cập nhật trạng thái đơn hàng tương ứng
-            Order order = shipment.getOrder();
+            // ✅ Cập nhật trạng thái đơn hàng tương ứng
+            Order order = orderRepository.findById(shipment.getOrderId())
+                .orElse(null);
+            
             if (order != null) {
+                Order.OrderStatus oldOrderStatus = order.getStatus();
                 updateOrderStatusFromGhn(order, status);
-                orderRepository.save(order);
-                logger.info("Updated order {} status based on GHN status: {}", order.getId(), status);
+                
+                // Chỉ save nếu status thay đổi
+                if (order.getStatus() != oldOrderStatus) {
+                    orderRepository.save(order);
+                    logger.info("✅ Updated order {} status: {} → {}", 
+                        order.getId(), oldOrderStatus, order.getStatus());
+                    
+                    // ✅ Gửi notification cho buyer
+                    sendOrderStatusNotification(order, status, payload);
+                }
+            } else {
+                logger.warn("Order not found for shipment: {}", shipment.getId());
             }
             
             return Map.of("success", true, "message", "Status updated successfully");
@@ -138,6 +159,59 @@ public class GhnWebhookController {
             default:
                 logger.info("Unknown GHN status: {}, no order status update", ghnStatus);
                 break;
+        }
+    }
+    
+    /**
+     * Gửi notification cho buyer khi có cập nhật trạng thái
+     */
+    private void sendOrderStatusNotification(Order order, String ghnStatus, Map<String,Object> payload) {
+        try {
+            Long buyerId = order.getUser().getId();
+            String statusName = (String) payload.getOrDefault("StatusName", ghnStatus);
+            
+            Map<String, Object> notification = new HashMap<>();
+            notification.put("type", "ORDER_STATUS_UPDATE");
+            notification.put("orderId", order.getId());
+            notification.put("orderStatus", order.getStatus().name());
+            notification.put("ghnStatus", ghnStatus);
+            notification.put("ghnStatusName", statusName);
+            notification.put("timestamp", System.currentTimeMillis());
+            
+            // Custom message dựa vào status
+            String message;
+            switch (ghnStatus.toLowerCase()) {
+                case "delivered":
+                    message = "🎉 Đơn hàng #" + order.getId() + " đã được giao thành công!";
+                    break;
+                case "delivering":
+                    message = "🚚 Đơn hàng #" + order.getId() + " đang được giao đến bạn";
+                    break;
+                case "picked":
+                    message = "📦 Đơn hàng #" + order.getId() + " đã được lấy hàng";
+                    break;
+                case "return":
+                case "returned":
+                    message = "🔄 Đơn hàng #" + order.getId() + " đang được hoàn trả";
+                    break;
+                case "delivery_fail":
+                    message = "⚠️ Giao hàng thất bại cho đơn #" + order.getId();
+                    break;
+                default:
+                    message = "📋 Đơn hàng #" + order.getId() + " có cập nhật: " + statusName;
+                    break;
+            }
+            
+            notification.put("message", message);
+            
+            String destination = "/topic/orderws/" + buyerId;
+            messagingTemplate.convertAndSend(destination, notification);
+            
+            logger.info("✅ Sent notification to buyer {} for order {}: {}", 
+                buyerId, order.getId(), message);
+            
+        } catch (Exception e) {
+            logger.error("❌ Error sending notification: {}", e.getMessage(), e);
         }
     }
 }

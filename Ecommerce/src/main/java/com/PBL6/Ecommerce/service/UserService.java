@@ -83,6 +83,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageImpl;
 
 // ============================================
 // JAVA IMPORTS
@@ -370,7 +371,7 @@ public class UserService {
             return new UserNotFoundException("User not found");
         });
 
-        return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name());
+        return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name(), user.getFullName());
     }
 
     /**
@@ -768,7 +769,7 @@ public class UserService {
     }
     
     /**
-     * Lấy danh sách seller users với phân trang
+     * Lấy danh sách SELLER với phân trang
      * @param pageable - Thông tin phân trang (page, size, sort)
      * @return Page<ListSellerUserDTO>
      */
@@ -1017,6 +1018,67 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Get sellers filtered by status with pagination
+     * @param status - ACTIVE, PENDING, INACTIVE, or null for all
+     * @param pageable - Pagination information (page, size, sort)
+     * @return Page of sellers matching the status
+     */
+    @Transactional(readOnly = true)
+    public Page<ListSellerUserDTO> getSellersByStatusWithPaging(String status, Pageable pageable) {
+        log.debug("Getting sellers by status '{}' with pagination: page={}, size={}", 
+            status, pageable.getPageNumber(), pageable.getPageSize());
+        
+        Page<User> userPage = userRepository.findByRole(Role.SELLER, pageable);
+        
+        List<ListSellerUserDTO> sellerDTOs = userPage.getContent().stream()
+                .map(user -> {
+                    // Lấy shop của seller
+                    Optional<Shop> shopOpt = shopRepository.findByOwnerId(user.getId());
+                    
+                    String shopName = null;
+                    String shopStatus = null;
+                    int totalProducts = 0;
+                    double revenue = 0.0;
+                    
+                    if (shopOpt.isPresent()) {
+                        Shop shop = shopOpt.get();
+                        shopName = shop.getName();
+                        shopStatus = shop.getStatus() != null ? shop.getStatus().name() : "PENDING";
+                        
+                        // Đếm tổng sản phẩm của shop
+                        totalProducts = (int) productRepository.countByShopId(shop.getId());
+                        
+                        // Tính tổng doanh thu từ các đơn hàng COMPLETED
+                        Double rev = orderRepository.getTotalRevenueByShopId(shop.getId());
+                        revenue = rev != null ? rev : 0.0;
+                    }
+                    
+                    return new ListSellerUserDTO(
+                        user.getId(),
+                        shopName,
+                        user.getPhoneNumber(),
+                        user.getEmail(),
+                        totalProducts,
+                        shopStatus,
+                        revenue
+                    );
+                })
+                .filter(seller -> {
+                    // Lọc theo status nếu có
+                    if (status == null || status.isEmpty() || "ALL".equalsIgnoreCase(status)) {
+                        return true;
+                    }
+                    return status.equalsIgnoreCase(seller.getStatus());
+                })
+                .collect(Collectors.toList());
+        
+        // Tạo Page mới với kết quả đã lọc
+        // Lưu ý: Việc lọc sau khi query có thể làm thay đổi số lượng thực tế
+        // Nếu cần chính xác tuyệt đối, nên dùng custom query với JOIN
+        return new PageImpl<>(sellerDTOs, pageable, userPage.getTotalElements());
+    }
+
 
     /**
      * Create a new admin account
@@ -1077,8 +1139,11 @@ public class UserService {
                     // Lấy shop của seller
                     Optional<Shop> shopOpt = shopRepository.findByOwnerId(user.getId());
                     
-                    // Lấy địa chỉ chính (primary_address = 1) từ bảng addresses
-                    Optional<Address> primaryAddress = addressRepository.findByUserIdAndPrimaryAddressTrue(user.getId());
+                    // ✅ Lấy địa chỉ STORE từ bảng addresses (TypeAddress.STORE)
+                    Optional<Address> storeAddress = addressRepository.findFirstByUserIdAndTypeAddress(
+                        user.getId(), 
+                        com.PBL6.Ecommerce.constant.TypeAddress.STORE
+                    );
                     
                     String shopName = null;
                     String shopAddress = null;
@@ -1094,23 +1159,25 @@ public class UserService {
                         shopDescription = shop.getDescription();
                         shopStatus = shop.getStatus() != null ? shop.getStatus().name() : null;
                         
-                        // Lấy địa chỉ từ bảng addresses thay vì từ shops
-                        shopAddress = primaryAddress.map(addr -> {
+                        // ✅ Ghép các trường địa chỉ thành 1 chuỗi hoàn chỉnh
+                        shopAddress = storeAddress.map(addr -> {
                             StringBuilder sb = new StringBuilder();
-                            if (addr.getFullAddress() != null) sb.append(addr.getFullAddress());
-                            if (addr.getWardName() != null) {
+                            if (addr.getFullAddress() != null && !addr.getFullAddress().trim().isEmpty()) {
+                                sb.append(addr.getFullAddress());
+                            }
+                            if (addr.getWardName() != null && !addr.getWardName().trim().isEmpty()) {
                                 if (sb.length() > 0) sb.append(", ");
                                 sb.append(addr.getWardName());
                             }
-                            if (addr.getDistrictName() != null) {
+                            if (addr.getDistrictName() != null && !addr.getDistrictName().trim().isEmpty()) {
                                 if (sb.length() > 0) sb.append(", ");
                                 sb.append(addr.getDistrictName());
                             }
-                            if (addr.getProvinceName() != null) {
+                            if (addr.getProvinceName() != null && !addr.getProvinceName().trim().isEmpty()) {
                                 if (sb.length() > 0) sb.append(", ");
                                 sb.append(addr.getProvinceName());
                             }
-                            return sb.toString();
+                            return sb.length() > 0 ? sb.toString() : null;
                         }).orElse(null);
                         
                         // Đếm tổng sản phẩm của shop
@@ -1149,8 +1216,11 @@ public class UserService {
         List<User> users = userRepository.findByRole(Role.BUYER);
         return users.stream()
                 .map(user -> {
-                    // Lấy địa chỉ chính của customer
-                    Optional<Address> primaryAddress = addressRepository.findByUserIdAndPrimaryAddressTrue(user.getId());
+                    // ✅ Lấy địa chỉ HOME của customer
+                    Optional<Address> homeAddress = addressRepository.findFirstByUserIdAndTypeAddress(
+                        user.getId(), 
+                        com.PBL6.Ecommerce.constant.TypeAddress.HOME
+                    );
                     
                     // ✅ Tính thông tin từ Orders (CHỈ đơn COMPLETED)
                     long totalOrders = orderRepository.countCompletedOrdersByUserId(user.getId());
@@ -1161,6 +1231,27 @@ public class UserService {
                     int cartItemsCount = cartRepository.findByUserId(user.getId())
                             .map(cart -> cartItemRepository.findByCartId(cart.getId()).size())
                             .orElse(0);
+                    
+                    // ✅ Ghép các trường địa chỉ thành 1 chuỗi hoàn chỉnh
+                    String fullAddressString = homeAddress.map(addr -> {
+                        StringBuilder sb = new StringBuilder();
+                        if (addr.getFullAddress() != null && !addr.getFullAddress().trim().isEmpty()) {
+                            sb.append(addr.getFullAddress());
+                        }
+                        if (addr.getWardName() != null && !addr.getWardName().trim().isEmpty()) {
+                            if (sb.length() > 0) sb.append(", ");
+                            sb.append(addr.getWardName());
+                        }
+                        if (addr.getDistrictName() != null && !addr.getDistrictName().trim().isEmpty()) {
+                            if (sb.length() > 0) sb.append(", ");
+                            sb.append(addr.getDistrictName());
+                        }
+                        if (addr.getProvinceName() != null && !addr.getProvinceName().trim().isEmpty()) {
+                            if (sb.length() > 0) sb.append(", ");
+                            sb.append(addr.getProvinceName());
+                        }
+                        return sb.length() > 0 ? sb.toString() : null;
+                    }).orElse(null);
                     
                     return new AdminUserDetailDTO(
                         user.getId(),
@@ -1175,11 +1266,11 @@ public class UserService {
                         totalSpent,
                         lastOrderDate,
                         cartItemsCount,
-                        primaryAddress.map(Address::getFullAddress).orElse(null),
-                        primaryAddress.map(Address::getProvinceName).orElse(null),
-                        primaryAddress.map(Address::getDistrictName).orElse(null),
-                        primaryAddress.map(Address::getWardName).orElse(null),
-                        primaryAddress.map(Address::getContactPhone).orElse(null)
+                        fullAddressString,  // ✅ Ghép tất cả thành 1 trường
+                        homeAddress.map(Address::getProvinceName).orElse(null),
+                        homeAddress.map(Address::getDistrictName).orElse(null),
+                        homeAddress.map(Address::getWardName).orElse(null),
+                        homeAddress.map(Address::getContactPhone).orElse(null)
                     );
                 })
                 .collect(Collectors.toList());
@@ -1206,8 +1297,11 @@ public class UserService {
             // Lấy shop của seller
             Optional<Shop> shopOpt = shopRepository.findByOwnerId(user.getId());
             
-            // Lấy địa chỉ chính (primary_address = 1) từ bảng addresses
-            Optional<Address> primaryAddress = addressRepository.findByUserIdAndPrimaryAddressTrue(user.getId());
+            // ✅ Lấy địa chỉ STORE từ bảng addresses (TypeAddress.STORE)
+            Optional<Address> storeAddress = addressRepository.findFirstByUserIdAndTypeAddress(
+                user.getId(), 
+                com.PBL6.Ecommerce.constant.TypeAddress.STORE
+            );
             
             String shopName = null;
             String shopAddress = null;
@@ -1223,23 +1317,25 @@ public class UserService {
                 shopDescription = shop.getDescription();
                 shopStatus = shop.getStatus() != null ? shop.getStatus().name() : null;
                 
-                // Lấy địa chỉ từ bảng addresses thay vì từ shops
-                shopAddress = primaryAddress.map(addr -> {
+                // ✅ Ghép các trường địa chỉ thành 1 chuỗi hoàn chỉnh
+                shopAddress = storeAddress.map(addr -> {
                     StringBuilder sb = new StringBuilder();
-                    if (addr.getFullAddress() != null) sb.append(addr.getFullAddress());
-                    if (addr.getWardName() != null) {
+                    if (addr.getFullAddress() != null && !addr.getFullAddress().trim().isEmpty()) {
+                        sb.append(addr.getFullAddress());
+                    }
+                    if (addr.getWardName() != null && !addr.getWardName().trim().isEmpty()) {
                         if (sb.length() > 0) sb.append(", ");
                         sb.append(addr.getWardName());
                     }
-                    if (addr.getDistrictName() != null) {
+                    if (addr.getDistrictName() != null && !addr.getDistrictName().trim().isEmpty()) {
                         if (sb.length() > 0) sb.append(", ");
                         sb.append(addr.getDistrictName());
                     }
-                    if (addr.getProvinceName() != null) {
+                    if (addr.getProvinceName() != null && !addr.getProvinceName().trim().isEmpty()) {
                         if (sb.length() > 0) sb.append(", ");
                         sb.append(addr.getProvinceName());
                     }
-                    return sb.toString();
+                    return sb.length() > 0 ? sb.toString() : null;
                 }).orElse(null);
                 
                 // Đếm tổng sản phẩm của shop
@@ -1261,7 +1357,7 @@ public class UserService {
                 user.getPhoneNumber(),
                 user.getRole().name(),
                 user.isActivated(),
-                user.getCreatedAt(),
+                shopOpt.isPresent() ? shopOpt.get().getCreatedAt() : user.getCreatedAt(), // Lấy từ shop.createdAt
                 shopName,
                 shopAddress,
                 shopDescription,
@@ -1271,8 +1367,11 @@ public class UserService {
                 totalRevenue
             );
         } else {
-            // BUYER/CUSTOMER - lấy địa chỉ chính và thông tin đơn hàng
-            Optional<Address> primaryAddress = addressRepository.findByUserIdAndPrimaryAddressTrue(user.getId());
+            // BUYER/CUSTOMER - ✅ Lấy địa chỉ HOME từ bảng addresses
+            Optional<Address> homeAddress = addressRepository.findFirstByUserIdAndTypeAddress(
+                user.getId(), 
+                com.PBL6.Ecommerce.constant.TypeAddress.HOME
+            );
             
             // ✅ Tính thông tin từ Orders (CHỈ đơn COMPLETED)
             long totalOrders = orderRepository.countCompletedOrdersByUserId(user.getId());
@@ -1283,6 +1382,27 @@ public class UserService {
             int cartItemsCount = cartRepository.findByUserId(user.getId())
                     .map(cart -> cartItemRepository.findByCartId(cart.getId()).size())
                     .orElse(0);
+            
+            // ✅ Ghép các trường địa chỉ thành 1 chuỗi hoàn chỉnh
+            String fullAddressString = homeAddress.map(addr -> {
+                StringBuilder sb = new StringBuilder();
+                if (addr.getFullAddress() != null && !addr.getFullAddress().trim().isEmpty()) {
+                    sb.append(addr.getFullAddress());
+                }
+                if (addr.getWardName() != null && !addr.getWardName().trim().isEmpty()) {
+                    if (sb.length() > 0) sb.append(", ");
+                    sb.append(addr.getWardName());
+                }
+                if (addr.getDistrictName() != null && !addr.getDistrictName().trim().isEmpty()) {
+                    if (sb.length() > 0) sb.append(", ");
+                    sb.append(addr.getDistrictName());
+                }
+                if (addr.getProvinceName() != null && !addr.getProvinceName().trim().isEmpty()) {
+                    if (sb.length() > 0) sb.append(", ");
+                    sb.append(addr.getProvinceName());
+                }
+                return sb.length() > 0 ? sb.toString() : null;
+            }).orElse(null);
             
             return new AdminUserDetailDTO(
                 user.getId(),
@@ -1297,11 +1417,11 @@ public class UserService {
                 totalSpent,
                 lastOrderDate,
                 cartItemsCount,
-                primaryAddress.map(Address::getFullAddress).orElse(null),
-                primaryAddress.map(Address::getProvinceName).orElse(null),
-                primaryAddress.map(Address::getDistrictName).orElse(null),
-                primaryAddress.map(Address::getWardName).orElse(null),
-                primaryAddress.map(Address::getContactPhone).orElse(null)
+                fullAddressString,  // ✅ Ghép tất cả thành 1 trường
+                homeAddress.map(Address::getProvinceName).orElse(null),
+                homeAddress.map(Address::getDistrictName).orElse(null),
+                homeAddress.map(Address::getWardName).orElse(null),
+                homeAddress.map(Address::getContactPhone).orElse(null)
             );
         }
     }
@@ -1592,7 +1712,7 @@ public class UserService {
     }
 
     /**
-     * Admin updates seller information (shop and user profile)
+     * ADMIN UPDATE SELLER (shop and user profile)
      * @param userId - ID of seller user
      * @param dto - DTO containing shop and user update data
      * @return UserInfoDTO with updated information
@@ -1721,7 +1841,7 @@ public class UserService {
     }
     
     /**
-     * Synchronize product is_active status when shop status changes
+     * Đồng bộ hóa trạng thái is_active của sản phẩm khi trạng thái cửa hàng thay đổi
      * @param shop - The shop whose products need synchronization
      * @param oldStatus - Previous shop status
      * @param newStatus - New shop status
@@ -1778,8 +1898,8 @@ public class UserService {
     }
 
     /**
-     * Get admin's own profile information
-     * Only returns basic profile data for the authenticated admin
+     * Lấy thông tin hồ sơ của quản trị viên
+    * Chỉ trả về dữ liệu hồ sơ cơ bản cho quản trị viên đã xác thực
      */
     public AdminMyProfileDTO getAdminMyProfile() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

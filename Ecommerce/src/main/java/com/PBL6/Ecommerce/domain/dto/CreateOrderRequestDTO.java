@@ -46,6 +46,8 @@ public class CreateOrderRequestDTO {
     private Integer serviceId;
     private Integer serviceTypeId;
 
+    private Long addressId;
+
     public static class Item {
         @NotNull
         private Long variantId;
@@ -100,4 +102,6 @@ public class CreateOrderRequestDTO {
     public void setServiceId(Integer s){this.serviceId = s;}
     public Integer getServiceTypeId(){return serviceTypeId;}
     public void setServiceTypeId(Integer s){this.serviceTypeId = s;}
+    public Long getAddressId() { return addressId; }
+    public void setAddressId(Long addressId) { this.addressId = addressId; }
 }

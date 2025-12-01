@@ -201,28 +201,32 @@ public class MoMoServiceIpl implements MoMoService {
         try {
             logger.info("Updating order payment status for order ID: {}", order.getId());
             if (transaction.getStatus() == PaymentTransactionStatus.SUCCESS) {
+                // ✅ RELOAD order từ database để đảm bảo có đầy đủ thông tin
+                Order managedOrder = orderRepository.findById(order.getId())
+                    .orElseThrow(() -> new OrderNotFoundException("Order not found: " + order.getId()));
+                
                 // Update order status and payment status
                 // Sau khi thanh toán thành công, đơn hàng chuyển sang trạng thái PENDING (chờ xác nhận)
-                order.setStatus(Order.OrderStatus.PENDING);
-                order.setPaymentStatus(Order.PaymentStatus.PAID);
-                order.setMethod("MOMO");
-                order.setMomoTransId(transaction.getTransId());
-                order.setPaidAt(new java.util.Date());
-                orderRepository.save(order);
-                logger.info("Order payment status updated successfully for order: {} (status=PENDING, paymentStatus=PAID)", order.getId());
+                managedOrder.setStatus(Order.OrderStatus.PENDING);
+                managedOrder.setPaymentStatus(Order.PaymentStatus.PAID);
+                managedOrder.setMethod("MOMO");
+                // order.setMomoTransId removed
+                managedOrder.setPaidAt(new java.util.Date());
+                orderRepository.save(managedOrder);
+                logger.info("Order payment status updated successfully for order: {} (status=PENDING, paymentStatus=PAID)", managedOrder.getId());
                 
                 // ✅ XÓA CÁC SẢN PHẨM ĐÃ THANH TOÁN KHỊI CART
                 try {
-                    orderService.clearCartAfterSuccessfulPayment(order.getUser().getId(), order.getId());
-                    logger.info("✅ Cart items cleared after successful payment for order: {}", order.getId());
+                    orderService.clearCartAfterSuccessfulPayment(managedOrder.getUser().getId(), managedOrder.getId());
+                    logger.info("✅ Cart items cleared after successful payment for order: {}", managedOrder.getId());
                 } catch (Exception e) {
                     logger.error("❌ Error clearing cart after payment: {}", e.getMessage(), e);
                 }
                 
                 // ✅ TẠO SHIPMENT SAU KHI THANH TOÁN THÀNH CÔNG
                 try {
-                    orderService.createShipmentAfterPayment(order.getId());
-                    logger.info("✅ Shipment creation initiated after payment for order: {}", order.getId());
+                    orderService.createShipmentAfterPayment(managedOrder.getId());
+                    logger.info("✅ Shipment creation initiated after payment for order: {}", managedOrder.getId());
                 } catch (Exception e) {
                     logger.error("❌ Error creating shipment after payment: {}", e.getMessage(), e);
                     // Không throw exception, order vẫn hợp lệ
@@ -238,25 +242,94 @@ public class MoMoServiceIpl implements MoMoService {
      */
     private void sendPaymentNotification(Order order, PaymentTransaction transaction) {
         try {
-            Long userId = order.getUser().getId();
+            // ✅ RELOAD order để đảm bảo có đầy đủ thông tin khi gửi notification
+            Order managedOrder = orderRepository.findById(order.getId()).orElse(order);
+            Long userId = managedOrder.getUser().getId();
             
             Map<String, Object> notification = new HashMap<>();
-            notification.put("orderId", order.getId());
-            notification.put("orderStatus", order.getStatus().name());
-            notification.put("paymentStatus", order.getPaymentStatus().name());
+            notification.put("orderId", managedOrder.getId());
+            notification.put("orderStatus", managedOrder.getStatus().name());
+            notification.put("paymentStatus", managedOrder.getPaymentStatus().name());
             notification.put("transactionId", transaction.getId());
-            notification.put("amount", order.getTotalAmount());
-            notification.put("message", "Payment successful for order #" + order.getId());
+            notification.put("amount", managedOrder.getTotalAmount());
+            notification.put("message", "Payment successful for order #" + managedOrder.getId());
             notification.put("timestamp", System.currentTimeMillis());
             
             String destination = "/topic/orderws/" + userId;
             messagingTemplate.convertAndSend(destination, notification);
             
-            logger.info("WebSocket notification sent to {} for order: {}", destination, order.getId());
+            logger.info("WebSocket notification sent to {} for order: {}", destination, managedOrder.getId());
         } catch (Exception e) {
             logger.error("Error sending WebSocket notification for order: {}, error: {}", 
                         order.getId(), e.getMessage(), e);
             // Don't throw exception, payment already successful
+        }
+    }
+
+    @Override
+    public com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO refundPayment(Long orderId, BigDecimal amount, String description) {
+        try {
+            logger.info("Processing MoMo refund for order ID: {}, amount: {}", orderId, amount);
+            
+            // Validate order exists
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
+            
+            // Get original payment transaction
+            PaymentTransaction originalTransaction = getPaymentByOrderId(orderId);
+            if (originalTransaction == null) {
+                throw new MoMoPaymentException("No payment transaction found for order: " + orderId);
+            }
+            
+            if (originalTransaction.getStatus() != PaymentTransactionStatus.SUCCESS) {
+                throw new MoMoPaymentException("Can only refund successful payments");
+            }
+            
+            // Validate refund amount
+            if (amount.compareTo(originalTransaction.getAmount()) > 0) {
+                throw new MoMoPaymentException("Refund amount cannot exceed original payment amount");
+            }
+            
+            // Generate unique request ID for refund
+            String refundRequestId = momoPaymentService.generateRequestId("REFUND-" + orderId);
+            
+            // Call MoMo refund API
+            com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO refundResponse = momoPaymentService.refundPayment(
+                originalTransaction.getOrderIdMomo(),
+                refundRequestId,
+                amount,
+                originalTransaction.getTransId()
+            );
+            
+            // Create refund transaction record
+            PaymentTransaction refundTransaction = new PaymentTransaction();
+            refundTransaction.setOrder(order);
+            refundTransaction.setRequestId(refundRequestId);
+            refundTransaction.setOrderIdMomo(originalTransaction.getOrderIdMomo());
+            refundTransaction.setAmount(amount.negate()); // Negative amount for refund
+            refundTransaction.setTransId(refundResponse.getTransId() != null ? refundResponse.getTransId().toString() : null);
+            refundTransaction.setResultCode(refundResponse.getResultCode());
+            refundTransaction.setMessage(refundResponse.getMessage());
+            
+            if (refundResponse.getResultCode() == 0) {
+                refundTransaction.setStatus(PaymentTransactionStatus.SUCCESS);
+                logger.info("MoMo refund successful for order: {}", orderId);
+            } else {
+                refundTransaction.setStatus(PaymentTransactionStatus.FAILED);
+                logger.warn("MoMo refund failed for order: {}, code: {}, message: {}", 
+                           orderId, refundResponse.getResultCode(), refundResponse.getMessage());
+            }
+            
+            paymentTransactionRepository.save(refundTransaction);
+            
+            return refundResponse;
+            
+        } catch (OrderNotFoundException | MoMoPaymentException e) {
+            logger.error("Refund error: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error during refund: {}", e.getMessage(), e);
+            throw new MoMoPaymentException("Failed to process refund: " + e.getMessage());
         }
     }
 }

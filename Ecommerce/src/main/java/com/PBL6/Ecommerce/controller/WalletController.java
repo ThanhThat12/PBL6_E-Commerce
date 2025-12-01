@@ -96,18 +96,20 @@ public class WalletController {
     }
 
     /**
-     * Deposit money to wallet
+     * Create MoMo payment for wallet deposit
      * POST /api/wallet/deposit
      * 
      * Request body:
      * {
      *   "amount": 100000,
-     *   "description": "Nạp tiền vào ví"
+     *   "description": "Nạp tiền vào ví SportyPay"
      * }
+     * 
+     * Response: MoMo payment URL
      */
     @PostMapping("/deposit")
     @PreAuthorize("hasAnyRole('BUYER', 'SELLER', 'ADMIN')")
-    public ResponseEntity<ResponseDTO<Wallet>> deposit(
+    public ResponseEntity<ResponseDTO<Map<String, Object>>> deposit(
             @RequestBody Map<String, Object> request,
             Authentication authentication) {
         try {
@@ -117,37 +119,123 @@ public class WalletController {
                     .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
             
             BigDecimal amount = new BigDecimal(request.get("amount").toString());
-            String description = request.getOrDefault("description", "Nạp tiền vào ví").toString();
+            String description = request.getOrDefault("description", "Nạp tiền vào ví SportyPay").toString();
             
             if (amount.compareTo(BigDecimal.ZERO) <= 0) {
                 return ResponseDTO.error(400, "BAD_REQUEST", "Amount must be positive");
             }
             
-            Wallet wallet = walletService.deposit(user.getId(), amount, description);
+            // Create MoMo payment for wallet deposit
+            // Use negative wallet ID to distinguish from order payments
+            String walletOrderId = "WALLET-" + userId + "-" + System.currentTimeMillis();
             
-            logger.info("User {} deposited {} to wallet", user.getUsername(), amount);
+            com.PBL6.Ecommerce.dto.PaymentResponseDTO momoResponse = 
+                walletService.createDepositPayment(user.getId(), amount, description, walletOrderId);
             
-            return ResponseDTO.success(wallet, "Deposit successful");
+            Map<String, Object> response = new HashMap<>();
+            response.put("payUrl", momoResponse.getPayUrl());
+            response.put("orderId", momoResponse.getOrderId());
+            response.put("requestId", momoResponse.getRequestId());
+            response.put("amount", amount);
+            response.put("message", "Redirect to MoMo to complete payment");
+            
+            logger.info("User {} initiated wallet deposit of {} via MoMo", user.getUsername(), amount);
+            
+            return ResponseDTO.success(response, "MoMo payment created. Redirect user to payUrl");
             
         } catch (UserNotFoundException e) {
             return ResponseDTO.error(404, "NOT_FOUND", e.getMessage());
         } catch (IllegalArgumentException e) {
             return ResponseDTO.error(400, "BAD_REQUEST", e.getMessage());
         } catch (Exception e) {
-            logger.error("Error processing deposit: {}", e.getMessage(), e);
-            return ResponseDTO.error(500, "INTERNAL_SERVER_ERROR", "Failed to process deposit");
+            logger.error("Error creating deposit payment: {}", e.getMessage(), e);
+            return ResponseDTO.error(500, "INTERNAL_SERVER_ERROR", "Failed to create deposit payment");
+        }
+    }
+    
+    /**
+     * Handle MoMo callback for wallet deposit
+     * This is called by MoMo IPN after user completes payment
+     */
+    @PostMapping("/deposit/callback")
+    public ResponseEntity<Map<String, Object>> handleDepositCallback(
+            @RequestBody com.PBL6.Ecommerce.dto.PaymentCallbackRequest callback) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            logger.info("========== WALLET DEPOSIT CALLBACK ==========");
+            logger.info("OrderId: {}", callback.getOrderId());
+            logger.info("ResultCode: {}", callback.getResultCode());
+            logger.info("Amount: {}", callback.getAmount());
+            logger.info("TransId: {}", callback.getTransId());
+            logger.info("Message: {}", callback.getMessage());
+            
+            if (callback.getResultCode() == 0) {
+                // Payment successful - credit wallet
+                String orderId = callback.getOrderId();
+                logger.info("Processing successful payment for orderId: {}", orderId);
+                
+                if (orderId != null && orderId.startsWith("WALLET-")) {
+                    String[] parts = orderId.split("-");
+                    logger.info("OrderId parts: {}", String.join(", ", parts));
+                    
+                    if (parts.length >= 3) {
+                        Long userId = Long.parseLong(parts[1]);
+                        BigDecimal amount = new BigDecimal(callback.getAmount());
+                        
+                        logger.info("Crediting wallet - userId: {}, amount: {}", userId, amount);
+                        
+                        Wallet wallet = walletService.deposit(userId, amount, 
+                            String.format("Nạp tiền qua MoMo - TransId: %s, OrderId: %s", 
+                                         callback.getTransId(), orderId));
+                        
+                        logger.info("✅ Wallet credited successfully!");
+                        logger.info("UserId: {}, NewBalance: {}, Amount: {}", 
+                                   userId, wallet.getBalance(), amount);
+                        
+                        response.put("status", "success");
+                        response.put("userId", userId);
+                        response.put("newBalance", wallet.getBalance());
+                    } else {
+                        logger.error("Invalid orderId format - not enough parts: {}", orderId);
+                        response.put("status", "error");
+                        response.put("message", "Invalid orderId format");
+                    }
+                } else {
+                    logger.error("OrderId does not start with WALLET-: {}", orderId);
+                    response.put("status", "error");
+                    response.put("message", "Invalid wallet orderId");
+                }
+            } else {
+                logger.warn("❌ Wallet deposit failed - resultCode: {}, message: {}", 
+                           callback.getResultCode(), callback.getMessage());
+                response.put("status", "failed");
+                response.put("resultCode", callback.getResultCode());
+            }
+            
+            logger.info("=============================================");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("💥 Error processing wallet deposit callback: {}", e.getMessage(), e);
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.ok(response);
         }
     }
 
     /**
-     * Withdraw money from wallet
+     * Request withdrawal from wallet to MoMo account
      * POST /api/wallet/withdraw
      * 
      * Request body:
      * {
      *   "amount": 50000,
-     *   "description": "Rút tiền từ ví"
+     *   "momoPhone": "0123456789",
+     *   "description": "Rút tiền từ ví SportyPay"
      * }
+     * 
+     * Note: This creates a withdrawal request that will be processed via MoMo refund API
+     * Money will be transferred to user's MoMo account
      */
     @PostMapping("/withdraw")
     @PreAuthorize("hasAnyRole('BUYER', 'SELLER', 'ADMIN')")
