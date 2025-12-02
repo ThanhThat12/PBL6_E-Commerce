@@ -74,6 +74,9 @@ public class ProductReview {
     @Column(name = "seller_response_date")
     private LocalDateTime sellerResponseDate;
 
+    @Column(name = "edit_count", columnDefinition = "INT DEFAULT 0")
+    private Integer editCount = 0;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -182,6 +185,14 @@ public class ProductReview {
 
     public void setSellerResponseDate(LocalDateTime sellerResponseDate) {
         this.sellerResponseDate = sellerResponseDate;
+    }
+
+    public Integer getEditCount() {
+        return editCount;
+    }
+
+    public void setEditCount(Integer editCount) {
+        this.editCount = editCount;
     }
 
     public LocalDateTime getCreatedAt() {

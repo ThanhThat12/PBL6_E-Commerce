@@ -1,10 +1,15 @@
 package com.PBL6.Ecommerce.controller;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,23 +18,23 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.oauth2.jwt.Jwt;
+
 import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
+import com.PBL6.Ecommerce.domain.dto.RegistrationStatusDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.SellerRegistrationRequestDTO;
+import com.PBL6.Ecommerce.domain.dto.SellerRegistrationResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
+import com.PBL6.Ecommerce.service.GhnService;
+import com.PBL6.Ecommerce.service.SellerRegistrationService;
 import com.PBL6.Ecommerce.service.ShopService;
 import com.PBL6.Ecommerce.service.UserService;
-import com.PBL6.Ecommerce.service.GhnService;
-import java.util.HashMap;
-import java.util.Map;
-import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
-import com.PBL6.Ecommerce.domain.dto.GhnServiceSelectionDTO;
-import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
 
-import jakarta.validation.Valid;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api")
@@ -38,11 +43,14 @@ public class ShopController {
     private final ShopService shopService;
     private final UserService userService;
     private final GhnService ghnService;
+    private final SellerRegistrationService sellerRegistrationService;
     
-    public ShopController(ShopService shopService, UserService userService, GhnService ghnService) {
+    public ShopController(ShopService shopService, UserService userService, GhnService ghnService,
+                          SellerRegistrationService sellerRegistrationService) {
         this.shopService = shopService;
         this.userService = userService;
         this.ghnService = ghnService;
+        this.sellerRegistrationService = sellerRegistrationService;
     }
 
     // /**
@@ -343,34 +351,33 @@ public class ShopController {
         }
     }
     /**
-     * Đăng ký seller (Buyer upgrade to Seller) - sử dụng ShopRegistrationDTO duy nhất
+     * NEW: Submit seller registration (Buyer applies to become Seller)
      * POST /api/seller/register
+     * Creates PENDING shop, requires admin approval
      */
     @PostMapping("/seller/register")
     @PreAuthorize("hasRole('BUYER')")
-    public ResponseEntity<ResponseDTO<ShopDTO>> registerAsSeller(
-            @Valid @RequestBody ShopRegistrationDTO registrationDTO) {
+    public ResponseEntity<ResponseDTO<SellerRegistrationResponseDTO>> submitSellerRegistration(
+            @Valid @RequestBody SellerRegistrationRequestDTO registrationDTO) {
         try {
             // Get current authenticated user
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
 
-            // Create shop and upgrade to seller (auto-approval)
-            Shop shop = shopService.createShopFromSellerRegistration(user, registrationDTO);
-
-            ShopDTO dto = shopService.toDTO(shop);
+            // Submit registration (creates PENDING shop)
+            SellerRegistrationResponseDTO response = sellerRegistrationService.submitRegistration(user, registrationDTO);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                new ResponseDTO<>(201, null, "Đăng ký seller thành công! Role đã được nâng cấp.", dto)
+                new ResponseDTO<>(201, null, response.getMessage(), response)
             );
 
         } catch (RuntimeException e) {
             String errorMessage = e.getMessage();
             int statusCode;
 
-            if (errorMessage.contains("Chỉ BUYER")) {
+            if (errorMessage.contains("Chỉ tài khoản BUYER")) {
                 statusCode = 403;
-            } else if (errorMessage.contains("đã tồn tại") || errorMessage.contains("đã có shop")) {
+            } else if (errorMessage.contains("đã có đơn đăng ký") || errorMessage.contains("Tên shop đã tồn tại")) {
                 statusCode = 409;
             } else {
                 statusCode = 400;
@@ -381,6 +388,93 @@ public class ShopController {
             );
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(new ResponseDTO<>(500, ex.getMessage(), "Lỗi hệ thống", null));
+        }
+    }
+
+    /**
+     * NEW: Get registration status for current user
+     * GET /api/seller/registration/status
+     */
+    @GetMapping("/seller/registration/status")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
+    public ResponseEntity<ResponseDTO<RegistrationStatusDTO>> getRegistrationStatus() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
+
+            RegistrationStatusDTO status = sellerRegistrationService.getRegistrationStatus(user);
+
+            return ResponseEntity.ok(
+                new ResponseDTO<>(200, null, "Lấy trạng thái đăng ký thành công", status)
+            );
+
+        } catch (RuntimeException e) {
+            String errorMessage = e.getMessage();
+            int statusCode = errorMessage.contains("chưa có đơn đăng ký") ? 404 : 400;
+
+            return ResponseEntity.status(statusCode).body(
+                new ResponseDTO<>(statusCode, errorMessage, "Lấy trạng thái thất bại", null)
+            );
+        }
+    }
+
+    /**
+     * NEW: Cancel rejected application (allows re-submission)
+     * DELETE /api/seller/registration
+     */
+    @DeleteMapping("/seller/registration")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ResponseDTO<Boolean>> cancelRejectedApplication() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
+
+            boolean cancelled = sellerRegistrationService.cancelRejectedApplication(user);
+
+            if (cancelled) {
+                return ResponseEntity.ok(
+                    new ResponseDTO<>(200, null, "Đã hủy đơn đăng ký bị từ chối. Bạn có thể đăng ký lại.", true)
+                );
+            } else {
+                return ResponseEntity.status(404).body(
+                    new ResponseDTO<>(404, "Không tìm thấy đơn đăng ký bị từ chối", "Thất bại", false)
+                );
+            }
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                new ResponseDTO<>(500, e.getMessage(), "Lỗi hệ thống", false)
+            );
+        }
+    }
+
+    /**
+     * NEW: Check if current user can submit new registration
+     * GET /api/seller/registration/can-submit
+     */
+    @GetMapping("/seller/registration/can-submit")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ResponseDTO<Map<String, Object>>> canSubmitRegistration() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
+
+            boolean canSubmit = sellerRegistrationService.canSubmitRegistration(user);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("canSubmit", canSubmit);
+            result.put("message", canSubmit 
+                ? "Bạn có thể đăng ký bán hàng" 
+                : "Bạn đã có đơn đăng ký đang chờ duyệt hoặc shop đang hoạt động");
+
+            return ResponseEntity.ok(
+                new ResponseDTO<>(200, null, "Kiểm tra thành công", result)
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                new ResponseDTO<>(500, e.getMessage(), "Lỗi hệ thống", null)
+            );
         }
     }
     
@@ -435,6 +529,35 @@ public class ShopController {
                 false
             );
             return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * Get shop by ID (public endpoint)
+     * GET /api/shops/{shopId}
+     */
+    @GetMapping("/shops/{shopId}")
+    public ResponseEntity<ResponseDTO<ShopDTO>> getShopById(@PathVariable Long shopId) {
+        try {
+            Shop shop = shopService.getShopById(shopId);
+            if (shop != null) {
+                ShopDTO dto = shopService.toDTO(shop);
+                return ResponseEntity.ok(
+                    new ResponseDTO<>(HttpStatus.OK.value(), null, "Lấy thông tin shop thành công", dto)
+                );
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    new ResponseDTO<>(HttpStatus.NOT_FOUND.value(), "Shop không tồn tại", "Thất bại", null)
+                );
+            }
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                new ResponseDTO<>(HttpStatus.NOT_FOUND.value(), e.getMessage(), "Thất bại", null)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(
+                new ResponseDTO<>(HttpStatus.BAD_REQUEST.value(), e.getMessage(), "Thất bại", null)
+            );
         }
     }
 }

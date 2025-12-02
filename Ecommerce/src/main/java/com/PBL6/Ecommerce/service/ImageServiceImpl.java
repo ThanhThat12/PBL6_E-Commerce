@@ -9,6 +9,7 @@ import com.PBL6.Ecommerce.domain.ProductVariant;
 import com.PBL6.Ecommerce.domain.ProductVariantValue;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.dto.TempImageUploadResponseDTO;
 import com.PBL6.Ecommerce.dto.cloudinary.CloudinaryUploadResult;
 import com.PBL6.Ecommerce.dto.request.ImageReorderRequest;
 import com.PBL6.Ecommerce.dto.response.GalleryImageResponse;
@@ -960,6 +961,59 @@ public class ImageServiceImpl implements ImageService {
     }
 
     // ========== REVIEW IMAGES ==========
+
+    @Override
+    @Transactional
+    public List<TempImageUploadResponseDTO> uploadTempReviewImages(List<MultipartFile> files, Long userId) {
+        log.info("Uploading {} temporary review images for user {}", files.size(), userId);
+
+        // Rate limiting
+        checkRateLimit(userId);
+
+        // Validate file count
+        if (files == null || files.isEmpty()) {
+            throw new ImageValidationException("At least one image file is required");
+        }
+        if (files.size() > MAX_REVIEW_IMAGES) {
+            throw new ImageValidationException("Maximum " + MAX_REVIEW_IMAGES + " images allowed per review");
+        }
+
+        List<TempImageUploadResponseDTO> responses = new ArrayList<>();
+        String folder = cloudinaryUtil.getFolderPath("review-temp");
+
+        for (MultipartFile file : files) {
+            try {
+                // Validate file
+                imageValidationUtil.validateImage(file);
+
+                // Upload to Cloudinary with a temp prefix
+                String publicId = String.format("temp_review_%d_%d", userId, System.currentTimeMillis());
+                CloudinaryUploadResult result = cloudinaryClient.uploadImage(file, folder, publicId);
+
+                TempImageUploadResponseDTO response = TempImageUploadResponseDTO.builder()
+                        .url(result.getSecureUrl())
+                        .publicId(result.getPublicId())
+                        .width(result.getWidth())
+                        .height(result.getHeight())
+                        .size(result.getBytes())
+                        .message("Image uploaded successfully")
+                        .build();
+
+                responses.add(response);
+
+                log.debug("Uploaded temp review image: {} for user {}", result.getPublicId(), userId);
+
+            } catch (ImageValidationException e) {
+                throw e;
+            } catch (Exception e) {
+                log.error("Failed to upload temp review image for user {}: {}", userId, e.getMessage(), e);
+                throw new ImageUploadException("Failed to upload image: " + e.getMessage());
+            }
+        }
+
+        log.info("Successfully uploaded {} temporary review images for user {}", responses.size(), userId);
+        return responses;
+    }
 
     @Override
     @Transactional

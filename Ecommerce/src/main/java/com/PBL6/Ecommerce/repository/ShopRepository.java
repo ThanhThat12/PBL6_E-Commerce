@@ -1,16 +1,20 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.Shop.ShopStatus;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.Shop.ShopStatus;
 import com.PBL6.Ecommerce.domain.User;
-import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface ShopRepository extends JpaRepository<Shop, Long> {
@@ -36,4 +40,45 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
     
     // Lấy danh sách shop theo trạng thái
     List<Shop> findByStatus(ShopStatus status);
+    
+    // ========== SELLER REGISTRATION - New queries ==========
+    
+    /**
+     * Find pending shops (registration applications) ordered by submission date
+     */
+    Page<Shop> findByStatusOrderBySubmittedAtDesc(ShopStatus status, Pageable pageable);
+    
+    /**
+     * Check if shop name exists in ACTIVE or PENDING status
+     */
+    @Query("SELECT COUNT(s) > 0 FROM Shop s WHERE s.name = :name AND s.status IN :statuses")
+    boolean existsByNameAndStatusIn(@Param("name") String name, @Param("statuses") List<ShopStatus> statuses);
+    
+    /**
+     * Find shop by owner and status
+     */
+    Optional<Shop> findByOwnerAndStatus(User owner, ShopStatus status);
+    
+    /**
+     * Find shop by owner with any of given statuses
+     */
+    @Query("SELECT s FROM Shop s WHERE s.owner = :owner AND s.status IN :statuses")
+    Optional<Shop> findByOwnerAndStatusIn(@Param("owner") User owner, @Param("statuses") List<ShopStatus> statuses);
+    
+    /**
+     * Search pending applications by shop name, email, or phone
+     */
+    @Query("SELECT s FROM Shop s WHERE s.status = 'PENDING' AND " +
+           "(LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(s.shopEmail) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "s.shopPhone LIKE CONCAT('%', :keyword, '%'))")
+    Page<Shop> searchPendingApplications(@Param("keyword") String keyword, Pageable pageable);
+    
+    // ========== SEARCH ==========
+    
+    /**
+     * Search shops by name (case-insensitive, partial match)
+     */
+    @Query("SELECT s FROM Shop s WHERE s.status = 'ACTIVE' AND LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%')) ORDER BY s.name")
+    List<Shop> findByNameContaining(@Param("query") String query, org.springframework.data.domain.Pageable pageable);
 }

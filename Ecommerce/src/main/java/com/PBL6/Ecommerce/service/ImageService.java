@@ -207,6 +207,20 @@ public interface ImageService {
     // ========== REVIEW IMAGES ==========
 
     /**
+     * Upload temporary review images BEFORE creating a review.
+     * This allows users to select and upload images first, then create the review with image URLs.
+     * Images are stored in a temporary folder and can be used when creating the review.
+     * 
+     * @param files List of image files to upload (1-5 files)
+     * @param userId The ID of the authenticated user
+     * @return List of TempImageUploadResponseDTO with URLs, public_ids, and image metadata
+     * @throws ImageValidationException if file validation fails or exceeds 5 images
+     * @throws ImageUploadException if upload to Cloudinary fails
+     */
+    List<com.PBL6.Ecommerce.domain.dto.TempImageUploadResponseDTO> uploadTempReviewImages(
+            List<org.springframework.web.multipart.MultipartFile> files, Long userId);
+
+    /**
      * Upload images to a product review (up to 5 images).
      * Images are stored as JSON array in the images column.
      * Each image object contains: {"url": "...", "publicId": "..."}.

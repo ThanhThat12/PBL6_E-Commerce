@@ -23,8 +23,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
-import com.PBL6.Ecommerce.domain.dto.ProductUpdateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductDTO;
+import com.PBL6.Ecommerce.domain.dto.ProductUpdateDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.service.ProductService;
 
@@ -167,6 +167,7 @@ public class ProductController {
             @RequestParam(required = false) Long shopId,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) BigDecimal minRating,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
@@ -176,7 +177,7 @@ public class ProductController {
         Pageable pageable = PageRequest.of(page, size, sort);
         
         Page<ProductDTO> products = productService.searchActiveProducts(
-            name, categoryId, shopId, minPrice, maxPrice, pageable);
+            name, categoryId, shopId, minPrice, maxPrice, minRating, pageable);
         return ResponseDTO.success(products, "Tìm kiếm sản phẩm thành công");
     }
     
