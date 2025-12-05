@@ -71,6 +71,14 @@ public class SellerRegistrationService {
             throw new RuntimeException("Tên shop đã tồn tại, vui lòng chọn tên khác");
         }
 
+        // ========== CHECK DUPLICATE CCCD ==========
+        // Prevent same ID card number from registering multiple shops
+        if (request.getIdCardNumber() != null && !request.getIdCardNumber().trim().isEmpty()) {
+            if (shopRepository.existsByIdCardNumberAndStatusIn(request.getIdCardNumber().trim(), activeOrPendingStatuses)) {
+                throw new RuntimeException("Số CMND/CCCD này đã được sử dụng để đăng ký shop khác. Mỗi CCCD chỉ được đăng ký một shop.");
+            }
+        }
+
         // Create new shop with PENDING status
         Shop shop = new Shop();
         shop.setOwner(user);
@@ -94,9 +102,11 @@ public class SellerRegistrationService {
         shop.setSelfieWithIdPublicId(request.getSelfieWithIdPublicId());
         shop.setIdCardName(request.getIdCardName());
 
-        // Logo (optional)
+        // Branding (optional)
         shop.setLogoUrl(request.getLogoUrl());
         shop.setLogoPublicId(request.getLogoPublicId());
+        shop.setBannerUrl(request.getBannerUrl());
+        shop.setBannerPublicId(request.getBannerPublicId());
 
         // Payment methods - Phase 1: COD only
         shop.setAcceptCod(true);

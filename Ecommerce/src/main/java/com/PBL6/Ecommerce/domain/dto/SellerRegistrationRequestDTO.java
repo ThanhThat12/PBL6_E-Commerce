@@ -56,6 +56,8 @@ public class SellerRegistrationRequestDTO {
     // ========== Shop Branding (optional) ==========
     private String logoUrl;
     private String logoPublicId;
+    private String bannerUrl;
+    private String bannerPublicId;
 
     // ========== KYC - Identity Verification ==========
     @NotBlank(message = "Số CMND/CCCD không được để trống")
@@ -219,6 +221,22 @@ public class SellerRegistrationRequestDTO {
 
     public void setLogoPublicId(String logoPublicId) {
         this.logoPublicId = logoPublicId;
+    }
+
+    public String getBannerUrl() {
+        return bannerUrl;
+    }
+
+    public void setBannerUrl(String bannerUrl) {
+        this.bannerUrl = bannerUrl;
+    }
+
+    public String getBannerPublicId() {
+        return bannerPublicId;
+    }
+
+    public void setBannerPublicId(String bannerPublicId) {
+        this.bannerPublicId = bannerPublicId;
     }
 
     public String getIdCardNumber() {

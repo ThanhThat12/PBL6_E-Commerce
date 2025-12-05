@@ -16,6 +16,7 @@ import com.PBL6.Ecommerce.constant.TypeAddress;
 import com.PBL6.Ecommerce.domain.dto.MonthlyRevenueDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
+import com.PBL6.Ecommerce.domain.dto.ShopDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
 import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
@@ -71,9 +72,10 @@ public class ShopService {
      * Cập nhật thông tin shop
      * @param username - Username của seller từ JWT token
      * @param updateShopDTO - Dữ liệu cập nhật
-     * @return ShopDTO - Thông tin shop sau khi cập nhật
+     * @return ShopDetailDTO - Thông tin shop đầy đủ sau khi cập nhật
      */
-    public ShopDTO updateSellerShop(String username, UpdateShopDTO updateShopDTO) {
+    @Transactional
+    public ShopDetailDTO updateSellerShop(String username, UpdateShopDTO updateShopDTO) {
         // Tìm user theo username
         User user = userRepository.findOneByUsername(username)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
@@ -87,29 +89,102 @@ public class ShopService {
         Shop shop = shopRepository.findByOwner(user)
             .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
 
-        // Cập nhật thông tin shop (chỉ cập nhật các trường không null)
+        // ========== Basic Info ==========
         if (updateShopDTO.getName() != null && !updateShopDTO.getName().trim().isEmpty()) {
             shop.setName(updateShopDTO.getName().trim());
         }
 
-        if (updateShopDTO.getPickupAddressId() != null) {
-            // validate ownership of address
-            Address addr = addressRepository.findByIdAndUserId(updateShopDTO.getPickupAddressId(), user.getId())
-                .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
-            // ensure type = STORE
-            addr.setTypeAddress(TypeAddress.STORE);
-            addressRepository.save(addr);
-        }
-
-        if (updateShopDTO.getDescription() != null && !updateShopDTO.getDescription().trim().isEmpty()) {
+        if (updateShopDTO.getDescription() != null) {
             shop.setDescription(updateShopDTO.getDescription().trim());
         }
 
+        // ========== Contact Info ==========
+        if (updateShopDTO.getShopPhone() != null) {
+            shop.setShopPhone(updateShopDTO.getShopPhone().trim());
+        }
+        if (updateShopDTO.getShopEmail() != null) {
+            shop.setShopEmail(updateShopDTO.getShopEmail().trim());
+        }
+
+        // ========== Branding ==========
+        if (updateShopDTO.getLogoUrl() != null) {
+            shop.setLogoUrl(updateShopDTO.getLogoUrl());
+            shop.setLogoPublicId(updateShopDTO.getLogoPublicId());
+        }
+        if (updateShopDTO.getBannerUrl() != null) {
+            shop.setBannerUrl(updateShopDTO.getBannerUrl());
+            shop.setBannerPublicId(updateShopDTO.getBannerPublicId());
+        }
+
+        // ========== GHN Credentials ==========
+        if (updateShopDTO.getGhnShopId() != null && !updateShopDTO.getGhnShopId().trim().isEmpty()) {
+            shop.setGhnShopId(updateShopDTO.getGhnShopId().trim());
+        }
+        if (updateShopDTO.getGhnToken() != null && !updateShopDTO.getGhnToken().trim().isEmpty()) {
+            shop.setGhnToken(updateShopDTO.getGhnToken().trim());
+        }
+
+        // ========== Address Handling ==========
+        if (updateShopDTO.getPickupAddressId() != null) {
+            // Option 1: Use existing address ID
+            Address addr = addressRepository.findByIdAndUserId(updateShopDTO.getPickupAddressId(), user.getId())
+                .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
+            // Ensure type = STORE
+            addr.setTypeAddress(TypeAddress.STORE);
+            addressRepository.save(addr);
+        } else if (updateShopDTO.getFullAddress() != null && !updateShopDTO.getFullAddress().trim().isEmpty()) {
+            // Option 2: Create or update store address with full details
+            Address storeAddr = addressRepository
+                .findFirstByUserIdAndTypeAddress(user.getId(), TypeAddress.STORE)
+                .orElse(null);
+            
+            if (storeAddr == null) {
+                // Create new address
+                storeAddr = new Address();
+                storeAddr.setUser(user);
+                storeAddr.setTypeAddress(TypeAddress.STORE);
+            }
+            
+            // Update address fields
+            storeAddr.setFullAddress(updateShopDTO.getFullAddress().trim());
+            if (updateShopDTO.getProvinceId() != null) {
+                storeAddr.setProvinceId(updateShopDTO.getProvinceId());
+            }
+            if (updateShopDTO.getDistrictId() != null) {
+                storeAddr.setDistrictId(updateShopDTO.getDistrictId());
+            }
+            if (updateShopDTO.getWardCode() != null) {
+                storeAddr.setWardCode(updateShopDTO.getWardCode());
+            }
+            if (updateShopDTO.getProvinceName() != null) {
+                storeAddr.setProvinceName(updateShopDTO.getProvinceName());
+            }
+            if (updateShopDTO.getDistrictName() != null) {
+                storeAddr.setDistrictName(updateShopDTO.getDistrictName());
+            }
+            if (updateShopDTO.getWardName() != null) {
+                storeAddr.setWardName(updateShopDTO.getWardName());
+            }
+            if (updateShopDTO.getContactPhone() != null) {
+                storeAddr.setContactPhone(updateShopDTO.getContactPhone());
+            }
+            if (updateShopDTO.getContactName() != null) {
+                storeAddr.setContactName(updateShopDTO.getContactName());
+            }
+            
+            addressRepository.save(storeAddr);
+        }
+
+        // ========== Status (only allow ACTIVE/INACTIVE for seller self-update) ==========
         if (updateShopDTO.getStatus() != null && !updateShopDTO.getStatus().trim().isEmpty()) {
-            // Validate status
             try {
                 Shop.ShopStatus shopStatus = Shop.ShopStatus.valueOf(updateShopDTO.getStatus().toUpperCase());
-                shop.setStatus(shopStatus);
+                // Seller can only set ACTIVE or INACTIVE
+                if (shopStatus == Shop.ShopStatus.ACTIVE || shopStatus == Shop.ShopStatus.INACTIVE) {
+                    shop.setStatus(shopStatus);
+                } else {
+                    throw new RuntimeException("Seller chỉ được phép đặt trạng thái ACTIVE hoặc INACTIVE");
+                }
             } catch (IllegalArgumentException e) {
                 throw new RuntimeException("Trạng thái không hợp lệ. Chỉ chấp nhận: ACTIVE hoặc INACTIVE");
             }
@@ -117,32 +192,167 @@ public class ShopService {
 
         // Lưu vào database
         Shop updatedShop = shopRepository.save(shop);
-        return convertToDTO(updatedShop);
+        return convertToDetailDTO(updatedShop);
     }
 
     /**
-     * Convert Shop entity sang ShopDTO
+     * Convert Shop entity sang ShopDTO (PUBLIC info only)
+     * Used for: Guest viewing shop, Buyer viewing seller's shop, Product listing
      */
     private ShopDTO convertToDTO(Shop shop) {
-        ShopDTO dto = new ShopDTO();
-        dto.setId(shop.getId());
-        dto.setName(shop.getName());
-        // try shop.pickup first, else find address of owner with TypeAddress.STORE
-        Address pickup = null;
-        if (pickup == null && shop.getOwner() != null) {
-            pickup = addressRepository.findFirstByUserIdAndTypeAddress(shop.getOwner().getId(), TypeAddress.STORE)
+        // Get store address
+        Address storeAddress = null;
+        if (shop.getOwner() != null) {
+            storeAddress = addressRepository.findFirstByUserIdAndTypeAddress(shop.getOwner().getId(), TypeAddress.STORE)
                     .orElse(null);
         }
-        dto.setAddress(pickup != null ? pickup.getFullAddress() : null);
-        dto.setDescription(shop.getDescription());
-        dto.setStatus(shop.getStatus() != null ? shop.getStatus().name() : null);
-        dto.setCreatedAt(shop.getCreatedAt());
-        return dto;
+
+        return ShopDTO.builder()
+            // Basic info
+            .id(shop.getId())
+            .name(shop.getName())
+            .description(shop.getDescription())
+            .status(shop.getStatus() != null ? shop.getStatus().name() : null)
+            .createdAt(shop.getCreatedAt())
+            
+            // Branding
+            .logoUrl(shop.getLogoUrl())
+            .bannerUrl(shop.getBannerUrl())
+            
+            // Address (text only, no IDs)
+            .address(storeAddress != null ? storeAddress.getFullAddress() : null)
+            .provinceName(storeAddress != null ? storeAddress.getProvinceName() : null)
+            .districtName(storeAddress != null ? storeAddress.getDistrictName() : null)
+            .wardName(storeAddress != null ? storeAddress.getWardName() : null)
+            
+            // Rating
+            .rating(shop.getRating())
+            .reviewCount(shop.getReviewCount())
+            
+            // Contact (public)
+            .shopPhone(shop.getShopPhone())
+            .shopEmail(shop.getShopEmail())
+            .build();
     }
     
     // Public helper to convert Shop -> ShopDTO for controllers
     public ShopDTO toDTO(Shop shop) {
         return convertToDTO(shop);
+    }
+
+    /**
+     * Get full shop details for seller dashboard
+     * Includes: address, GHN, KYC status, rating, owner info
+     * 
+     * @param username - Username of seller from JWT
+     * @return ShopDetailDTO with all information
+     */
+    public ShopDetailDTO getSellerShopDetail(String username) {
+        // Find user by username
+        User user = userRepository.findOneByUsername(username)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        // Check SELLER role
+        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+            throw new RuntimeException("Người dùng không phải là seller");
+        }
+
+        // Find seller's shop
+        Shop shop = shopRepository.findByOwner(user)
+            .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+
+        return convertToDetailDTO(shop);
+    }
+
+    /**
+     * Convert Shop entity to ShopDetailDTO with full information
+     */
+    public ShopDetailDTO convertToDetailDTO(Shop shop) {
+        User owner = shop.getOwner();
+        
+        // Get store address
+        Address storeAddress = null;
+        if (owner != null) {
+            storeAddress = addressRepository.findFirstByUserIdAndTypeAddress(owner.getId(), TypeAddress.STORE)
+                    .orElse(null);
+        }
+
+        ShopDetailDTO dto = ShopDetailDTO.builder()
+            // Basic info
+            .shopId(shop.getId())
+            .name(shop.getName())
+            .description(shop.getDescription())
+            .status(shop.getStatus() != null ? shop.getStatus().name() : null)
+            .createdAt(shop.getCreatedAt())
+            
+            // Contact
+            .shopPhone(shop.getShopPhone())
+            .shopEmail(shop.getShopEmail())
+            
+            // Branding
+            .logoUrl(shop.getLogoUrl())
+            .logoPublicId(shop.getLogoPublicId())
+            .bannerUrl(shop.getBannerUrl())
+            .bannerPublicId(shop.getBannerPublicId())
+            
+            // GHN
+            .ghnShopId(shop.getGhnShopId())
+            .ghnToken(shop.getGhnToken())
+            .ghnConfigured(shop.getGhnShopId() != null && shop.getGhnToken() != null 
+                          && !shop.getGhnShopId().isEmpty() && !shop.getGhnToken().isEmpty())
+            
+            // KYC (masked for security)
+            .maskedIdCardNumber(ShopDetailDTO.maskIdCardNumber(shop.getIdCardNumber()))
+            .idCardName(shop.getIdCardName())
+            .kycVerified(shop.getStatus() == Shop.ShopStatus.ACTIVE)
+            
+            // Payment
+            .acceptCod(shop.getAcceptCod())
+            .codFeePercentage(shop.getCodFeePercentage())
+            
+            // Rating
+            .rating(shop.getRating())
+            .reviewCount(shop.getReviewCount())
+            
+            // Review tracking
+            .submittedAt(shop.getSubmittedAt())
+            .reviewedAt(shop.getReviewedAt())
+            .reviewedBy(shop.getReviewedBy())
+            .rejectionReason(shop.getRejectionReason())
+            .build();
+
+        // Address info
+        if (storeAddress != null) {
+            dto.setAddressId(storeAddress.getId());
+            dto.setFullAddress(storeAddress.getFullAddress());
+            dto.setProvinceId(storeAddress.getProvinceId());
+            dto.setDistrictId(storeAddress.getDistrictId());
+            dto.setWardCode(storeAddress.getWardCode());
+            dto.setProvinceName(storeAddress.getProvinceName());
+            dto.setDistrictName(storeAddress.getDistrictName());
+            dto.setWardName(storeAddress.getWardName());
+            dto.setContactPhone(storeAddress.getContactPhone());
+            dto.setContactName(storeAddress.getContactName());
+        }
+
+        // Owner info
+        if (owner != null) {
+            dto.setOwnerId(owner.getId());
+            dto.setOwnerUsername(owner.getUsername());
+            dto.setOwnerFullName(owner.getFullName());
+            dto.setOwnerEmail(owner.getEmail());
+            dto.setOwnerPhone(owner.getPhoneNumber());
+            dto.setOwnerCreatedAt(owner.getCreatedAt());
+        }
+
+        // Show KYC images only for PENDING/REJECTED status (seller needs to review their submission)
+        if (shop.getStatus() == Shop.ShopStatus.PENDING || shop.getStatus() == Shop.ShopStatus.REJECTED) {
+            dto.setIdCardFrontUrl(shop.getIdCardFrontUrl());
+            dto.setIdCardBackUrl(shop.getIdCardBackUrl());
+            dto.setSelfieWithIdUrl(shop.getSelfieWithIdUrl());
+        }
+
+        return dto;
     }
 
     /**

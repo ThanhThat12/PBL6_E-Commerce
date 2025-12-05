@@ -74,6 +74,18 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
            "s.shopPhone LIKE CONCAT('%', :keyword, '%'))")
     Page<Shop> searchPendingApplications(@Param("keyword") String keyword, Pageable pageable);
     
+    /**
+     * Check if ID card number already exists in ACTIVE or PENDING shops
+     * Used to prevent duplicate CCCD registration
+     */
+    @Query("SELECT COUNT(s) > 0 FROM Shop s WHERE s.idCardNumber = :idCardNumber AND s.status IN :statuses")
+    boolean existsByIdCardNumberAndStatusIn(@Param("idCardNumber") String idCardNumber, @Param("statuses") List<ShopStatus> statuses);
+    
+    /**
+     * Find shop by ID card number (for checking duplicates)
+     */
+    Optional<Shop> findByIdCardNumber(String idCardNumber);
+    
     // ========== SEARCH ==========
     
     /**

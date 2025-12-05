@@ -45,4 +45,13 @@ public interface CloudinaryClient {
      * @return Transformed image URL
      */
     String generateTransformationUrl(String publicId, String transformation);
+
+    /**
+     * Generates all transformation URLs for an existing image.
+     * 
+     * @param publicId Cloudinary public ID
+     * @param format   Image format (e.g., "jpg", "png")
+     * @return A map of transformation types to their corresponding URLs
+     */
+    Map<com.PBL6.Ecommerce.constant.TransformationType, String> generateTransformedUrls(String publicId, String format);
 }

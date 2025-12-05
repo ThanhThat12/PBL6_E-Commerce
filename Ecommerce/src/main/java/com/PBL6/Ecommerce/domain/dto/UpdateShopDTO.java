@@ -1,54 +1,49 @@
 package com.PBL6.Ecommerce.domain.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 /**
  * DTO để cập nhật thông tin shop
- * Chỉ cho phép cập nhật: name, description, status, pickupAddressId
+ * Supports updating: name, description, status, contact, branding, address, GHN
  */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class UpdateShopDTO {
+    // Basic info
     private String name;
-    // Optional: allow selecting existing address id instead of plain string
-    private Long pickupAddressId;
     private String description;
     private String status;
-
-    public UpdateShopDTO() {
-    }
-
-    public UpdateShopDTO(String name, String description, String status) {
-        this.name = name;
-        this.description = description;
-        this.status = status;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public Long getPickupAddressId() {
-        return pickupAddressId;
-    }
-
-    public void setPickupAddressId(Long pickupAddressId) {
-        this.pickupAddressId = pickupAddressId;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
+    
+    // Contact info
+    private String shopPhone;
+    private String shopEmail;
+    
+    // Branding - logo and banner
+    private String logoUrl;
+    private String logoPublicId;
+    private String bannerUrl;
+    private String bannerPublicId;
+    
+    // Address - Option 1: Use existing address ID
+    private Long pickupAddressId;
+    
+    // Address - Option 2: Create/update full address
+    private String fullAddress;
+    private Integer provinceId;
+    private Integer districtId;
+    private String wardCode;
+    private String provinceName;
+    private String districtName;
+    private String wardName;
+    private String contactPhone;
+    private String contactName;
+    
+    // GHN credentials
+    private String ghnShopId;
+    private String ghnToken;
 }
