@@ -1,6 +1,8 @@
 package com.PBL6.Ecommerce.controller;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.PBL6.Ecommerce.domain.dto.OrderDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
@@ -25,9 +28,11 @@ import jakarta.validation.Valid;
 public class OrdersController {
     
     private final OrderService orderService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public OrdersController(OrderService orderService) {
+    public OrdersController(OrderService orderService, SimpMessagingTemplate messagingTemplate) {
         this.orderService = orderService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     /**
@@ -144,6 +149,11 @@ public class OrdersController {
             Authentication authentication) {
         String username = authentication.getName();
         OrderDetailDTO updatedOrder = orderService.updateOrderStatus(id, "PROCESSING", username);
+        
+        // ✅ Gửi WebSocket notification cho buyer
+        sendOrderNotificationToBuyer(updatedOrder, "ORDER_CONFIRMED", 
+            "✅ Đơn hàng #" + updatedOrder.getId() + " đã được xác nhận và đang chuẩn bị xử lý");
+        
         return ResponseDTO.success(updatedOrder, "Đã xác nhận đơn hàng");
     }
 
@@ -159,6 +169,11 @@ public class OrdersController {
             Authentication authentication) {
         String username = authentication.getName();
         OrderDetailDTO updatedOrder = orderService.updateOrderStatus(id, "SHIPPING", username);
+        
+        // ✅ Gửi WebSocket notification cho buyer
+        sendOrderNotificationToBuyer(updatedOrder, "ORDER_SHIPPING", 
+            "🚚 Đơn hàng #" + updatedOrder.getId() + " đã được giao cho đơn vị vận chuyển");
+        
         return ResponseDTO.success(updatedOrder, "Đã giao đơn hàng cho đơn vị vận chuyển");
     }
 
@@ -183,7 +198,48 @@ public class OrdersController {
         }
         
         OrderDetailDTO updatedOrder = orderService.updateOrderStatus(id, "CANCELLED", username);
+        
+        // ✅ Gửi WebSocket notification cho buyer
+        sendOrderNotificationToBuyer(updatedOrder, "ORDER_CANCELLED", 
+            "❌ Đơn hàng #" + updatedOrder.getId() + " đã bị hủy bởi người bán");
+        
         return ResponseDTO.success(updatedOrder, "Đã hủy đơn hàng");
+    }
+
+    /**
+     * Helper method: Gửi WebSocket notification cho buyer
+     */
+    private void sendOrderNotificationToBuyer(OrderDetailDTO order, String type, String message) {
+        try {
+            Long buyerId = order.getUserId();
+            
+            System.out.println("========== SENDING WEBSOCKET NOTIFICATION FROM OrdersController ==========");
+            System.out.println("Buyer ID: " + buyerId);
+            System.out.println("Order ID: " + order.getId());
+            System.out.println("Type: " + type);
+            System.out.println("Message: " + message);
+            
+            Map<String, Object> notification = new HashMap<>();
+            notification.put("type", type);
+            notification.put("orderId", order.getId());
+            notification.put("orderStatus", order.getStatus());
+            notification.put("message", message);
+            notification.put("timestamp", System.currentTimeMillis());
+            
+            String destination = "/topic/orderws/" + buyerId;
+            System.out.println("Destination: " + destination);
+            System.out.println("Notification payload: " + notification);
+            
+            messagingTemplate.convertAndSend(destination, notification);
+            
+            System.out.println("✅ WebSocket notification sent successfully!");
+            System.out.println("===================================================");
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error sending WebSocket notification: " + e.getMessage());
+            e.printStackTrace();
+            // Don't throw exception, operation already successful
+        }
     }
 }
 

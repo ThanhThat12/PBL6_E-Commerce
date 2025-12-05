@@ -174,9 +174,10 @@ public class OrderService {
             if (req.getReceiverName() == null || req.getReceiverName().isBlank()) req.setReceiverName(address.getContactName());
             if (req.getReceiverPhone() == null || req.getReceiverPhone().isBlank()) req.setReceiverPhone(address.getContactPhone());
             if (req.getReceiverAddress() == null || req.getReceiverAddress().isBlank()) req.setReceiverAddress(address.getFullAddress());
-            if (req.getProvince() == null || req.getProvince().isBlank()) req.setProvince(address.getProvinceName());
-            if (req.getDistrict() == null || req.getDistrict().isBlank()) req.setDistrict(address.getDistrictName());
-            if (req.getWard() == null || req.getWard().isBlank()) req.setWard(address.getWardName());
+            // Use ID fields instead of text
+            if (req.getProvinceId() == null) req.setProvinceId(address.getProvinceId());
+            if (req.getDistrictId() == null) req.setDistrictId(address.getDistrictId());
+            if (req.getWardCode() == null || req.getWardCode().isBlank()) req.setWardCode(address.getWardCode());
         } else {
             logger.warn("[ORDER] Address entity not found for addressId={}", req.getAddressId());
         }
@@ -313,9 +314,10 @@ public class OrderService {
         order.setReceiverName(req.getReceiverName());
         order.setReceiverPhone(req.getReceiverPhone());
         order.setReceiverAddress(req.getReceiverAddress());
-        order.setProvince(req.getProvince());
-        order.setDistrict(req.getDistrict());
-        order.setWard(req.getWard());
+        // Use ID fields instead of text
+        order.setProvinceId(req.getProvinceId());
+        order.setDistrictId(req.getDistrictId());
+        order.setWardCode(req.getWardCode());
         // Set shipping fee
         order.setShippingFee(shippingFee);
 
@@ -396,9 +398,9 @@ public class OrderService {
         ghnPayload.put("to_name", order.getReceiverName());
         ghnPayload.put("to_phone", order.getReceiverPhone());
         ghnPayload.put("to_address", order.getReceiverAddress());
-        ghnPayload.put("province", order.getProvince());
-        ghnPayload.put("district", order.getDistrict());
-        ghnPayload.put("ward", order.getWard());
+        ghnPayload.put("provinceId", order.getProvinceId());
+        ghnPayload.put("districtId", order.getDistrictId());
+        ghnPayload.put("wardCode", order.getWardCode());
         
         // Parse GHN payload cũ nếu có
         if (shipmentForRetry.getGhnPayload() != null) {
@@ -603,9 +605,10 @@ public class OrderService {
             shopOrderReq.setReceiverName(req.getReceiverName());
             shopOrderReq.setReceiverPhone(req.getReceiverPhone());
             shopOrderReq.setReceiverAddress(req.getReceiverAddress());
-            shopOrderReq.setProvince(req.getProvince());
-            shopOrderReq.setDistrict(req.getDistrict());
-            shopOrderReq.setWard(req.getWard());
+            // Use ID fields instead of text
+            shopOrderReq.setProvinceId(req.getProvinceId());
+            shopOrderReq.setDistrictId(req.getDistrictId());
+            shopOrderReq.setWardCode(req.getWardCode());
             shopOrderReq.setToDistrictId(req.getToDistrictId());
             shopOrderReq.setToWardCode(req.getToWardCode());
             shopOrderReq.setMethod(req.getMethod());

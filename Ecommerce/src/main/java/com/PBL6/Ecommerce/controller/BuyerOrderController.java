@@ -68,9 +68,10 @@ public class BuyerOrderController {
         response.setReceiverName(order.getReceiverName());
         response.setReceiverPhone(order.getReceiverPhone());
         response.setReceiverAddress(order.getReceiverAddress());
-        response.setProvince(order.getProvince());
-        response.setDistrict(order.getDistrict());
-        response.setWard(order.getWard());
+        // Note: Need to update response DTO to use ID fields or resolve names from IDs
+        response.setProvince(null); // TODO: Resolve province name from provinceId
+        response.setDistrict(null); // TODO: Resolve district name from districtId  
+        response.setWard(null); // TODO: Resolve ward name from wardCode
         return ResponseDTO.created(response, "Đặt hàng thành công");
     }
 
