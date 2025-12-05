@@ -1179,7 +1179,7 @@ public class OrderService {
             refund.setOrder(order); // Gán entity Order
             refund.setAmount(order.getTotalAmount());
             refund.setReason(reason != null ? reason : "User cancelled order");
-            refund.setStatus(Refund.RefundStatus.COMPLETED); // Dùng enum inner class của Refund
+            refund.setStatus(Refund.RefundStatus.REQUESTED); // Dùng enum inner class của Refund
             refundRepository.save(refund);
 
             // Cập nhật trạng thái đơn hàng
@@ -1305,7 +1305,7 @@ public class OrderService {
         // Tạo refund request (sử dụng lại bảng refunds)
         Refund refund = new Refund();
         refund.setOrder(order);
-        refund.setStatus(Refund.RefundStatus.PENDING);
+        refund.setStatus(Refund.RefundStatus.REQUESTED);
         refund.setReason(dto.getReason());
         
         // Lưu thông tin return method và images vào reason (có thể tạo bảng riêng sau)

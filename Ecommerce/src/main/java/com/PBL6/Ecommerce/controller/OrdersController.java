@@ -3,6 +3,7 @@ package com.PBL6.Ecommerce.controller;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,12 +15,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.domain.dto.OrderDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateOrderStatusDTO;
 import com.PBL6.Ecommerce.service.OrderService;
+import com.PBL6.Ecommerce.service.GhnService;
+import com.PBL6.Ecommerce.domain.*;
+import com.PBL6.Ecommerce.repository.*;
 
 import jakarta.validation.Valid;
 
@@ -29,10 +34,25 @@ public class OrdersController {
     
     private final OrderService orderService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final GhnService ghnService;
+    private final ShipmentRepository shipmentRepository;
+    private final OrderRepository orderRepository;
+    private final ShopRepository shopRepository;
+    private final UserRepository userRepository;
+    private final AddressRepository addressRepository;
 
-    public OrdersController(OrderService orderService, SimpMessagingTemplate messagingTemplate) {
+    public OrdersController(OrderService orderService, SimpMessagingTemplate messagingTemplate,
+            GhnService ghnService, ShipmentRepository shipmentRepository,
+            OrderRepository orderRepository, ShopRepository shopRepository,
+            UserRepository userRepository, AddressRepository addressRepository) {
         this.orderService = orderService;
         this.messagingTemplate = messagingTemplate;
+        this.ghnService = ghnService;
+        this.shipmentRepository = shipmentRepository;
+        this.orderRepository = orderRepository;
+        this.shopRepository = shopRepository;
+        this.userRepository = userRepository;
+        this.addressRepository = addressRepository;
     }
 
     /**
@@ -161,9 +181,11 @@ public class OrdersController {
      * API đánh dấu đã đóng gói/Giao cho ship (PROCESSING → SHIPPING)
      * POST /api/seller/orders/{id}/ship
      * Seller xác nhận đã đóng gói và giao cho đơn vị vận chuyển
+     * Tự động tạo shipment GHN
      */
     @PatchMapping("/orders/{id}/ship")
     @PreAuthorize("hasRole('SELLER')")
+    @Transactional
     public ResponseEntity<ResponseDTO<OrderDetailDTO>> shipOrder(
             @PathVariable Long id,
             Authentication authentication) {
@@ -174,7 +196,60 @@ public class OrdersController {
         sendOrderNotificationToBuyer(updatedOrder, "ORDER_SHIPPING", 
             "🚚 Đơn hàng #" + updatedOrder.getId() + " đã được giao cho đơn vị vận chuyển");
         
+        // ✅ Tạo shipment GHN async (không block API response)
+        try {
+            createShipmentAsync(id, username);
+        } catch (Exception e) {
+            System.err.println("⚠️ Lỗi tạo shipment async: " + e.getMessage());
+            // Không throw exception để không block API response
+        }
+        
         return ResponseDTO.success(updatedOrder, "Đã giao đơn hàng cho đơn vị vận chuyển");
+    }
+    
+    /**
+     * Tạo shipment GHN async sau khi ship order
+     */
+    private void createShipmentAsync(Long orderId, String username) {
+        // Đơn giản: check xem shipment đã tồn tại chưa
+        if (shipmentRepository.findByOrderId(orderId).isPresent()) {
+            System.out.println("⚠️ Shipment đã tồn tại cho order " + orderId);
+            return;
+        }
+        
+        // Lấy order info
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            System.err.println("❌ Không tìm thấy order " + orderId);
+            return;
+        }
+        
+        // Lấy shop từ username
+        User seller = userRepository.findByUsername(username).orElse(null);
+        if (seller == null) {
+            System.err.println("❌ Không tìm thấy seller " + username);
+            return;
+        }
+        
+        Shop shop = shopRepository.findByOwnerId(seller.getId()).orElse(null);
+        if (shop == null) {
+            System.err.println("❌ Không tìm thấy shop cho seller " + username);
+            return;
+        }
+        
+        // Tạo shipment record đơn giản
+        Shipment shipment = new Shipment();
+        shipment.setOrderId(orderId);
+        shipment.setStatus("READY_TO_PICK");
+        shipment.setGhnOrderCode("ORD-" + orderId); // Temporary code
+        shipment.setGhnPayload("{}"); // Empty payload
+        
+        shipmentRepository.save(shipment);
+        
+        System.out.println("✅ Đã tạo shipment cơ bản cho order " + orderId);
+        
+        // TODO: Gọi GHN API tạo thực tế (async)
+        // ghnService.createShippingOrderAsync(payload, shop.getId());
     }
 
     /**
