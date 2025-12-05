@@ -69,7 +69,8 @@ public class RefundService {
         refund.setAmount(amount);
         refund.setReason(reason);
         refund.setImageUrl(imageUrl); // Ảnh bằng chứng từ khách
-        refund.setStatus(Refund.RefundStatus.PENDING);
+        // Bước 1: Tạo refund_request (status: REQUESTED)
+        refund.setStatus(Refund.RefundStatus.REQUESTED);
         refund.setRequiresReturn(false); // Mặc định không cần trả hàng
         
         return refundRepository.save(refund);
@@ -95,7 +96,8 @@ public class RefundService {
         refund.setOrder(order);
         refund.setReason(reason);
         refund.setImageUrl(imageUrl);
-        refund.setStatus(Refund.RefundStatus.PENDING);
+        // Bước 1: Tạo refund_request (status: REQUESTED)
+        refund.setStatus(Refund.RefundStatus.REQUESTED);
         refund.setRequiresReturn(false);
         
         // Tạo refund items
@@ -168,18 +170,11 @@ public class RefundService {
         
         refund.setRequiresReturn(requiresReturn);
         
-        if (requiresReturn) {
-            // Yêu cầu khách trả hàng trước
-            refund.setStatus(Refund.RefundStatus.APPROVED_WAITING_RETURN);
-            logger.info("Refund {} waiting for return", refundId);
-        } else {
-            // Không cần trả hàng → nhảy thẳng sang hoàn tiền
-            refund.setStatus(Refund.RefundStatus.APPROVED_REFUNDING);
-            logger.info("Refund {} ready for refunding (no return needed)", refundId);
-            
-            // Tự động xử lý hoàn tiền luôn
-            processRefund(refund);
-        }
+        // Bước 2b: Shop/Admin chấp nhận
+        refund.setStatus(Refund.RefundStatus.APPROVED);
+        logger.info("Refund {} approved", refundId);
+        
+        // Không cần xử lý hoàn tiền tự động ở đây nữa, sẽ xử lý trong bước 5
         
         return refundRepository.save(refund);
     }
@@ -194,11 +189,11 @@ public class RefundService {
         Refund refund = refundRepository.findById(refundId)
             .orElseThrow(() -> new RuntimeException("Refund not found"));
         
-        if (refund.getStatus() != Refund.RefundStatus.APPROVED_WAITING_RETURN) {
-            throw new RuntimeException("Refund must be in APPROVED_WAITING_RETURN status");
+        if (refund.getStatus() != Refund.RefundStatus.APPROVED) {
+            throw new RuntimeException("Refund must be in APPROVED status");
         }
         
-        refund.setStatus(Refund.RefundStatus.RETURNING);
+        // Keep status as APPROVED during return process
         return refundRepository.save(refund);
     }
 
@@ -212,13 +207,13 @@ public class RefundService {
         Refund refund = refundRepository.findById(refundId)
             .orElseThrow(() -> new RuntimeException("Refund not found"));
         
-        if (refund.getStatus() != Refund.RefundStatus.RETURNING) {
-            throw new RuntimeException("Refund must be in RETURNING status");
+        if (refund.getStatus() != Refund.RefundStatus.APPROVED) {
+            throw new RuntimeException("Refund must be in APPROVED status");
         }
         
         if (isAccepted) {
-            // Hàng OK → chuyển sang hoàn tiền
-            refund.setStatus(Refund.RefundStatus.APPROVED_REFUNDING);
+            // Hàng OK → hoàn tiền
+            refund.setStatus(Refund.RefundStatus.COMPLETED);
             // Lưu ghi chú kiểm tra vào reason
             refund.setReason(refund.getReason() + "\n[Kết quả kiểm tra]: " + checkNote);
             refundRepository.save(refund);
@@ -246,14 +241,13 @@ public class RefundService {
         Refund refund = refundRepository.findById(refundId)
             .orElseThrow(() -> new RuntimeException("Refund not found"));
         
-        // Cho phép từ APPROVED_WAITING_RETURN hoặc RETURNING
-        if (refund.getStatus() != Refund.RefundStatus.APPROVED_WAITING_RETURN 
-                && refund.getStatus() != Refund.RefundStatus.RETURNING) {
-            throw new RuntimeException("Refund must be in APPROVED_WAITING_RETURN or RETURNING status");
+        // Must be in APPROVED status
+        if (refund.getStatus() != Refund.RefundStatus.APPROVED) {
+            throw new RuntimeException("Refund must be in APPROVED status");
         }
         
-        // Chuyển sang APPROVED_REFUNDING
-        refund.setStatus(Refund.RefundStatus.APPROVED_REFUNDING);
+        // Mark as completed after inspection
+        refund.setStatus(Refund.RefundStatus.COMPLETED);
         refund.setReason(refund.getReason() + "\n[Kết quả kiểm tra]: Hàng đã nhận và kiểm tra OK");
         refundRepository.save(refund);
         
@@ -386,7 +380,7 @@ public class RefundService {
         refund.setOrder(order);
         refund.setAmount(amount);
         refund.setReason(reason);
-        refund.setStatus(Refund.RefundStatus.APPROVED_REFUNDING);
+        refund.setStatus(Refund.RefundStatus.COMPLETED);
         refund = refundRepository.save(refund);
         
         processRefund(refund);

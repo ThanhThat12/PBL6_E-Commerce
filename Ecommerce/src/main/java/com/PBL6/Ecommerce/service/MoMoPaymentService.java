@@ -122,6 +122,179 @@ public class MoMoPaymentService {
     }
 
     /**
+     * Create MoMo payment with custom IPN URL (for wallet deposits)
+     * 
+     * @param customOrderId Custom unique orderId
+     * @param amount Payment amount
+     * @param orderInfo Order information
+     * @param requestId Unique request ID
+     * @param customIpnUrl Custom IPN callback URL
+     * @return PaymentResponseDTO containing payment URL
+     */
+    public PaymentResponseDTO createPaymentWithCustomIpn(String customOrderId, BigDecimal amount, 
+                                           String orderInfo, String requestId, String customIpnUrl) {
+        try {
+            logger.info("Creating MoMo payment with custom IPN - orderId: {}, ipnUrl: {}", customOrderId, customIpnUrl);
+            
+            String amountStr = amount.setScale(0, java.math.RoundingMode.HALF_UP).toPlainString();
+            String extraData = "";
+            
+            // Build raw signature with custom IPN URL
+            String rawSignature = MoMoSignatureUtil.buildRawSignatureForPayment(
+                momoConfig.getAccessKey(),
+                amountStr,
+                extraData,
+                customIpnUrl,  // Use custom IPN URL
+                customOrderId,
+                orderInfo,
+                momoConfig.getPartnerCode(),
+                momoConfig.getRedirectUrl(),
+                requestId,
+                momoConfig.getRequestType()
+            );
+            
+            String signature = MoMoSignatureUtil.generateSignature(rawSignature, momoConfig.getSecretKey());
+            
+            logger.debug("Custom IPN - Raw signature: {}", rawSignature);
+            logger.debug("Custom IPN - Generated signature: {}", signature);
+            
+            // Build request with custom IPN
+            PaymentRequestDTO request = new PaymentRequestDTO(
+                momoConfig.getPartnerCode(),
+                momoConfig.getAccessKey(),
+                requestId,
+                amountStr,
+                customOrderId,
+                orderInfo,
+                momoConfig.getRedirectUrl(),
+                customIpnUrl,  // Use custom IPN URL
+                momoConfig.getRequestType(),
+                extraData,
+                signature
+            );
+            
+            // Send request to MoMo
+            logger.info("Sending payment request to MoMo with custom IPN: {}", momoConfig.getEndpoint());
+            PaymentResponseDTO response = MoMoHttpUtil.sendPostRequest(
+                momoConfig.getEndpoint(),
+                request,
+                PaymentResponseDTO.class
+            );
+            
+            if (response == null) {
+                throw new MoMoPaymentException("Received null response from MoMo");
+            }
+            
+            logger.info("MoMo payment response (custom IPN) - Result code: {}, Message: {}", 
+                       response.getResultCode(), response.getMessage());
+            
+            if (!response.isSuccess()) {
+                throw new MoMoPaymentException(
+                    "MoMo payment failed: " + response.getMessage(), 
+                    response.getResultCode()
+                );
+            }
+            
+            return response;
+            
+        } catch (MoMoPaymentException e) {
+            logger.error("MoMo payment error (custom IPN): {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to create MoMo payment (custom IPN): {}", e.getMessage(), e);
+            throw new MoMoPaymentException("Failed to create MoMo payment: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Create MoMo payment with custom redirect and IPN URLs (for mobile wallet deposits)
+     * 
+     * @param customOrderId Custom unique orderId
+     * @param amount Payment amount
+     * @param orderInfo Order information
+     * @param requestId Unique request ID
+     * @param customRedirectUrl Custom redirect URL (deep link)
+     * @param customIpnUrl Custom IPN callback URL
+     * @return PaymentResponseDTO containing payment URL
+     */
+    public PaymentResponseDTO createPaymentWithCustomUrls(String customOrderId, BigDecimal amount, 
+                                           String orderInfo, String requestId, 
+                                           String customRedirectUrl, String customIpnUrl) {
+        try {
+            logger.info("Creating MoMo payment with custom URLs - orderId: {}, redirect: {}, ipn: {}", 
+                       customOrderId, customRedirectUrl, customIpnUrl);
+            
+            String amountStr = amount.setScale(0, java.math.RoundingMode.HALF_UP).toPlainString();
+            String extraData = "";
+            
+            // Build raw signature with custom redirect and IPN URLs
+            String rawSignature = MoMoSignatureUtil.buildRawSignatureForPayment(
+                momoConfig.getAccessKey(),
+                amountStr,
+                extraData,
+                customIpnUrl,
+                customOrderId,
+                orderInfo,
+                momoConfig.getPartnerCode(),
+                customRedirectUrl,  // Use custom redirect URL
+                requestId,
+                momoConfig.getRequestType()
+            );
+            
+            String signature = MoMoSignatureUtil.generateSignature(rawSignature, momoConfig.getSecretKey());
+            
+            logger.debug("Custom URLs - Raw signature: {}", rawSignature);
+            logger.debug("Custom URLs - Generated signature: {}", signature);
+            
+            // Build request with custom redirect and IPN
+            PaymentRequestDTO request = new PaymentRequestDTO(
+                momoConfig.getPartnerCode(),
+                momoConfig.getAccessKey(),
+                requestId,
+                amountStr,
+                customOrderId,
+                orderInfo,
+                customRedirectUrl,  // Use custom redirect URL
+                customIpnUrl,
+                momoConfig.getRequestType(),
+                extraData,
+                signature
+            );
+            
+            // Send request to MoMo
+            logger.info("Sending payment request to MoMo with custom URLs: {}", momoConfig.getEndpoint());
+            PaymentResponseDTO response = MoMoHttpUtil.sendPostRequest(
+                momoConfig.getEndpoint(),
+                request,
+                PaymentResponseDTO.class
+            );
+            
+            if (response == null) {
+                throw new MoMoPaymentException("Received null response from MoMo");
+            }
+            
+            logger.info("MoMo payment response (custom URLs) - Result code: {}, Message: {}", 
+                       response.getResultCode(), response.getMessage());
+            
+            if (!response.isSuccess()) {
+                throw new MoMoPaymentException(
+                    "MoMo payment failed: " + response.getMessage(), 
+                    response.getResultCode()
+                );
+            }
+            
+            return response;
+            
+        } catch (MoMoPaymentException e) {
+            logger.error("MoMo payment error (custom URLs): {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to create MoMo payment (custom URLs): {}", e.getMessage(), e);
+            throw new MoMoPaymentException("Failed to create MoMo payment: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Verify callback signature from MoMo
      * 
      * @param callback Callback request from MoMo
@@ -284,6 +457,75 @@ public class MoMoPaymentService {
         } catch (MoMoPaymentException e) {
             logger.error("MoMo refund error: {}", e.getMessage());
             throw e;
+        } catch (Exception e) {
+            logger.error("Failed to process MoMo refund: {}", e.getMessage(), e);
+            throw new MoMoPaymentException("Failed to process MoMo refund: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Refund MoMo payment with detailed response
+     * 
+     * @param orderId MoMo order ID
+     * @param requestId Unique refund request ID
+     * @param amount Refund amount
+     * @param transId MoMo transaction ID from original payment
+     * @return MoMoRefundResponseDTO containing refund details
+     */
+    public com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO refundPayment(String orderId, String requestId, 
+                                                                      BigDecimal amount, String transId) {
+        try {
+            logger.info("Processing MoMo refund - orderId: {}, amount: {}, transId: {}", orderId, amount, transId);
+            
+            // Convert amount to String
+            String amountStr = amount.setScale(0, java.math.RoundingMode.HALF_UP).toPlainString();
+            String description = "Refund for order " + orderId;
+            
+            // Build raw signature for refund
+            String rawSignature = MoMoSignatureUtil.buildRawSignatureForRefund(
+                momoConfig.getAccessKey(),
+                amountStr,
+                description,
+                orderId,
+                momoConfig.getPartnerCode(),
+                requestId,
+                transId
+            );
+            
+            // Generate signature
+            String signature = MoMoSignatureUtil.generateSignature(rawSignature, momoConfig.getSecretKey());
+            
+            // Build refund endpoint
+            String refundEndpoint = momoConfig.getEndpoint().replace("/create", "/refund");
+            
+            // Create refund request
+            java.util.Map<String, String> refundRequest = new java.util.HashMap<>();
+            refundRequest.put("partnerCode", momoConfig.getPartnerCode());
+            refundRequest.put("accessKey", momoConfig.getAccessKey());
+            refundRequest.put("requestId", requestId);
+            refundRequest.put("amount", amountStr);
+            refundRequest.put("orderId", orderId);
+            refundRequest.put("transId", transId);
+            refundRequest.put("description", description);
+            refundRequest.put("signature", signature);
+            
+            // Send request to MoMo
+            logger.info("Sending refund request to: {}", refundEndpoint);
+            com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO response = MoMoHttpUtil.sendPostRequest(
+                refundEndpoint,
+                refundRequest,
+                com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO.class
+            );
+            
+            if (response == null) {
+                throw new MoMoPaymentException("Received null response from MoMo refund");
+            }
+            
+            logger.info("MoMo refund response - Result code: {}, Message: {}", 
+                       response.getResultCode(), response.getMessage());
+            
+            return response;
+            
         } catch (Exception e) {
             logger.error("Failed to process MoMo refund: {}", e.getMessage(), e);
             throw new MoMoPaymentException("Failed to process MoMo refund: " + e.getMessage(), e);

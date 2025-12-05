@@ -427,9 +427,9 @@ public class CheckoutController {
             order.setReceiverName(buyerAddress.getContactName());
             order.setReceiverPhone(buyerAddress.getContactPhone());
             order.setReceiverAddress(buyerAddress.getFullAddress());
-            order.setProvince(buyerAddress.getProvinceName());
-            order.setDistrict(buyerAddress.getDistrictName());
-            order.setWard(buyerAddress.getWardName());
+            order.setProvinceId(buyerAddress.getProvinceId());
+            order.setDistrictId(buyerAddress.getDistrictId());
+            order.setWardCode(buyerAddress.getWardCode());
             
             // ✅ SET SHIPPING FEE
             order.setShippingFee(shippingFee);
