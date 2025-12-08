@@ -228,12 +228,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      * Tìm các đơn hàng đã thanh toán nhưng chưa chuyển tiền cho seller
      * - paymentStatus = PAID
      * - createdAt < cutoffDate (đã qua 2 phút)
-     * - updatedAt = createdAt (chưa update, tức chưa chuyển tiền)
+     * - Chưa có transaction PAYMENT_TO_SELLER cho seller này
      */
     @Query("SELECT o FROM Order o " +
            "WHERE o.paymentStatus = 'PAID' " +
            "AND o.createdAt < :cutoffDate " +
-           "AND (o.updatedAt IS NULL OR o.updatedAt = o.createdAt)")
+           "AND NOT EXISTS (" +
+           "  SELECT 1 FROM WalletTransaction wt " +
+           "  WHERE wt.relatedOrder = o " +
+           "  AND wt.type = 'PAYMENT_TO_SELLER' " +
+           "  AND wt.wallet.user.id = o.shop.owner.id" +
+           ")")
     List<Order> findOrdersReadyForSellerPayout(@Param("cutoffDate") java.util.Date cutoffDate);
    
 }

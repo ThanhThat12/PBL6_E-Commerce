@@ -1269,11 +1269,13 @@ public class OrderService {
         order.setStatus(Order.OrderStatus.COMPLETED);
         order.setUpdatedAt(new Date());
         
-        Order savedOrder = orderRepository.save(order);
-        
         // ========== DEPOSIT VÀO VÍ ADMIN NẾU LÀ COD ==========
         if ("COD".equalsIgnoreCase(order.getMethod())) {
             try {
+                // Cập nhật paymentStatus thành PAID
+                order.setPaymentStatus(Order.PaymentStatus.PAID);
+                order.setPaidAt(new Date());
+                
                 walletService.depositToAdminWallet(order.getTotalAmount(), order, "COD");
                 logger.info("✅ [COD] Deposited {} to admin wallet for order #{}", 
                            order.getTotalAmount(), order.getId());
@@ -1283,6 +1285,8 @@ public class OrderService {
                 // Không throw exception, order vẫn hợp lệ
             }
         }
+        
+        Order savedOrder = orderRepository.save(order);
         
         // ========== GỬI THÔNG BÁO CHO SELLER ==========
         try {
