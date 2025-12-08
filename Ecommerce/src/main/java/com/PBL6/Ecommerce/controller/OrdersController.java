@@ -173,9 +173,7 @@ public class OrdersController {
         String username = authentication.getName();
         OrderDetailDTO updatedOrder = orderService.updateOrderStatus(id, "PROCESSING", username);
         
-        // ✅ Gửi WebSocket notification cho buyer
-        sendOrderNotificationToBuyer(updatedOrder, "ORDER_CONFIRMED", 
-            "✅ Đơn hàng #" + updatedOrder.getId() + " đã được xác nhận và đang chuẩn bị xử lý");
+        // NOTE: Notification already sent by orderService.updateOrderStatus()
         
         return ResponseDTO.success(updatedOrder, "Đã xác nhận đơn hàng");
     }
@@ -195,9 +193,8 @@ public class OrdersController {
         String username = authentication.getName();
         OrderDetailDTO updatedOrder = orderService.updateOrderStatus(id, "SHIPPING", username);
         
-        // ✅ Gửi WebSocket notification cho buyer
-        sendOrderNotificationToBuyer(updatedOrder, "ORDER_SHIPPING", 
-            "🚚 Đơn hàng #" + updatedOrder.getId() + " đã được giao cho đơn vị vận chuyển");
+        // NOTE: Notification already sent by orderService.updateOrderStatus()
+        // No need to send duplicate notification here
         
         // ✅ Tạo shipment GHN async (không block API response)
         try {
@@ -270,16 +267,14 @@ public class OrdersController {
         // Verify order exists and belongs to seller's shop
         OrderDetailDTO currentOrder = orderService.getOrderDetail(id, username);
         
-        // Only allow cancel if order is PENDING
-        if (!"PENDING".equals(currentOrder.getStatus())) {
-            return ResponseDTO.badRequest("Chỉ có thể hủy đơn hàng ở trạng thái Chờ xác nhận");
+        // Only allow cancel if order is PENDING or PROCESSING (not yet shipped)
+        if (!"PENDING".equals(currentOrder.getStatus()) && !"PROCESSING".equals(currentOrder.getStatus())) {
+            return ResponseDTO.badRequest("Chỉ có thể hủy đơn hàng ở trạng thái Chờ xác nhận hoặc Đã xác nhận (chưa giao hàng)");
         }
         
         OrderDetailDTO updatedOrder = orderService.updateOrderStatus(id, "CANCELLED", username);
         
-        // ✅ Gửi WebSocket notification cho buyer
-        sendOrderNotificationToBuyer(updatedOrder, "ORDER_CANCELLED", 
-            "❌ Đơn hàng #" + updatedOrder.getId() + " đã bị hủy bởi người bán");
+        // NOTE: Notification already sent by orderService.updateOrderStatus()
         
         return ResponseDTO.success(updatedOrder, "Đã hủy đơn hàng");
     }

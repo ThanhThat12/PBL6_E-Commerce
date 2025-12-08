@@ -242,6 +242,12 @@ public class ShopController {
             return ResponseEntity.ok(
                 new ResponseDTO<>(200, null, "Lấy thống kê shop thành công", analytics)
             );
+        } catch (NumberFormatException e) {
+            // Handle invalid year parameter (e.g., year=month)
+            System.err.println("⚠️ Invalid year parameter: " + e.getMessage());
+            return ResponseEntity.badRequest().body(
+                new ResponseDTO<>(400, "Invalid year parameter", "Lấy thống kê shop thất bại", null)
+            );
         } catch (RuntimeException e) {
             // Phân biệt loại lỗi
             String errorMessage = e.getMessage();

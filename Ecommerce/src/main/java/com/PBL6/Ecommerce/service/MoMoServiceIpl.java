@@ -36,17 +36,20 @@ public class MoMoServiceIpl implements MoMoService {
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final OrderService orderService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final WalletService walletService;
 
     public MoMoServiceIpl(MoMoPaymentService momoPaymentService,
                               OrderRepository orderRepository,
                               PaymentTransactionRepository paymentTransactionRepository,
                               OrderService orderService,
-                              SimpMessagingTemplate messagingTemplate) {
+                              SimpMessagingTemplate messagingTemplate,
+                              WalletService walletService) {
         this.momoPaymentService = momoPaymentService;
         this.orderRepository = orderRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.orderService = orderService;
         this.messagingTemplate = messagingTemplate;
+        this.walletService = walletService;
     }
 
     @Override
@@ -229,6 +232,17 @@ public class MoMoServiceIpl implements MoMoService {
                     logger.info("✅ Shipment creation initiated after payment for order: {}", managedOrder.getId());
                 } catch (Exception e) {
                     logger.error("❌ Error creating shipment after payment: {}", e.getMessage(), e);
+                    // Không throw exception, order vẫn hợp lệ
+                }
+                
+                // ✅ DEPOSIT VÀO VÍ ADMIN SAU KHI THANH TOÁN MOMO THÀNH CÔNG
+                try {
+                    walletService.depositToAdminWallet(managedOrder.getTotalAmount(), managedOrder, "MOMO");
+                    logger.info("✅ [MoMo] Deposited {} to admin wallet for order #{}", 
+                               managedOrder.getTotalAmount(), managedOrder.getId());
+                } catch (Exception e) {
+                    logger.error("❌ [MoMo] Failed to deposit to admin wallet for order {}: {}", 
+                                managedOrder.getId(), e.getMessage());
                     // Không throw exception, order vẫn hợp lệ
                 }
             }
