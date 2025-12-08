@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.repository;
 
+import com.PBL6.Ecommerce.domain.Product;
 import com.PBL6.Ecommerce.domain.VoucherProduct;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,10 @@ public interface VoucherProductRepository extends JpaRepository<VoucherProduct, 
     // Lấy tất cả product IDs của voucher
     @Query("SELECT vp.product.id FROM VoucherProduct vp WHERE vp.voucher.id = :voucherId")
     List<Long> findProductIdsByVoucherId(@Param("voucherId") Long voucherId);
+    
+    // ADMIN Lấy tất cả Product objects của voucher (cho admin detail)
+    @Query("SELECT vp.product FROM VoucherProduct vp WHERE vp.voucher.id = :voucherId")
+    List<Product> findProductsByVoucherId(@Param("voucherId") Long voucherId);
     
     // Xóa tất cả product của voucher
     void deleteByVoucherId(Long voucherId);
