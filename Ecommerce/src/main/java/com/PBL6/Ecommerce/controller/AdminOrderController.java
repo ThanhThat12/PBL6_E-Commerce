@@ -12,10 +12,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.domain.dto.OrderDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminOrderDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminOrderStats;
 import com.PBL6.Ecommerce.service.AdminOrderService;
 import com.PBL6.Ecommerce.service.OrderService;
 
@@ -61,6 +63,45 @@ public class AdminOrderController {
     public ResponseEntity<ResponseDTO<OrderDetailDTO>> getOrderDetail(@PathVariable Long id) {
         OrderDetailDTO order = orderService.getAdminOrderDetail(id);
         return ResponseDTO.success(order, "Lấy chi tiết đơn hàng thành công");
+    }
+
+    /**
+     * API lấy thống kê đơn hàng (Admin only)
+     * GET /api/admin/orders/stats
+     * Trả về: totalOrders, pendingOrders, completedOrders, totalRevenue
+     */
+    @GetMapping("/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminOrderStats>> getOrderStats() {
+        AdminOrderStats stats = adminOrderService.getOrderStats();
+        return ResponseDTO.success(stats, "Lấy thống kê đơn hàng thành công");
+    }
+
+    /**
+     * API lấy đơn hàng theo status với phân trang (Admin only)
+     * GET /api/admin/orders/status/{status}?page=0&size=10
+     * @param status - OrderStatus: PENDING, PROCESSING, SHIPPING, COMPLETED, CANCELLED
+     * @param page - Số trang (0-indexed)
+     * @param size - Số items mỗi trang
+     * @return Page<AdminOrderDTO>
+     */
+    @GetMapping("/status/{status}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Page<AdminOrderDTO>>> getOrdersByStatus(
+            @PathVariable String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        // Convert string to OrderStatus enum
+        Order.OrderStatus orderStatus;
+        try {
+            orderStatus = Order.OrderStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseDTO.badRequest("Invalid status. Valid values: PENDING, PROCESSING, SHIPPING, COMPLETED, CANCELLED");
+        }
+        
+        Page<AdminOrderDTO> orders = adminOrderService.getOrdersByStatus(orderStatus, page, size);
+        return ResponseDTO.success(orders, "Lấy danh sách đơn hàng theo trạng thái thành công");
     }
 
 }
