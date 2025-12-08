@@ -39,6 +39,7 @@ public class CheckoutController {
     private final com.PBL6.Ecommerce.repository.OrderRepository orderRepository;
     private final com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository;
     private final com.PBL6.Ecommerce.service.WalletService walletService;
+    private final com.PBL6.Ecommerce.service.NotificationService notificationService;
 
     public CheckoutController(GhnService ghnService, 
                             AddressRepository addressRepository,
@@ -49,7 +50,8 @@ public class CheckoutController {
                             UserRepository userRepository,
                             com.PBL6.Ecommerce.repository.OrderRepository orderRepository,
                             com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository,
-                            com.PBL6.Ecommerce.service.WalletService walletService) {
+                            com.PBL6.Ecommerce.service.WalletService walletService,
+                            com.PBL6.Ecommerce.service.NotificationService notificationService) {
         this.ghnService = ghnService;
         this.addressRepository = addressRepository;
         this.shopRepository = shopRepository;
@@ -60,6 +62,7 @@ public class CheckoutController {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.walletService = walletService;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -477,6 +480,17 @@ public class CheckoutController {
                 System.out.println("⏳ Cart kept for online payment order #" + order.getId() + " - will be cleared after payment success");
             }
 
+            // ========== GỬI THÔNG BÁO CHO SELLER ==========
+            try {
+                Long sellerId = shop.getOwner().getId();
+                String sellerMessage = "Bạn có đơn hàng mới #" + order.getId() + " từ " + user.getUsername();
+                notificationService.sendSellerNotification(sellerId, "NEW_ORDER", sellerMessage, order.getId());
+                System.out.println("✅ Sent notification to seller #" + sellerId + " for order #" + order.getId());
+            } catch (Exception e) {
+                System.err.println("⚠️ Failed to send seller notification: " + e.getMessage());
+                // Continue - notification failure should not block order creation
+            }
+
             // ========== TRẢ VỀ KẾT QUẢ ==========
             Map<String, Object> response = new HashMap<>();
             response.put("orderId", order.getId());
@@ -558,6 +572,28 @@ public class CheckoutController {
             } catch (Exception e) {
                 System.err.println("⚠️ [SportyPay] Failed to deposit to admin wallet: " + e.getMessage());
                 // Continue even if admin deposit fails - can be retried manually
+            }
+            
+            // ========== GỬI THÔNG BÁO CHO BUYER VÀ SELLER ==========
+            try {
+                // Notify buyer
+                notificationService.sendOrderNotification(
+                    user.getId(), 
+                    "PAYMENT_SUCCESS", 
+                    "Thanh toán đơn hàng #" + orderId + " thành công qua SportyPay"
+                );
+                
+                // Notify seller
+                Long sellerId = order.getShop().getOwner().getId();
+                notificationService.sendSellerNotification(
+                    sellerId, 
+                    "ORDER_PAID", 
+                    "Đơn hàng #" + orderId + " đã được thanh toán qua SportyPay", 
+                    orderId
+                );
+                System.out.println("✅ [SportyPay] Sent payment notifications");
+            } catch (Exception e) {
+                System.err.println("⚠️ [SportyPay] Failed to send notifications: " + e.getMessage());
             }
             
             result.put("orderId", orderId);

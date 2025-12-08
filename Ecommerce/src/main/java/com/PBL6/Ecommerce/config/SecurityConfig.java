@@ -84,21 +84,18 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/checkout/calculate-fee").permitAll() // For testing
                 .requestMatchers("/api/checkout/**").authenticated()
 
-                // Allow unauthenticated GET for the products collection
-                .requestMatchers(HttpMethod.GET, "/api/products").permitAll()
-
-                // Product public patterns (single item, search, category)
-                .requestMatchers("/api/products/all",
-                                 "/api/products/search",
-                                 "/api/products/*",
-                                 "/api/products/category/**").permitAll()
+                // Allow unauthenticated GET for the products collection (with or without query params)
+                .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
 
                 // Protect creating products (POST) for ADMIN/SELLER
                 .requestMatchers(HttpMethod.POST, "/api/products").hasAnyRole("ADMIN", "SELLER")
 
-                // Category endpoints
+                // Category endpoints - public read access
+                .requestMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**").permitAll()
                 .requestMatchers("/api/categories/addCategory").hasRole("ADMIN")
-                .requestMatchers("/api/categories/**").permitAll()
+                
+                // Cart endpoints - require authentication
+                .requestMatchers("/api/cart/**").authenticated()
 
                 // Review endpoints
                 .requestMatchers(HttpMethod.GET, "/api/products/*/reviews").permitAll() // Public: view product reviews

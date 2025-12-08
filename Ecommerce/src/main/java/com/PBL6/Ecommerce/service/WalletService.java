@@ -394,6 +394,58 @@ public class WalletService {
     }
 
     /**
+     * Transfer money from admin wallet to seller wallet (overloaded for scheduler)
+     * Called automatically by scheduler after 2 minutes
+     */
+    public void transferFromAdminToSeller(Long sellerId, BigDecimal amount, Order order, String description) {
+        User adminUser = getAdminUser();
+        Wallet adminWallet = getOrCreateWallet(adminUser);
+        
+        User seller = userRepository.findById(sellerId)
+                .orElseThrow(() -> new UserNotFoundException("Seller not found with ID: " + sellerId));
+        Wallet sellerWallet = getOrCreateWallet(seller);
+        
+        logger.info("💸 Transferring {} from admin wallet to seller {} for order: {}", 
+                   amount, sellerId, order.getId());
+        
+        // Check if admin has enough balance
+        if (!adminWallet.hasEnoughBalance(amount)) {
+            throw new IllegalArgumentException("Admin wallet has insufficient balance");
+        }
+        
+        // Withdraw from admin wallet
+        adminWallet.withdraw(amount);
+        walletRepository.save(adminWallet);
+        
+        // Create admin withdrawal transaction
+        WalletTransaction adminTransaction = new WalletTransaction(
+            adminWallet,
+            WalletTransaction.TransactionType.PAYMENT_TO_SELLER,
+            amount,
+            String.format("Chuyển tiền cho seller #%d - đơn hàng #%d", sellerId, order.getId())
+        );
+        adminTransaction.setRelatedOrder(order);
+        walletTransactionRepository.save(adminTransaction);
+        
+        // Deposit to seller wallet
+        sellerWallet.deposit(amount);
+        walletRepository.save(sellerWallet);
+        
+        // Create seller deposit transaction
+        WalletTransaction sellerTransaction = new WalletTransaction(
+            sellerWallet,
+            WalletTransaction.TransactionType.PAYMENT_TO_SELLER,
+            amount,
+            description
+        );
+        sellerTransaction.setRelatedOrder(order);
+        walletTransactionRepository.save(sellerTransaction);
+        
+        logger.info("✅ Transfer successful. Admin balance: {}, Seller balance: {}", 
+                   adminWallet.getBalance(), sellerWallet.getBalance());
+    }
+
+    /**
      * Transfer money from admin wallet to seller wallet
      * Called after order is completed and return period expired
      */

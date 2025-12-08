@@ -223,6 +223,18 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     // Lấy đơn hàng theo shop, sắp xếp theo ngày tạo
     List<Order> findByShopIdOrderByCreatedAtDesc(Long shopId);
+
+    /**
+     * Tìm các đơn hàng đã thanh toán nhưng chưa chuyển tiền cho seller
+     * - paymentStatus = PAID
+     * - createdAt < cutoffDate (đã qua 2 phút)
+     * - updatedAt = createdAt (chưa update, tức chưa chuyển tiền)
+     */
+    @Query("SELECT o FROM Order o " +
+           "WHERE o.paymentStatus = 'PAID' " +
+           "AND o.createdAt < :cutoffDate " +
+           "AND (o.updatedAt IS NULL OR o.updatedAt = o.createdAt)")
+    List<Order> findOrdersReadyForSellerPayout(@Param("cutoffDate") java.util.Date cutoffDate);
    
 }
 
