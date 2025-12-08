@@ -26,6 +26,9 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.PBL6.Ecommerce.domain.User;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Checkout", description = "Checkout process, order preview, shipping fee calculation")
 @RestController
 @RequestMapping("/api/checkout")
 public class CheckoutController {
@@ -38,6 +41,8 @@ public class CheckoutController {
     private final UserRepository userRepository;
     private final com.PBL6.Ecommerce.repository.OrderRepository orderRepository;
     private final com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository;
+    private final com.PBL6.Ecommerce.service.WalletService walletService;
+    private final com.PBL6.Ecommerce.service.NotificationService notificationService;
 
     public CheckoutController(GhnService ghnService, 
                             AddressRepository addressRepository,
@@ -47,7 +52,9 @@ public class CheckoutController {
                             ShipmentRepository shipmentRepository,
                             UserRepository userRepository,
                             com.PBL6.Ecommerce.repository.OrderRepository orderRepository,
-                            com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository) {
+                            com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository,
+                            com.PBL6.Ecommerce.service.WalletService walletService,
+                            com.PBL6.Ecommerce.service.NotificationService notificationService) {
         this.ghnService = ghnService;
         this.addressRepository = addressRepository;
         this.shopRepository = shopRepository;
@@ -57,6 +64,8 @@ public class CheckoutController {
         this.userRepository = userRepository;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
+        this.walletService = walletService;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -427,9 +436,9 @@ public class CheckoutController {
             order.setReceiverName(buyerAddress.getContactName());
             order.setReceiverPhone(buyerAddress.getContactPhone());
             order.setReceiverAddress(buyerAddress.getFullAddress());
-            order.setProvince(buyerAddress.getProvinceName());
-            order.setDistrict(buyerAddress.getDistrictName());
-            order.setWard(buyerAddress.getWardName());
+            order.setProvinceId(buyerAddress.getProvinceId());
+            order.setDistrictId(buyerAddress.getDistrictId());
+            order.setWardCode(buyerAddress.getWardCode());
             
             // ✅ SET SHIPPING FEE
             order.setShippingFee(shippingFee);
@@ -474,6 +483,17 @@ public class CheckoutController {
                 System.out.println("⏳ Cart kept for online payment order #" + order.getId() + " - will be cleared after payment success");
             }
 
+            // ========== GỬI THÔNG BÁO CHO SELLER ==========
+            try {
+                Long sellerId = shop.getOwner().getId();
+                String sellerMessage = "Bạn có đơn hàng mới #" + order.getId() + " từ " + user.getUsername();
+                notificationService.sendSellerNotification(sellerId, "NEW_ORDER", sellerMessage, order.getId());
+                System.out.println("✅ Sent notification to seller #" + sellerId + " for order #" + order.getId());
+            } catch (Exception e) {
+                System.err.println("⚠️ Failed to send seller notification: " + e.getMessage());
+                // Continue - notification failure should not block order creation
+            }
+
             // ========== TRẢ VỀ KẾT QUẢ ==========
             Map<String, Object> response = new HashMap<>();
             response.put("orderId", order.getId());
@@ -486,6 +506,113 @@ public class CheckoutController {
             e.printStackTrace();
             return ResponseEntity.badRequest()
                 .body(new ResponseDTO<>(400, e.getMessage(), "Lỗi tạo đơn", null));
+        }
+    }
+
+    /**
+     * Thanh toán đơn hàng bằng ví SportyPay
+     * POST /api/checkout/pay-with-wallet
+     */
+    @PostMapping("/pay-with-wallet")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResponseDTO<Map<String, Object>>> payWithWallet(
+            @RequestBody Map<String, Object> request,
+            @AuthenticationPrincipal Jwt jwt) {
+        try {
+            System.out.println("💰 [SportyPay] Payment request received: " + request);
+            System.out.println("💰 [SportyPay] JWT: " + jwt);
+            System.out.println("💰 [SportyPay] JWT Claims: " + (jwt != null ? jwt.getClaims() : "null"));
+            
+            if (jwt == null) {
+                System.err.println("❌ [SportyPay] JWT is null - authentication failed!");
+                return ResponseEntity.status(401)
+                    .body(new ResponseDTO<>(401, "Unauthorized", "Vui lòng đăng nhập để thanh toán", null));
+            }
+            
+            String email = jwt.getClaimAsString("email");
+            String username = jwt.getClaimAsString("sub");
+            System.out.println("💰 [SportyPay] Email from JWT: " + email);
+            System.out.println("💰 [SportyPay] Username from JWT: " + username);
+            
+            Long orderId = Long.valueOf(request.get("orderId").toString());
+            
+            // Get authenticated user by email (primary identifier in JWT)
+            User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+            
+            // Get order
+            Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+            
+            // Verify order belongs to user
+            if (!order.getUser().getId().equals(user.getId())) {
+                throw new RuntimeException("Unauthorized: Order does not belong to user");
+            }
+            
+            // Verify order status
+            if (order.getPaymentStatus() == Order.PaymentStatus.PAID) {
+                throw new RuntimeException("Order already paid");
+            }
+            
+            BigDecimal amount = order.getTotalAmount();
+            System.out.println("💰 [SportyPay] Processing payment for order #" + orderId + ", amount: " + amount);
+            
+            // Process wallet payment
+            Map<String, Object> result = walletService.payOrderWithWallet(user.getId(), orderId, amount);
+            
+            // Update order status
+            order.setPaymentStatus(Order.PaymentStatus.PAID);
+            order.setMethod("SPORTYPAY");
+            order.setPaidAt(new Date());
+            orderRepository.save(order);
+            
+            System.out.println("✅ [SportyPay] Payment successful for order #" + orderId);
+            
+            // Deposit to admin wallet
+            try {
+                walletService.depositToAdminWallet(amount, order, "SPORTYPAY");
+                System.out.println("✅ [SportyPay] Deposited to admin wallet");
+            } catch (Exception e) {
+                System.err.println("⚠️ [SportyPay] Failed to deposit to admin wallet: " + e.getMessage());
+                // Continue even if admin deposit fails - can be retried manually
+            }
+            
+            // ========== GỬI THÔNG BÁO CHO BUYER VÀ SELLER ==========
+            try {
+                // Notify buyer
+                notificationService.sendOrderNotification(
+                    user.getId(), 
+                    "PAYMENT_SUCCESS", 
+                    "Thanh toán đơn hàng #" + orderId + " thành công qua SportyPay"
+                );
+                
+                // Notify seller
+                Long sellerId = order.getShop().getOwner().getId();
+                notificationService.sendSellerNotification(
+                    sellerId, 
+                    "ORDER_PAID", 
+                    "Đơn hàng #" + orderId + " đã được thanh toán qua SportyPay", 
+                    orderId
+                );
+                System.out.println("✅ [SportyPay] Sent payment notifications");
+            } catch (Exception e) {
+                System.err.println("⚠️ [SportyPay] Failed to send notifications: " + e.getMessage());
+            }
+            
+            result.put("orderId", orderId);
+            result.put("paymentStatus", "PAID");
+            
+            return ResponseDTO.ok(result, "Thanh toán thành công");
+            
+        } catch (IllegalArgumentException e) {
+            System.err.println("❌ [SportyPay] Validation error: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                .body(new ResponseDTO<>(400, e.getMessage(), "Lỗi thanh toán", null));
+        } catch (Exception e) {
+            System.err.println("❌ [SportyPay] Payment failed: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                .body(new ResponseDTO<>(500, e.getMessage(), "Lỗi thanh toán", null));
         }
     }
     }

@@ -21,8 +21,14 @@ public class MoMoConfig {
     @Value("${momo.redirectUrl}")
     private String redirectUrl;
     
+    @Value("${momo.mobile.redirectUrl}")
+    private String mobileRedirectUrl;
+    
     @Value("${momo.ipnUrl}")
     private String ipnUrl;
+    
+    @Value("${momo.wallet.ipnUrl}")
+    private String walletIpnUrl;
     
     @Value("${momo.requestType:payWithMethod}")
     private String requestType;
@@ -50,9 +56,15 @@ public class MoMoConfig {
     public String getRedirectUrl() {
         return redirectUrl;
     }
-
+    
+    public String getMobileRedirectUrl() {
+        return mobileRedirectUrl;
+    }
+    
     public String getIpnUrl() {
         return ipnUrl;
+    }    public String getWalletIpnUrl() {
+        return walletIpnUrl;
     }
 
     public String getRequestType() {

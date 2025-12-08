@@ -2,6 +2,7 @@ package com.PBL6.Ecommerce.controller;
 
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -31,6 +32,7 @@ import jakarta.validation.Valid;
  * Controller for buyer order operations
  * Buyer can: create orders, view their orders, view order details
  */
+@Tag(name = "Buyer Orders", description = "Buyer order operations - view, cancel, return items")
 @RestController
 @RequestMapping("/api/orders")
 public class BuyerOrderController {
@@ -68,9 +70,10 @@ public class BuyerOrderController {
         response.setReceiverName(order.getReceiverName());
         response.setReceiverPhone(order.getReceiverPhone());
         response.setReceiverAddress(order.getReceiverAddress());
-        response.setProvince(order.getProvince());
-        response.setDistrict(order.getDistrict());
-        response.setWard(order.getWard());
+        // Note: Need to update response DTO to use ID fields or resolve names from IDs
+        response.setProvince(null); // TODO: Resolve province name from provinceId
+        response.setDistrict(null); // TODO: Resolve district name from districtId  
+        response.setWard(null); // TODO: Resolve ward name from wardCode
         return ResponseDTO.created(response, "Đặt hàng thành công");
     }
 

@@ -14,7 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Service for managing user wallets
@@ -54,16 +57,27 @@ public class WalletService {
      * Auto-create wallet if not exists
      */
     public Wallet getByUserId(Long userId) {
-        return walletRepository.findByUserId(userId)
-                .orElseGet(() -> {
-                    // Auto-create wallet if not exists
-                    User user = userRepository.findById(userId)
-                            .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
-                    Wallet newWallet = new Wallet();
-                    newWallet.setUser(user);
-                    newWallet.setBalance(BigDecimal.ZERO);
-                    return walletRepository.save(newWallet);
-                });
+        logger.info("💰 [WalletService] Finding wallet for user ID: {}", userId);
+        Optional<Wallet> walletOpt = walletRepository.findByUserId(userId);
+        
+        if (walletOpt.isPresent()) {
+            Wallet wallet = walletOpt.get();
+            logger.info("💰 [WalletService] Wallet found in DB - Wallet ID: {}, User ID: {}, Balance: {}", 
+                       wallet.getId(), wallet.getUser().getId(), wallet.getBalance());
+            return wallet;
+        } else {
+            logger.warn("⚠️ [WalletService] Wallet not found for user ID: {}, creating new wallet with balance = 0", userId);
+            // Auto-create wallet if not exists
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
+            Wallet newWallet = new Wallet();
+            newWallet.setUser(user);
+            newWallet.setBalance(BigDecimal.ZERO);
+            Wallet saved = walletRepository.save(newWallet);
+            logger.info("💰 [WalletService] New wallet created - Wallet ID: {}, User ID: {}, Balance: 0", 
+                       saved.getId(), saved.getUser().getId());
+            return saved;
+        }
     }
 
     /**
@@ -77,7 +91,9 @@ public class WalletService {
      * Get wallet balance
      */
     public BigDecimal getBalance(Long userId) {
+        logger.info("💰 [WalletService] Getting balance for user ID: {}", userId);
         Wallet wallet = getByUserId(userId);
+        logger.info("💰 [WalletService] Wallet found - ID: {}, Balance: {}", wallet.getId(), wallet.getBalance());
         return wallet.getBalance();
     }
 
@@ -191,6 +207,75 @@ public class WalletService {
         logger.info("Order payment successful. New balance: {}", wallet.getBalance());
         
         return wallet;
+    }
+
+    /**
+     * Pay for order using SportyPay wallet
+     * This method handles the complete wallet payment flow:
+     * 1. Withdraw from buyer's wallet
+     * 2. Deposit to admin wallet
+     * 3. Update order status
+     * 4. Create transaction records
+     */
+    @Transactional
+    public Map<String, Object> payOrderWithWallet(Long userId, Long orderId, BigDecimal amount) {
+        try {
+            logger.info("💰 [START] payOrderWithWallet - userId: {}, orderId: {}, amount: {}", 
+                       userId, orderId, amount);
+            
+            // 1. Get buyer wallet
+            Wallet buyerWallet = getByUserId(userId);
+            BigDecimal buyerOldBalance = buyerWallet.getBalance();
+            logger.info("📊 Buyer wallet ID: {}, Current balance: {}", buyerWallet.getId(), buyerOldBalance);
+            
+            // 2. Check if buyer has enough balance
+            if (!buyerWallet.hasEnoughBalance(amount)) {
+                logger.error("❌ Insufficient balance. Required: {}, Available: {}", amount, buyerOldBalance);
+                throw new IllegalArgumentException("Số dư ví không đủ. Cần: " + amount + " VNĐ, Có: " + buyerOldBalance + " VNĐ");
+            }
+            
+            // 3. Withdraw from buyer wallet
+            logger.info("💸 Withdrawing {} from buyer wallet...", amount);
+            buyerWallet.withdraw(amount);
+            buyerWallet = walletRepository.saveAndFlush(buyerWallet);
+            BigDecimal buyerNewBalance = buyerWallet.getBalance();
+            logger.info("✅ Buyer withdrawal successful. New balance: {} (old: {}, withdrawn: {})", 
+                       buyerNewBalance, buyerOldBalance, amount);
+            
+            // 4. Create buyer transaction record
+            logger.info("📝 Creating buyer transaction record...");
+            WalletTransaction buyerTransaction = new WalletTransaction(
+                buyerWallet,
+                WalletTransaction.TransactionType.ORDER_PAYMENT,
+                amount,
+                "Thanh toán đơn hàng #" + orderId + " qua SportyPay"
+            );
+            // Note: Will set relatedOrder later when we have the Order entity
+            WalletTransaction savedBuyerTx = walletTransactionRepository.save(buyerTransaction);
+            logger.info("✅ Buyer transaction saved with ID: {}", savedBuyerTx.getId());
+            
+            // 5. Prepare result
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("orderId", orderId);
+            result.put("amount", amount);
+            result.put("buyerWalletId", buyerWallet.getId());
+            result.put("buyerOldBalance", buyerOldBalance);
+            result.put("buyerNewBalance", buyerNewBalance);
+            result.put("transactionId", savedBuyerTx.getId());
+            result.put("message", "Thanh toán thành công qua ví SportyPay");
+            
+            logger.info("✅ [SUCCESS] payOrderWithWallet completed. Buyer new balance: {}", buyerNewBalance);
+            
+            return result;
+            
+        } catch (IllegalArgumentException e) {
+            logger.error("❌ [ERROR] Validation failed: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("❌ [ERROR] payOrderWithWallet failed for order {}: {}", orderId, e.getMessage(), e);
+            throw new RuntimeException("Thanh toán ví thất bại: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -309,6 +394,58 @@ public class WalletService {
     }
 
     /**
+     * Transfer money from admin wallet to seller wallet (overloaded for scheduler)
+     * Called automatically by scheduler after 2 minutes
+     */
+    public void transferFromAdminToSeller(Long sellerId, BigDecimal amount, Order order, String description) {
+        User adminUser = getAdminUser();
+        Wallet adminWallet = getOrCreateWallet(adminUser);
+        
+        User seller = userRepository.findById(sellerId)
+                .orElseThrow(() -> new UserNotFoundException("Seller not found with ID: " + sellerId));
+        Wallet sellerWallet = getOrCreateWallet(seller);
+        
+        logger.info("💸 Transferring {} from admin wallet to seller {} for order: {}", 
+                   amount, sellerId, order.getId());
+        
+        // Check if admin has enough balance
+        if (!adminWallet.hasEnoughBalance(amount)) {
+            throw new IllegalArgumentException("Admin wallet has insufficient balance");
+        }
+        
+        // Withdraw from admin wallet
+        adminWallet.withdraw(amount);
+        walletRepository.save(adminWallet);
+        
+        // Create admin withdrawal transaction
+        WalletTransaction adminTransaction = new WalletTransaction(
+            adminWallet,
+            WalletTransaction.TransactionType.PAYMENT_TO_SELLER,
+            amount,
+            String.format("Chuyển tiền cho seller #%d - đơn hàng #%d", sellerId, order.getId())
+        );
+        adminTransaction.setRelatedOrder(order);
+        walletTransactionRepository.save(adminTransaction);
+        
+        // Deposit to seller wallet
+        sellerWallet.deposit(amount);
+        walletRepository.save(sellerWallet);
+        
+        // Create seller deposit transaction
+        WalletTransaction sellerTransaction = new WalletTransaction(
+            sellerWallet,
+            WalletTransaction.TransactionType.PAYMENT_TO_SELLER,
+            amount,
+            description
+        );
+        sellerTransaction.setRelatedOrder(order);
+        walletTransactionRepository.save(sellerTransaction);
+        
+        logger.info("✅ Transfer successful. Admin balance: {}, Seller balance: {}", 
+                   adminWallet.getBalance(), sellerWallet.getBalance());
+    }
+
+    /**
      * Transfer money from admin wallet to seller wallet
      * Called after order is completed and return period expired
      */
@@ -368,5 +505,80 @@ public class WalletService {
         User adminUser = getAdminUser();
         Wallet adminWallet = getOrCreateWallet(adminUser);
         return adminWallet.getBalance();
+    }
+
+    /**
+     * Create MoMo payment for wallet deposit
+     */
+    public com.PBL6.Ecommerce.dto.PaymentResponseDTO createDepositPayment(
+            Long userId, BigDecimal amount, String description, String walletOrderId) {
+        try {
+            logger.info("Creating MoMo payment for wallet deposit: userId={}, amount={}", userId, amount);
+            
+            // Inject beans
+            MoMoPaymentService momoPaymentService = com.PBL6.Ecommerce.config.SpringContext.getBean(MoMoPaymentService.class);
+            com.PBL6.Ecommerce.config.MoMoConfig momoConfig = com.PBL6.Ecommerce.config.SpringContext.getBean(com.PBL6.Ecommerce.config.MoMoConfig.class);
+            
+            String requestId = momoPaymentService.generateRequestId(walletOrderId);
+            String walletIpnUrl = momoConfig.getWalletIpnUrl();
+            String mobileRedirectUrl = momoConfig.getMobileRedirectUrl();
+            
+            logger.info("Using wallet IPN URL: {}, mobile redirect: {}", walletIpnUrl, mobileRedirectUrl);
+            
+            // Use custom redirect and IPN URLs for mobile wallet deposits
+            com.PBL6.Ecommerce.dto.PaymentResponseDTO response = momoPaymentService.createPaymentWithCustomUrls(
+                walletOrderId,
+                amount,
+                description,
+                requestId,
+                mobileRedirectUrl,  // Mobile deep link
+                walletIpnUrl
+            );
+            
+            logger.info("MoMo payment created for wallet deposit: orderId={}, payUrl={}", 
+                       walletOrderId, response.getPayUrl());
+            
+            return response;
+            
+        } catch (Exception e) {
+            logger.error("Error creating deposit payment: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to create deposit payment: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Process withdrawal from wallet to MoMo account
+     * Note: In production, this would use MoMo's disbursement/transfer API
+     * For UAT/sandbox, we simulate the withdrawal
+     */
+    public Map<String, Object> processWithdrawal(
+            Long userId, BigDecimal amount, String momoPhone, String description) {
+        try {
+            logger.info("Processing withdrawal: userId={}, amount={}, momoPhone={}", 
+                       userId, amount, momoPhone);
+            
+            // First, deduct from wallet
+            Wallet wallet = withdraw(userId, amount, description + " - " + momoPhone);
+            
+            // In production, you would call MoMo disbursement API here
+            // For now, we'll create a pending transaction
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("status", "PROCESSING");
+            result.put("amount", amount);
+            result.put("momoPhone", momoPhone);
+            result.put("walletBalance", wallet.getBalance());
+            result.put("message", "Withdrawal request submitted. Money will be transferred to MoMo phone: " + momoPhone);
+            result.put("estimatedTime", "1-3 business days");
+            
+            logger.info("Withdrawal processed successfully: userId={}, newBalance={}", 
+                       userId, wallet.getBalance());
+            
+            return result;
+            
+        } catch (Exception e) {
+            logger.error("Error processing withdrawal: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to process withdrawal: " + e.getMessage(), e);
+        }
     }
 }

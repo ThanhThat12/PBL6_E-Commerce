@@ -17,6 +17,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.PBL6.Ecommerce.domain.Address;
 import com.PBL6.Ecommerce.domain.Category;
 import com.PBL6.Ecommerce.domain.Product;
 import com.PBL6.Ecommerce.domain.ProductAttribute;
@@ -361,10 +362,11 @@ private void validateProductOwnership(Product product, Authentication authentica
     // Tìm kiếm sản phẩm đang hoạt động
     @Transactional(readOnly = true)
     public Page<ProductDTO> searchActiveProducts(String name, Long categoryId, Long shopId, 
-                                               BigDecimal minPrice, BigDecimal maxPrice, 
+                                               BigDecimal minPrice, BigDecimal maxPrice,
+                                               BigDecimal minRating,
                                                Pageable pageable) {
         Page<Product> products = productRepository.findProductsWithFilters(
-            name, categoryId, shopId, true, minPrice, maxPrice, pageable);
+            name, categoryId, shopId, true, minPrice, maxPrice, minRating, pageable);
         return products.map(this::convertToProductDTO);
     }
     
@@ -639,6 +641,18 @@ private void validateProductOwnership(Product product, Authentication authentica
         if (product.getShop() != null) {
             dto.setShopId(product.getShop().getId());
             dto.setShopName(product.getShop().getName());
+            
+            // Get shop province from owner's primary address
+            User owner = product.getShop().getOwner();
+            if (owner != null && owner.getAddresses() != null && !owner.getAddresses().isEmpty()) {
+                // Find primary address or use first address
+                String provinceName = owner.getAddresses().stream()
+                    .filter(Address::isPrimaryAddress)
+                    .findFirst()
+                    .map(Address::getProvinceName)
+                    .orElse(owner.getAddresses().get(0).getProvinceName());
+                dto.setShopProvince(provinceName);
+            }
         }
         
         // Convert variants

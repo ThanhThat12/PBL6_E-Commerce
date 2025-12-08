@@ -19,6 +19,9 @@ import com.PBL6.Ecommerce.service.CartService;
 
 import jakarta.validation.Valid;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Shopping Cart", description = "Cart management - add, update, remove items, clear cart")
 @RestController
 @RequestMapping("/api/cart")
 public class CartController {

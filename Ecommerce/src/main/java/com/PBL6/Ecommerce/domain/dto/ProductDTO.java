@@ -28,6 +28,7 @@ public class ProductDTO {
     private CategoryDTO category;
     private Long shopId;
     private String shopName;
+    private String shopProvince; // Province where shop is located (from owner's primary address)
     private List<ProductVariantDTO> variants;
     private List<ProductImageDTO> images;
 
@@ -76,6 +77,9 @@ public class ProductDTO {
 
     public String getShopName() { return shopName; }
     public void setShopName(String shopName) { this.shopName = shopName; }
+
+    public String getShopProvince() { return shopProvince; }
+    public void setShopProvince(String shopProvince) { this.shopProvince = shopProvince; }
 
     public List<ProductVariantDTO> getVariants() { return variants; }
     public void setVariants(List<ProductVariantDTO> variants) { this.variants = variants; }

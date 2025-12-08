@@ -5,6 +5,7 @@ public class UserInfoDTO {
     private String email;
     private String username;
     private String role;
+    private String fullName;
 
     
     public UserInfoDTO(Long id, String email, String username, String role) {
@@ -12,6 +13,14 @@ public class UserInfoDTO {
         this.email = email;
         this.username = username;
         this.role = role;
+    }
+    
+    public UserInfoDTO(Long id, String email, String username, String role, String fullName) {
+        this.id = id;
+        this.email = email;
+        this.username = username;
+        this.role = role;
+        this.fullName = fullName;
     }
     public Long getId() {
         return id;
@@ -25,16 +34,22 @@ public class UserInfoDTO {
     public void setEmail(String email) {
         this.email = email;
     }
-    public String getUserName() {
+    public String getUsername() {
         return username;
     }
-    public void setUserName(String userName) {
-        this.username = userName;
+    public void setUsername(String username) {
+        this.username = username;
     }
     public String getRole() {
         return role;
     }
     public void setRole(String role) {
         this.role = role;
+    }
+    public String getFullName() {
+        return fullName;
+    }
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 }

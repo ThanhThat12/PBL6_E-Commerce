@@ -65,21 +65,61 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                                   @Param("maxPrice") BigDecimal maxPrice, 
                                   Pageable pageable);
     
-    // Tìm kiếm phức tạp
+    // Tìm kiếm phức tạp với rating filter (bao gồm shop name)
     @Query("SELECT p FROM Product p WHERE " +
-           "(:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
+           "(:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')) OR " +
+           "LOWER(p.shop.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
            "(:categoryId IS NULL OR p.category.id = :categoryId) AND " +
            "(:shopId IS NULL OR p.shop.id = :shopId) AND " +
            "(:isActive IS NULL OR p.isActive = :isActive) AND " +
            "(:minPrice IS NULL OR p.basePrice >= :minPrice) AND " +
-           "(:maxPrice IS NULL OR p.basePrice <= :maxPrice)")
+           "(:maxPrice IS NULL OR p.basePrice <= :maxPrice) AND " +
+           "(:minRating IS NULL OR p.rating >= :minRating)")
     Page<Product> findProductsWithFilters(@Param("name") String name,
                                         @Param("categoryId") Long categoryId,
                                         @Param("shopId") Long shopId,
                                         @Param("isActive") Boolean isActive,
                                         @Param("minPrice") BigDecimal minPrice,
                                         @Param("maxPrice") BigDecimal maxPrice,
+                                        @Param("minRating") BigDecimal minRating,
                                         Pageable pageable);
+    
+    // ========== SEARCH SUGGESTIONS QUERIES ==========
+    
+    /**
+     * Find product name suggestions (for autocomplete)
+     * Returns distinct product names starting with the query
+     */
+    @Query("SELECT DISTINCT p.name FROM Product p WHERE " +
+           "p.isActive = true AND LOWER(p.name) LIKE LOWER(CONCAT(:query, '%')) " +
+           "ORDER BY p.soldCount DESC")
+    List<String> findProductNameSuggestions(@Param("query") String query, Pageable pageable);
+    
+    /**
+     * Find products for suggestion (mini product cards)
+     * Returns top products matching query, ordered by relevance
+     */
+    @Query("SELECT p FROM Product p WHERE " +
+           "p.isActive = true AND LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "ORDER BY p.soldCount DESC, p.rating DESC")
+    List<Product> findProductsForSuggestion(@Param("query") String query, Pageable pageable);
+    
+    /**
+     * Find products by name OR shop name (for combined search)
+     * Returns products where product name or shop name matches query
+     */
+    @Query("SELECT p FROM Product p WHERE " +
+           "p.isActive = true AND (" +
+           "LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(p.shop.name) LIKE LOWER(CONCAT('%', :query, '%'))" +
+           ") ORDER BY p.soldCount DESC, p.rating DESC")
+    List<Product> findProductsByNameOrShopName(@Param("query") String query, Pageable pageable);
+    
+    /**
+     * Count products by shop name matching query
+     */
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.shop.id = :shopId")
+    long countActiveByShopId(@Param("shopId") Long shopId);
     
     // Đếm số sản phẩm theo shop
     long countByShopId(Long shopId);

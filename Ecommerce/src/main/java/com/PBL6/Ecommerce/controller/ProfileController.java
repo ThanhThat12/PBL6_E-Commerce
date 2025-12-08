@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -20,6 +21,7 @@ import jakarta.validation.Valid;
  * Controller for user profile management operations
  * All endpoints require authentication
  */
+@Tag(name = "User Profile", description = "User profile view and update")
 @RestController
 @RequestMapping("/api/user")
 public class ProfileController {

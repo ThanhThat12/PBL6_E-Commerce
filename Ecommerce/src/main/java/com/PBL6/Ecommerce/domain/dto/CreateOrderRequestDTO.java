@@ -28,9 +28,10 @@ public class CreateOrderRequestDTO {
     @NotBlank(message = "Vui lòng nhập địa chỉ người nhận")
     private String receiverAddress;
 
-    private String province;
-    private String district;
-    private String ward;
+    // Address using IDs instead of text
+    private Integer provinceId;
+    private Integer districtId; 
+    private String wardCode;
 
     private Integer weightGrams = 1000;
     private BigDecimal codAmount;
@@ -76,12 +77,20 @@ public class CreateOrderRequestDTO {
     public void setReceiverPhone(String v){this.receiverPhone=v;}
     public String getReceiverAddress(){return receiverAddress;}
     public void setReceiverAddress(String v){this.receiverAddress=v;}
-    public String getProvince(){return province;}
-    public void setProvince(String v){this.province=v;}
-    public String getDistrict(){return district;}
-    public void setDistrict(String v){this.district=v;}
-    public String getWard(){return ward;}
-    public void setWard(String v){this.ward=v;}
+    public String getProvince(){return null;} // Deprecated, use provinceId
+    public void setProvince(String v){} // Deprecated, use setProvinceId
+    public String getDistrict(){return null;} // Deprecated, use districtId
+    public void setDistrict(String v){} // Deprecated, use setDistrictId
+    public String getWard(){return null;} // Deprecated, use wardCode
+    public void setWard(String v){} // Deprecated, use setWardCode
+    
+    // New ID-based getters/setters
+    public Integer getProvinceId(){return provinceId;}
+    public void setProvinceId(Integer provinceId){this.provinceId = provinceId;}
+    public Integer getDistrictId(){return districtId;}
+    public void setDistrictId(Integer districtId){this.districtId = districtId;}
+    public String getWardCode(){return wardCode;}
+    public void setWardCode(String wardCode){this.wardCode = wardCode;}
     public Integer getWeightGrams(){return weightGrams;}
     public void setWeightGrams(Integer w){this.weightGrams=w;}
     public BigDecimal getCodAmount(){return codAmount;}

@@ -12,6 +12,7 @@ import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.service.MoMoService;
 import com.PBL6.Ecommerce.service.PaymentTransactionService;
 import com.PBL6.Ecommerce.service.UserService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,7 @@ import java.util.Map;
 /**
  * Controller for MoMo payment operations
  */
+@Tag(name = "MoMo Payment", description = "MoMo payment integration")
 @RestController
 @RequestMapping("/api/payment/momo")
 public class MoMoPaymentController {
@@ -234,6 +236,44 @@ public class MoMoPaymentController {
             logger.info("User returned from MoMo - orderId: {}, requestId: {}, resultCode: {}", 
                        orderId, requestId, resultCode);
             
+            // Update payment status if not already updated by IPN
+            if (requestId != null && resultCode != null) {
+                try {
+                    PaymentTransaction transaction = paymentTransactionService.getByRequestId(requestId);
+                    if (transaction != null && transaction.getStatus() == PaymentTransactionStatus.PENDING) {
+                        logger.info("Updating payment status from return URL - requestId: {}, resultCode: {}", 
+                                   requestId, resultCode);
+                        
+                        transaction.setResultCode(resultCode);
+                        transaction.setMessage(message);
+                        
+                        if (resultCode == 0) {
+                            transaction.setStatus(PaymentTransactionStatus.SUCCESS);
+                            if (transId != null) {
+                                transaction.setTransId(transId);
+                            }
+                            
+                            // Update order status
+                            Order order = transaction.getOrder();
+                            moMoService.updateOrderPaymentStatus(order, transaction);
+                            
+                            logger.info("Payment marked as SUCCESS from return URL");
+                        } else {
+                            transaction.setStatus(PaymentTransactionStatus.FAILED);
+                            logger.info("Payment marked as FAILED from return URL - resultCode: {}", resultCode);
+                        }
+                        
+                        paymentTransactionService.save(transaction);
+                    } else if (transaction != null) {
+                        logger.info("Payment already processed (status: {}), skipping update from return URL", 
+                                   transaction.getStatus());
+                    }
+                } catch (Exception e) {
+                    logger.error("Failed to update payment from return URL: {}", e.getMessage());
+                    // Continue to redirect even if update fails
+                }
+            }
+            
             // Determine redirect URL based on result
             String redirectUrl;
             
@@ -245,6 +285,7 @@ public class MoMoPaymentController {
             } else {
                 // Payment failed - redirect to failure page
                 redirectUrl = "https://localhost:3000/payment/failed?orderId=" + orderId + 
+                             "&resultCode=" + resultCode +
                              "&message=" + (message != null ? message : "Payment failed");
                 logger.warn("Payment failed with result code: {}, redirecting to failure page", resultCode);
             }
@@ -439,6 +480,73 @@ public class MoMoPaymentController {
         } catch (Exception e) {
             logger.error("TEST: Error processing test callback: {}", e.getMessage(), e);
             return ResponseDTO.error(500, "INTERNAL_SERVER_ERROR", "Error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Refund MoMo payment
+     * POST /api/payment/momo/refund
+     * 
+     * Request body:
+     * {
+     *   "orderId": 123,
+     *   "amount": 50000,
+     *   "description": "Refund for damaged product"
+     * }
+     */
+    @PostMapping("/refund")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    public ResponseEntity<ResponseDTO<com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO>> refundPayment(
+            @RequestBody com.PBL6.Ecommerce.dto.MoMoRefundRequestDTO request,
+            Authentication authentication) {
+        try {
+            Jwt jwt = (Jwt) authentication.getPrincipal();
+            Long userId = userService.extractUserIdFromJwt(jwt);
+            logger.info("User {} requesting MoMo refund for order: {}", userId, request.getOrderId());
+            
+            // Validate request
+            if (request.getOrderId() == null) {
+                return ResponseDTO.error(400, "BAD_REQUEST", "orderId is required");
+            }
+            
+            if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                return ResponseDTO.error(400, "BAD_REQUEST", "amount must be greater than 0");
+            }
+            
+            // Verify order exists and user has permission
+            Order order = orderRepository.findById(request.getOrderId())
+                    .orElseThrow(() -> new OrderNotFoundException("Order not found: " + request.getOrderId()));
+            
+            // Process refund
+            com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO refundResponse = moMoService.refundPayment(
+                request.getOrderId(),
+                request.getAmount(),
+                request.getDescription() != null ? request.getDescription() : "Refund for order #" + request.getOrderId()
+            );
+            
+            if (refundResponse.getResultCode() == 0) {
+                logger.info("MoMo refund successful for order: {}, amount: {}", 
+                           request.getOrderId(), request.getAmount());
+                return ResponseDTO.success(refundResponse, "Refund processed successfully");
+            } else {
+                logger.warn("MoMo refund failed for order: {}, code: {}, message: {}", 
+                           request.getOrderId(), refundResponse.getResultCode(), refundResponse.getMessage());
+                return ResponseDTO.error(
+                    400,
+                    "REFUND_FAILED", 
+                    refundResponse.getMessage()
+                );
+            }
+            
+        } catch (OrderNotFoundException e) {
+            logger.error("Order not found: {}", e.getMessage());
+            return ResponseDTO.error(404, "NOT_FOUND", e.getMessage());
+        } catch (MoMoPaymentException e) {
+            logger.error("MoMo refund error: {}", e.getMessage());
+            return ResponseDTO.error(400, "PAYMENT_ERROR", e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unexpected error during refund: {}", e.getMessage(), e);
+            return ResponseDTO.error(500, "INTERNAL_SERVER_ERROR", "Failed to process refund");
         }
     }
 }

@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.Map;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Refunds", description = "Refund request and processing")
 @RestController
 @RequestMapping("/api/refund")
 public class RefundController {

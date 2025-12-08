@@ -14,6 +14,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "GHN Shipping", description = "GHN shipping integration - fees, tracking")
 @RestController
 @RequestMapping("/api/ghn")
 @Validated

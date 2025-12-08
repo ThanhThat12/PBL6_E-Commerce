@@ -14,6 +14,9 @@ import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Google OAuth", description = "Google OAuth authentication")
 @RestController
 @RequestMapping("/api")
 public class GoogleAuthController {

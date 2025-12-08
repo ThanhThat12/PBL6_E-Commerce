@@ -2,6 +2,7 @@ package com.PBL6.Ecommerce.service.impl;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import com.PBL6.Ecommerce.constant.TransformationType;
 import com.PBL6.Ecommerce.dto.cloudinary.CloudinaryUploadResult;
 import com.PBL6.Ecommerce.exception.CloudinaryServiceException;
 import com.PBL6.Ecommerce.exception.ImageUploadException;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -171,6 +173,43 @@ public class CloudinaryClientImpl implements CloudinaryClient {
             log.error("Failed to generate transformation URL: publicId={}, transformation={}", 
                 publicId, transformation, e);
             return null;
+        }
+    }
+
+    @Override
+    public Map<TransformationType, String> generateTransformedUrls(String publicId, String format) {
+        if (publicId == null || publicId.isEmpty()) {
+            return new EnumMap<>(TransformationType.class);
+        }
+        Map<TransformationType, String> transformedUrls = new EnumMap<>(TransformationType.class);
+
+        try {
+            // Thumbnail: 200x200 (fill)
+            String thumbUrl = cloudinary.url().transformation(new com.cloudinary.Transformation<>()
+                .width(200).height(200).crop("fill")).secure(true).generate(publicId);
+            transformedUrls.put(TransformationType.THUMBNAIL, thumbUrl);
+
+            // Medium: 600x600 (fit)
+            String mediumUrl = cloudinary.url().transformation(new com.cloudinary.Transformation<>()
+                .width(600).height(600).crop("fit")).secure(true).generate(publicId);
+            transformedUrls.put(TransformationType.MEDIUM, mediumUrl);
+
+            // Large: 1200x1200 (fit)
+            String largeUrl = cloudinary.url().transformation(new com.cloudinary.Transformation<>()
+                .width(1200).height(1200).crop("fit")).secure(true).generate(publicId);
+            transformedUrls.put(TransformationType.LARGE, largeUrl);
+            
+            // Original URL - without transformations
+            String originalUrl = cloudinary.url().secure(true).generate(publicId);
+            transformedUrls.put(TransformationType.ORIGINAL, originalUrl);
+            
+            log.debug("Generated transformed URLs for publicId: {}", publicId);
+            return transformedUrls;
+
+        } catch (Exception e) {
+            log.error("Failed to generate transformed URLs for publicId: {}", publicId, e);
+            // Return empty map or rethrow as a custom exception
+            return new EnumMap<>(TransformationType.class);
         }
     }
 }

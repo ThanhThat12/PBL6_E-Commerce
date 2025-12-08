@@ -26,7 +26,7 @@ public class Refund {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private RefundStatus status = RefundStatus.PENDING;
+    private RefundStatus status = RefundStatus.REQUESTED; 
 
     @ManyToOne
     @JoinColumn(name = "transaction_id")
@@ -58,14 +58,11 @@ public class Refund {
     }
 
     public enum RefundStatus {
-        PENDING,                     // Chờ duyệt
-        APPROVED_WAITING_RETURN,     // Đã duyệt - Chờ trả hàng
-        RETURNING,                   // Đang trả hàng
-        APPROVED_REFUNDING,          // Đã duyệt - Đang hoàn tiền
-        COMPLETED,                   // Hoàn tiền thành công
-        REJECTED                     // Từ chối
+        REQUESTED,   // Chờ duyệt
+        APPROVED,    // Đã duyệt
+        REJECTED,    // Từ chối
+        COMPLETED    // Hoàn tiền thành công
     }
-
     // Constructors
     public Refund() {
     }
@@ -74,7 +71,7 @@ public class Refund {
         this.order = order;
         this.amount = amount;
         this.reason = reason;
-        this.status = RefundStatus.PENDING;
+        this.status = RefundStatus.REQUESTED;
     }
 
     // Getters and Setters

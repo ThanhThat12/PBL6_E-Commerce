@@ -1,13 +1,26 @@
 # Hướng dẫn thiết lập HTTPS cho Spring Boot
 
-## Bước 1: Tạo Self-Signed Certificate
+## ⚡ Cách nhanh: Sử dụng Script có sẵn
+
+```powershell
+cd D:\Proj_Nam4\PBL6_E-Commerce\Ecommerce
+powershell -ExecutionPolicy Bypass -File .\create-ssl-certificate.ps1
+```
+
+Script sẽ tự động tạo `keystore.p12` trong thư mục `src/main/resources`.
+
+---
+
+## 📋 Cách thủ công (nếu cần)
+
+### Bước 1: Tạo Self-Signed Certificate
 
 Mở PowerShell và chạy lệnh sau để tạo certificate:
 
 ```powershell
-cd D:\PBL6\PBL6_E-Commerce\Ecommerce\src\main\resources
+cd D:\Proj_Nam4\PBL6_E-Commerce\Ecommerce\src\main\resources
 
-keytool -genkeypair -alias ecommerce -keyalg RSA -keysize 2048 -storetype PKCS12 -keystore keystore.p12 -validity 3650 -storepass password -dname "CN=localhost, OU=Development, O=PBL6, L=HCM, ST=HCM, C=VN"
+keytool -genkeypair -alias ecommerce -keyalg RSA -keysize 2048 -storetype PKCS12 -keystore keystore.p12 -validity 365 -storepass password -dname "CN=localhost, OU=Development, O=PBL6 E-Commerce, L=DaNang, ST=DaNang, C=VN" -ext "SAN=dns:localhost,ip:127.0.0.1"
 ```
 
 ### Giải thích các tham số:
