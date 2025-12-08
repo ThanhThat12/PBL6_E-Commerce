@@ -3,6 +3,7 @@ package com.PBL6.Ecommerce.scheduler;
 import com.PBL6.Ecommerce.domain.Order;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.service.WalletService;
+import com.PBL6.Ecommerce.service.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -30,10 +31,12 @@ public class SellerPayoutScheduler {
     
     private final OrderRepository orderRepository;
     private final WalletService walletService;
+    private final NotificationService notificationService;
 
-    public SellerPayoutScheduler(OrderRepository orderRepository, WalletService walletService) {
+    public SellerPayoutScheduler(OrderRepository orderRepository, WalletService walletService, NotificationService notificationService) {
         this.orderRepository = orderRepository;
         this.walletService = walletService;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -111,9 +114,12 @@ public class SellerPayoutScheduler {
                 String.format("Thanh toán đơn hàng #%d (trừ 10%% phí dịch vụ)", order.getId())
             );
             
-            // Đánh dấu đã chuyển tiền bằng cách update updatedAt
-            order.setUpdatedAt(new Date());
-            orderRepository.save(order);
+            // Không cần update order - WalletTransaction đã đánh dấu
+            
+            // Gửi thông báo cho seller
+            String sellerMessage = String.format("Bạn đã nhận được tiền đơn hàng #%d (%.0f VNĐ)", 
+                                                order.getId(), sellerAmount);
+            notificationService.sendSellerNotification(sellerId, "PAYMENT_RECEIVED", sellerMessage, order.getId());
             
             logger.info("✅ Successfully paid out {} to seller #{} for order #{} (Admin kept {} as commission)", 
                        sellerAmount, sellerId, order.getId(), adminCommission);
