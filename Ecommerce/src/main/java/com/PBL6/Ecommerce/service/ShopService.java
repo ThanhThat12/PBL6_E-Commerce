@@ -9,21 +9,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.PBL6.Ecommerce.constant.TypeAddress;
+import com.PBL6.Ecommerce.domain.Address;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Address;
-import com.PBL6.Ecommerce.constant.TypeAddress;
+import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
 import com.PBL6.Ecommerce.domain.dto.MonthlyRevenueDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
-import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
+import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.repository.AddressRepository;
 
 @Service
 public class ShopService {
@@ -132,8 +132,10 @@ public class ShopService {
             // Ensure type = STORE
             addr.setTypeAddress(TypeAddress.STORE);
             addressRepository.save(addr);
-        } else if (updateShopDTO.getFullAddress() != null && !updateShopDTO.getFullAddress().trim().isEmpty()) {
+        } else if (updateShopDTO.getFullAddress() != null || updateShopDTO.getProvinceId() != null || 
+                   updateShopDTO.getDistrictId() != null || updateShopDTO.getWardCode() != null) {
             // Option 2: Create or update store address with full details
+            // Update if ANY address field is provided (not just fullAddress)
             Address storeAddr = addressRepository
                 .findFirstByUserIdAndTypeAddress(user.getId(), TypeAddress.STORE)
                 .orElse(null);
@@ -145,15 +147,17 @@ public class ShopService {
                 storeAddr.setTypeAddress(TypeAddress.STORE);
             }
             
-            // Update address fields
-            storeAddr.setFullAddress(updateShopDTO.getFullAddress().trim());
+            // Update address fields - allow empty string to clear field
+            if (updateShopDTO.getFullAddress() != null) {
+                storeAddr.setFullAddress(updateShopDTO.getFullAddress().trim());
+            }
             if (updateShopDTO.getProvinceId() != null) {
                 storeAddr.setProvinceId(updateShopDTO.getProvinceId());
             }
             if (updateShopDTO.getDistrictId() != null) {
                 storeAddr.setDistrictId(updateShopDTO.getDistrictId());
             }
-            if (updateShopDTO.getWardCode() != null) {
+            if (updateShopDTO.getWardCode() != null && !updateShopDTO.getWardCode().trim().isEmpty()) {
                 storeAddr.setWardCode(updateShopDTO.getWardCode());
             }
             if (updateShopDTO.getProvinceName() != null) {

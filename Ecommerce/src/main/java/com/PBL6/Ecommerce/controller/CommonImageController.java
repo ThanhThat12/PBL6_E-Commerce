@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.controller;
 
 import com.PBL6.Ecommerce.constant.TransformationType;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,6 +34,7 @@ import java.util.Map;
  * Security: All endpoints require authentication.
  * This is used for KYC document uploads, temporary uploads, and other generic image needs.
  */
+@Tag(name = "Image Upload", description = "Common image upload endpoints")
 @RestController
 @RequestMapping("/api/images")
 @RequiredArgsConstructor

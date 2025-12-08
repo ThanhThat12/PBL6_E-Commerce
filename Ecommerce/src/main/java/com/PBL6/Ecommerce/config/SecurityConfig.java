@@ -78,7 +78,16 @@ public class SecurityConfig {
                     "/api/wallet/deposit/callback",
                     // WebSocket endpoints - allow SockJS handshake and STOMP connections
                     "/ws/**",
-                    "/ws"
+                    "/ws",
+                    // Swagger UI endpoints - MUST be public for API documentation access
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**",
+                    "/v3/api-docs",
+                    "/swagger-resources/**",
+                    "/configuration/**",
+                    "/webjars/**",
+                    "/api-docs/**"
                 ).permitAll()
 
                 // Allow unauthenticated GET for the products collection

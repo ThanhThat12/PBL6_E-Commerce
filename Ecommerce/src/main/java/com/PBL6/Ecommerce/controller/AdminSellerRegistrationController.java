@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +31,7 @@ import java.util.Map;
 /**
  * Admin endpoints for managing seller registration applications
  */
+@Tag(name = "Admin Seller Registration", description = "Admin seller registration approval")
 @RestController
 @RequestMapping("/api/admin/seller-registrations")
 @PreAuthorize("hasRole('ADMIN')")

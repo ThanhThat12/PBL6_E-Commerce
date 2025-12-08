@@ -4,6 +4,7 @@ import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO;
 import com.PBL6.Ecommerce.service.AdminVoucherService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
  * Controller for Admin Voucher Management
  * Admin can: view all vouchers with pagination, view voucher details
  */
+@Tag(name = "Admin Vouchers", description = "Admin voucher management")
 @RestController
 @RequestMapping("/api/admin")
 public class AdminVoucherController {

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,7 @@ import com.PBL6.Ecommerce.repository.ProductAttributeRepository;
  * Controller for managing product attributes (Color, Size, Material, etc.)
  * Used by frontend to dynamically load available classification types
  */
+@Tag(name = "Product Attributes", description = "Product variant attributes management")
 @RestController
 @RequestMapping("/api/product-attributes")
 public class ProductAttributeController {

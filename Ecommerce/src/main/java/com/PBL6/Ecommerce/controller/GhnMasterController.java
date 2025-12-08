@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "GHN Master Data", description = "GHN provinces, districts, wards data")
 @RestController
 @RequestMapping("/api/ghn/master")
 public class GhnMasterController {

@@ -11,6 +11,7 @@ import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.service.SearchService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
  * - Trending searches
  * - Search history
  */
+@Tag(name = "Search", description = "Product search, suggestions, trending keywords")
 @RestController
 @RequestMapping("/api/search")
 public class SearchController {

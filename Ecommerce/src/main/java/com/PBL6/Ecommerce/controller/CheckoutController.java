@@ -26,6 +26,9 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.PBL6.Ecommerce.domain.User;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Checkout", description = "Checkout process, order preview, shipping fee calculation")
 @RestController
 @RequestMapping("/api/checkout")
 public class CheckoutController {

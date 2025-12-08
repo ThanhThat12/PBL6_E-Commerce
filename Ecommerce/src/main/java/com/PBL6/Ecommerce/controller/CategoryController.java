@@ -24,6 +24,9 @@ import com.PBL6.Ecommerce.service.CategoryService;
 import jakarta.validation.Valid;
 
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Categories", description = "Product category management")
 @RestController
 @RequestMapping("/api/categories")
 public class CategoryController {

@@ -2,6 +2,7 @@ package com.PBL6.Ecommerce.controller;
 
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,7 @@ import jakarta.validation.Valid;
  * Controller for admin order management
  * Admin can: view all orders, view order details, update order status
  */
+@Tag(name = "Admin Orders", description = "Admin order management and statistics")
 @RestController
 @RequestMapping("/api/admin/orders")
 public class AdminOrderController {

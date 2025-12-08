@@ -2,6 +2,7 @@ package com.PBL6.Ecommerce.controller;
 
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -46,6 +47,7 @@ import lombok.extern.slf4j.Slf4j;
  * - Ownership validation enforced in service layer
  * - Rate limiting applied to uploads (10/min, 50/hr per user)
  */
+@Tag(name = "Product Images", description = "Product image upload and management")
 @RestController
 @RequestMapping("/api/products/{productId}/images")
 @RequiredArgsConstructor

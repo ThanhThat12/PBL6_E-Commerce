@@ -6,6 +6,7 @@ import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherApplicationResultDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherDTO;
 import com.PBL6.Ecommerce.service.VoucherService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
  * GET /api/seller/vouchers/active - Lấy voucher đang active (SELLER only)
  * PATCH /api/seller/vouchers/{id}/deactivate - Vô hiệu hóa voucher (SELLER only)
  */
+@Tag(name = "Vouchers", description = "Voucher and discount code management")
 @RestController
 @RequestMapping("/api/seller/vouchers")
 public class VoucherController {

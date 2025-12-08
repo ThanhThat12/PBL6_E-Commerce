@@ -3,6 +3,7 @@ package com.PBL6.Ecommerce.controller;
 // imports cleaned: ApiResponse and ProductReview not needed in this controller
 import java.util.Map;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +58,7 @@ import jakarta.validation.Valid;
  * PUT /api/admin/reviews/reports/{reportId} - Update report status (ADMIN only)
  * GET /api/admin/reviews/reports/counts - Get report counts (ADMIN only)
  */
+@Tag(name = "Product Reviews", description = "Product review and rating system")
 @RestController
 @RequestMapping("/api")
 public class ProductReviewController {

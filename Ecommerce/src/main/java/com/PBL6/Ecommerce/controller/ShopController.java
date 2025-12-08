@@ -34,11 +34,20 @@ import com.PBL6.Ecommerce.service.SellerRegistrationService;
 import com.PBL6.Ecommerce.service.ShopService;
 import com.PBL6.Ecommerce.service.UserService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Shop Management", description = "APIs for shop profile, seller registration, and shop analytics")
 public class ShopController {
     
     private final ShopService shopService;
@@ -60,6 +69,18 @@ public class ShopController {
      * Tự động lấy shop theo seller đang đăng nhập
      * Chỉ SELLER mới có quyền truy cập
      */
+    @Operation(
+        summary = "Get seller's shop information",
+        description = "Get basic shop information for the currently authenticated seller",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved shop information",
+            content = @Content(schema = @Schema(implementation = ShopDTO.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - Invalid or missing JWT token"),
+        @ApiResponse(responseCode = "403", description = "Forbidden - User is not a seller"),
+        @ApiResponse(responseCode = "404", description = "Shop not found for this seller")
+    })
     @GetMapping("/seller/shop")
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ResponseDTO<ShopDTO>> getShop() {

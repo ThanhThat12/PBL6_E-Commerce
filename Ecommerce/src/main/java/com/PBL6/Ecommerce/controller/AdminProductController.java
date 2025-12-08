@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +22,7 @@ import com.PBL6.Ecommerce.service.AdminProductService;
  * Controller for admin product management
  * Admin can: view all products with pagination
  */
+@Tag(name = "Admin Products", description = "Admin product management")
 @RestController
 @RequestMapping("/api/admin/products")
 public class AdminProductController {

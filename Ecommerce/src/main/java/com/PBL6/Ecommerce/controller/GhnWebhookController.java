@@ -12,6 +12,9 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.HashMap;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "GHN Webhooks", description = "GHN shipping status webhooks")
 @RestController
 @RequestMapping("/api/webhook/ghn")
 public class GhnWebhookController {
