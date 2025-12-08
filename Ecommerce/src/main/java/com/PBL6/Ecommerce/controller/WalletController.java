@@ -75,22 +75,29 @@ public class WalletController {
         try {
             Jwt jwt = (Jwt) authentication.getPrincipal();
             Long userId = userService.extractUserIdFromJwt(jwt);
+            logger.info("💰 [GET /wallet/balance] User ID from JWT: {}", userId);
+            
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+            logger.info("💰 User found: {} (ID: {})", user.getUsername(), user.getId());
             
             BigDecimal balance = walletService.getBalance(user.getId());
+            logger.info("💰 Balance retrieved: {} for user ID: {}", balance, user.getId());
             
             Map<String, Object> response = new HashMap<>();
-            response.put("balance", balance);
+            // Convert BigDecimal to double for JSON serialization
+            response.put("balance", balance.doubleValue());
             response.put("userId", user.getId());
             response.put("username", user.getUsername());
             
+            logger.info("💰 Response: {}", response);
             return ResponseDTO.success(response, "Balance retrieved successfully");
             
         } catch (UserNotFoundException e) {
+            logger.error("❌ User not found: {}", e.getMessage());
             return ResponseDTO.error(404, "NOT_FOUND", e.getMessage());
         } catch (Exception e) {
-            logger.error("Error retrieving balance: {}", e.getMessage(), e);
+            logger.error("❌ Error retrieving balance: {}", e.getMessage(), e);
             return ResponseDTO.error(500, "INTERNAL_SERVER_ERROR", "Failed to retrieve balance");
         }
     }

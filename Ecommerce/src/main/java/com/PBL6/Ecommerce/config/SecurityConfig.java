@@ -68,8 +68,6 @@ public class SecurityConfig {
                     "/api/ghn/master/**",
                     "/api/users/*/addresses",
                     "/api/users/*/addresses/**",
-                    // Checkout endpoints for mobile testing
-                    "/api/checkout/**",
                     // MoMo Payment callbacks - must be public for MoMo to call
                     "/api/payment/momo/return",
                     "/api/payment/momo/callback",
@@ -80,6 +78,11 @@ public class SecurityConfig {
                     "/ws/**",
                     "/ws"
                 ).permitAll()
+                
+                // Checkout endpoints - require authentication except for testing
+                .requestMatchers(HttpMethod.POST, "/api/checkout/available-services").permitAll() // For testing
+                .requestMatchers(HttpMethod.POST, "/api/checkout/calculate-fee").permitAll() // For testing
+                .requestMatchers("/api/checkout/**").authenticated()
 
                 // Allow unauthenticated GET for the products collection
                 .requestMatchers(HttpMethod.GET, "/api/products").permitAll()

@@ -38,6 +38,7 @@ public class CheckoutController {
     private final UserRepository userRepository;
     private final com.PBL6.Ecommerce.repository.OrderRepository orderRepository;
     private final com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository;
+    private final com.PBL6.Ecommerce.service.WalletService walletService;
 
     public CheckoutController(GhnService ghnService, 
                             AddressRepository addressRepository,
@@ -47,7 +48,8 @@ public class CheckoutController {
                             ShipmentRepository shipmentRepository,
                             UserRepository userRepository,
                             com.PBL6.Ecommerce.repository.OrderRepository orderRepository,
-                            com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository) {
+                            com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository,
+                            com.PBL6.Ecommerce.service.WalletService walletService) {
         this.ghnService = ghnService;
         this.addressRepository = addressRepository;
         this.shopRepository = shopRepository;
@@ -57,6 +59,7 @@ public class CheckoutController {
         this.userRepository = userRepository;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
+        this.walletService = walletService;
     }
 
     /**
@@ -486,6 +489,91 @@ public class CheckoutController {
             e.printStackTrace();
             return ResponseEntity.badRequest()
                 .body(new ResponseDTO<>(400, e.getMessage(), "Lỗi tạo đơn", null));
+        }
+    }
+
+    /**
+     * Thanh toán đơn hàng bằng ví SportyPay
+     * POST /api/checkout/pay-with-wallet
+     */
+    @PostMapping("/pay-with-wallet")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResponseDTO<Map<String, Object>>> payWithWallet(
+            @RequestBody Map<String, Object> request,
+            @AuthenticationPrincipal Jwt jwt) {
+        try {
+            System.out.println("💰 [SportyPay] Payment request received: " + request);
+            System.out.println("💰 [SportyPay] JWT: " + jwt);
+            System.out.println("💰 [SportyPay] JWT Claims: " + (jwt != null ? jwt.getClaims() : "null"));
+            
+            if (jwt == null) {
+                System.err.println("❌ [SportyPay] JWT is null - authentication failed!");
+                return ResponseEntity.status(401)
+                    .body(new ResponseDTO<>(401, "Unauthorized", "Vui lòng đăng nhập để thanh toán", null));
+            }
+            
+            String email = jwt.getClaimAsString("email");
+            String username = jwt.getClaimAsString("sub");
+            System.out.println("💰 [SportyPay] Email from JWT: " + email);
+            System.out.println("💰 [SportyPay] Username from JWT: " + username);
+            
+            Long orderId = Long.valueOf(request.get("orderId").toString());
+            
+            // Get authenticated user by email (primary identifier in JWT)
+            User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+            
+            // Get order
+            Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+            
+            // Verify order belongs to user
+            if (!order.getUser().getId().equals(user.getId())) {
+                throw new RuntimeException("Unauthorized: Order does not belong to user");
+            }
+            
+            // Verify order status
+            if (order.getPaymentStatus() == Order.PaymentStatus.PAID) {
+                throw new RuntimeException("Order already paid");
+            }
+            
+            BigDecimal amount = order.getTotalAmount();
+            System.out.println("💰 [SportyPay] Processing payment for order #" + orderId + ", amount: " + amount);
+            
+            // Process wallet payment
+            Map<String, Object> result = walletService.payOrderWithWallet(user.getId(), orderId, amount);
+            
+            // Update order status
+            order.setPaymentStatus(Order.PaymentStatus.PAID);
+            order.setMethod("SPORTYPAY");
+            order.setPaidAt(new Date());
+            orderRepository.save(order);
+            
+            System.out.println("✅ [SportyPay] Payment successful for order #" + orderId);
+            
+            // Deposit to admin wallet
+            try {
+                walletService.depositToAdminWallet(amount, order, "SPORTYPAY");
+                System.out.println("✅ [SportyPay] Deposited to admin wallet");
+            } catch (Exception e) {
+                System.err.println("⚠️ [SportyPay] Failed to deposit to admin wallet: " + e.getMessage());
+                // Continue even if admin deposit fails - can be retried manually
+            }
+            
+            result.put("orderId", orderId);
+            result.put("paymentStatus", "PAID");
+            
+            return ResponseDTO.ok(result, "Thanh toán thành công");
+            
+        } catch (IllegalArgumentException e) {
+            System.err.println("❌ [SportyPay] Validation error: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                .body(new ResponseDTO<>(400, e.getMessage(), "Lỗi thanh toán", null));
+        } catch (Exception e) {
+            System.err.println("❌ [SportyPay] Payment failed: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                .body(new ResponseDTO<>(500, e.getMessage(), "Lỗi thanh toán", null));
         }
     }
     }
