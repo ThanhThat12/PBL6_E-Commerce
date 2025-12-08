@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service for managing user wallets
@@ -368,5 +370,80 @@ public class WalletService {
         User adminUser = getAdminUser();
         Wallet adminWallet = getOrCreateWallet(adminUser);
         return adminWallet.getBalance();
+    }
+
+    /**
+     * Create MoMo payment for wallet deposit
+     */
+    public com.PBL6.Ecommerce.dto.PaymentResponseDTO createDepositPayment(
+            Long userId, BigDecimal amount, String description, String walletOrderId) {
+        try {
+            logger.info("Creating MoMo payment for wallet deposit: userId={}, amount={}", userId, amount);
+            
+            // Inject beans
+            MoMoPaymentService momoPaymentService = com.PBL6.Ecommerce.config.SpringContext.getBean(MoMoPaymentService.class);
+            com.PBL6.Ecommerce.config.MoMoConfig momoConfig = com.PBL6.Ecommerce.config.SpringContext.getBean(com.PBL6.Ecommerce.config.MoMoConfig.class);
+            
+            String requestId = momoPaymentService.generateRequestId(walletOrderId);
+            String walletIpnUrl = momoConfig.getWalletIpnUrl();
+            String mobileRedirectUrl = momoConfig.getMobileRedirectUrl();
+            
+            logger.info("Using wallet IPN URL: {}, mobile redirect: {}", walletIpnUrl, mobileRedirectUrl);
+            
+            // Use custom redirect and IPN URLs for mobile wallet deposits
+            com.PBL6.Ecommerce.dto.PaymentResponseDTO response = momoPaymentService.createPaymentWithCustomUrls(
+                walletOrderId,
+                amount,
+                description,
+                requestId,
+                mobileRedirectUrl,  // Mobile deep link
+                walletIpnUrl
+            );
+            
+            logger.info("MoMo payment created for wallet deposit: orderId={}, payUrl={}", 
+                       walletOrderId, response.getPayUrl());
+            
+            return response;
+            
+        } catch (Exception e) {
+            logger.error("Error creating deposit payment: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to create deposit payment: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Process withdrawal from wallet to MoMo account
+     * Note: In production, this would use MoMo's disbursement/transfer API
+     * For UAT/sandbox, we simulate the withdrawal
+     */
+    public Map<String, Object> processWithdrawal(
+            Long userId, BigDecimal amount, String momoPhone, String description) {
+        try {
+            logger.info("Processing withdrawal: userId={}, amount={}, momoPhone={}", 
+                       userId, amount, momoPhone);
+            
+            // First, deduct from wallet
+            Wallet wallet = withdraw(userId, amount, description + " - " + momoPhone);
+            
+            // In production, you would call MoMo disbursement API here
+            // For now, we'll create a pending transaction
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("status", "PROCESSING");
+            result.put("amount", amount);
+            result.put("momoPhone", momoPhone);
+            result.put("walletBalance", wallet.getBalance());
+            result.put("message", "Withdrawal request submitted. Money will be transferred to MoMo phone: " + momoPhone);
+            result.put("estimatedTime", "1-3 business days");
+            
+            logger.info("Withdrawal processed successfully: userId={}, newBalance={}", 
+                       userId, wallet.getBalance());
+            
+            return result;
+            
+        } catch (Exception e) {
+            logger.error("Error processing withdrawal: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to process withdrawal: " + e.getMessage(), e);
+        }
     }
 }

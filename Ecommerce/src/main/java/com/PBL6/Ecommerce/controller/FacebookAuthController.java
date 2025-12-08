@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Facebook OAuth", description = "Facebook OAuth authentication")
 @RestController
 @RequestMapping("/api")
 public class FacebookAuthController {

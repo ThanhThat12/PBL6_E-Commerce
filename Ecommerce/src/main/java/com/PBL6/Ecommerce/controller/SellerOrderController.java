@@ -17,6 +17,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import java.util.*;
 import java.math.BigDecimal;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Seller Orders", description = "Seller order operations - view, update status, shipping")
 @RestController
 @RequestMapping("/api/seller/orders")
 public class SellerOrderController {

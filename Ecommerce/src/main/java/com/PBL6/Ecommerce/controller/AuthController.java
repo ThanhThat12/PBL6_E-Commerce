@@ -19,8 +19,13 @@ import com.PBL6.Ecommerce.service.AuthService;
 import com.PBL6.Ecommerce.service.RefreshTokenService;
 import com.PBL6.Ecommerce.util.TokenProvider;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Authentication", description = "User login, logout, and token refresh endpoints")
 public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     
@@ -36,6 +41,8 @@ public class AuthController {
         this.tokenProvider = tokenProvider;
     }
 
+    @Operation(summary = "User login", description = "Authenticate user and return JWT token with refresh token")
+    @ApiResponse(responseCode = "200", description = "Login successful")
     @PostMapping("/authenticate")
     public ResponseEntity<ResponseDTO<Map<String, Object>>> login(@RequestBody LoginDTO loginDTO) {
         String token = authService.authenticate(loginDTO);

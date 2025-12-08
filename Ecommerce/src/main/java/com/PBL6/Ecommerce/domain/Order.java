@@ -72,14 +72,15 @@ public class Order {
     @Column(name = "receiver_address", columnDefinition = "TEXT")
     private String receiverAddress;
 
-    @Column(name = "province")
-    private String province;
+    // Address using IDs instead of text
+    @Column(name = "province_id")
+    private Integer provinceId;
 
-    @Column(name = "district")
-    private String district;
+    @Column(name = "district_id") 
+    private Integer districtId;
 
-    @Column(name = "ward")
-    private String ward;
+    @Column(name = "ward_code")
+    private String wardCode;
 
     @Column(name = "shipping_fee")
     private BigDecimal shippingFee;
@@ -220,28 +221,28 @@ public class Order {
         this.receiverAddress = receiverAddress;
     }
 
-    public String getProvince() {
-        return province;
+    public Integer getProvinceId() {
+        return provinceId;
     }
 
-    public void setProvince(String province) {
-        this.province = province;
+    public void setProvinceId(Integer provinceId) {
+        this.provinceId = provinceId;
     }
 
-    public String getDistrict() {
-        return district;
+    public Integer getDistrictId() {
+        return districtId;
     }
 
-    public void setDistrict(String district) {
-        this.district = district;
+    public void setDistrictId(Integer districtId) {
+        this.districtId = districtId;
     }
 
-    public String getWard() {
-        return ward;
+    public String getWardCode() {
+        return wardCode;
     }
 
-    public void setWard(String ward) {
-        this.ward = ward;
+    public void setWardCode(String wardCode) {
+        this.wardCode = wardCode;
     }
 
     public BigDecimal getShippingFee() {

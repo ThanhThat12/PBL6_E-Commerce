@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
  * 
  * All endpoints require SELLER or ADMIN role and validate shop ownership.
  */
+@Tag(name = "Shop Images", description = "Shop logo and banner upload")
 @RestController
 @RequestMapping("/api/shops")
 @RequiredArgsConstructor

@@ -1,8 +1,8 @@
 {
 	"info": {
-		"_postman_id": "review-api-collection-2025",
-		"name": "Product Reviews API - CRUD",
-		"description": "Complete CRUD operations for Product Review Module\n\nFeatures:\n- Customer: Create, Read, Update, Delete reviews\n- Seller: Add response to reviews, view shop reviews & stats\n- Authentication: JWT Bearer Token\n- Test Data: User lmao (BUYER), Test Sports Shop\n\nCreated: 2025-10-31",
+		"_postman_id": "review-api-collection-2025-v2",
+		"name": "Product Reviews API - CRUD (v2)",
+		"description": "Complete CRUD operations for Product Review Module\n\n## Luồng Review:\n1. User đăng nhập với role BUYER\n2. User có đơn hàng COMPLETED chứa sản phẩm\n3. Upload ảnh (tùy chọn) → nhận URLs\n4. Tạo review với rating, comment, images (URLs)\n\n## Features:\n- Customer: Upload images, Create, Read, Update, Delete reviews\n- Seller: Add response to reviews, view shop reviews\n- Authentication: JWT Bearer Token (BUYER role required)\n\n## Validation:\n- Rating: 1-5 (bắt buộc)\n- Comment: max 2000 ký tự (tùy chọn)\n- Images: max 5 ảnh URLs (tùy chọn)\n- Đơn hàng phải COMPLETED\n\nUpdated: 2025-11-29",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"auth": {
@@ -43,6 +43,11 @@
 		},
 		{
 			"key": "shop_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "temp_image_url",
 			"value": "",
 			"type": "string"
 		}
@@ -149,7 +154,67 @@
 			"description": "Authentication endpoints to get JWT token"
 		},
 		{
-			"name": "1. Customer - Read Reviews",
+			"name": "1. Image Upload",
+			"item": [
+				{
+					"name": "Upload Temp Review Images",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.length > 0) {",
+									"        pm.collectionVariables.set(\"temp_image_url\", jsonData.data[0].url);",
+									"        console.log(\"Temp image URL saved:\", jsonData.data[0].url);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "files",
+									"type": "file",
+									"src": [],
+									"description": "Select 1-5 image files"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/reviews/images/upload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"images",
+								"upload"
+							]
+						},
+						"description": "Upload images temporarily BEFORE creating a review.\n\n**Authentication:** Required (Any authenticated user)\n\n**Request:**\n- Content-Type: multipart/form-data\n- files: 1-5 image files\n\n**Response:**\n```json\n{\n  \"status\": 200,\n  \"data\": [\n    {\n      \"url\": \"https://res.cloudinary.com/...\",\n      \"publicId\": \"review-temp/...\",\n      \"width\": 800,\n      \"height\": 600\n    }\n  ],\n  \"message\": \"Tải lên 1 ảnh thành công\"\n}\n```\n\n**Flow:**\n1. Select images → Upload → Get URLs\n2. Use URLs in POST /products/{id}/reviews"
+					},
+					"response": []
+				}
+			],
+			"description": "Image upload endpoints for reviews"
+		},
+		{
+			"name": "2. Customer - Read Reviews",
 			"item": [
 				{
 					"name": "Get Product Reviews (Public)",
@@ -239,10 +304,10 @@
 			"description": "Customer endpoints to read reviews"
 		},
 		{
-			"name": "2. Customer - Create Review",
+			"name": "3. Customer - Create Review",
 			"item": [
 				{
-					"name": "Create Review - 5 Stars",
+					"name": "Create Review - 5 Stars (No Images)",
 					"event": [
 						{
 							"listen": "test",
@@ -273,7 +338,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"orderId\": {{order_id}},\n  \"rating\": 5,\n  \"comment\": \"Bóng rổ chất lượng tuyệt vời! Độ bám tốt, phù hợp cho tập luyện và thi đấu. Giao hàng nhanh, đóng gói cẩn thận. Rất hài lòng với sản phẩm này!\",\n  \"images\": []\n}"
+							"raw": "{\n  \"rating\": 5,\n  \"comment\": \"Bóng rổ chất lượng tuyệt vời! Độ bám tốt, phù hợp cho tập luyện và thi đấu. Giao hàng nhanh, đóng gói cẩn thận. Rất hài lòng với sản phẩm này!\",\n  \"images\": []\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/products/{{product_id}}/reviews",
@@ -286,12 +351,12 @@
 								"reviews"
 							]
 						},
-						"description": "Create a new review for a product.\n\n**Authentication:** Required (JWT Bearer Token)\n\n**Validation Rules:**\n- Order must belong to user\n- Order status must be COMPLETED\n- Product must exist in order\n- User can only review once per product\n- Review must be within 7 days of order completion\n- Rating: 1-5 stars (required)\n- Comment: max 1000 characters (optional)\n- Images: JSON array of URLs (optional)\n\n**Response:**\n- 201 Created: Review created successfully\n- Review ID will be saved to collection variables"
+						"description": "Create a new review for a product WITHOUT images.\n\n**Authentication:** Required (JWT Bearer Token - BUYER role)\n\n**Validation Rules:**\n- User must have role BUYER\n- User must have a COMPLETED order containing this product\n- User can only review once per product\n- Rating: 1-5 stars (required)\n- Comment: max 2000 characters (optional)\n- Images: empty array or null (no images)\n\n**Response:**\n- 201 Created: Review created successfully\n- 403 Forbidden: User doesn't have BUYER role\n- 400 Bad Request: No completed order found"
 					},
 					"response": []
 				},
 				{
-					"name": "Create Review - 4 Stars with Images",
+					"name": "Create Review - With Images (from Upload)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -307,7 +372,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"orderId\": {{order_id}},\n  \"rating\": 4,\n  \"comment\": \"Sản phẩm tốt, đúng mô tả. Chất liệu da tốt, độ nảy vừa phải. Trừ 1 sao vì hơi đắt so với mặt bằng chung.\",\n  \"images\": [\n    \"https://example.com/basketball-front.jpg\",\n    \"https://example.com/basketball-side.jpg\"\n  ]\n}"
+							"raw": "{\n  \"rating\": 4,\n  \"comment\": \"Sản phẩm tốt, đúng mô tả. Chất liệu da tốt, độ nảy vừa phải. Trừ 1 sao vì hơi đắt so với mặt bằng chung.\",\n  \"images\": [\n    \"{{temp_image_url}}\"\n  ]\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/products/{{product_id}}/reviews",
@@ -320,7 +385,7 @@
 								"reviews"
 							]
 						},
-						"description": "Create review with image attachments.\n\n**Images:**\n- JSON array of image URLs\n- Stored as TEXT in database\n- Serialized/deserialized with Jackson"
+						"description": "Create review with images from upload step.\n\n**Flow:**\n1. Call POST /api/reviews/images/upload → get URLs\n2. Use URLs in this request\n\n**Images:**\n- Array of Cloudinary URLs (from upload endpoint)\n- Max 5 images\n- Use {{temp_image_url}} variable from upload step"
 					},
 					"response": []
 				},
@@ -341,7 +406,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"orderId\": {{order_id}},\n  \"rating\": 3,\n  \"comment\": \"Sản phẩm tạm ổn, giá hơi cao. Chất lượng trung bình, không xuất sắc như mong đợi.\",\n  \"images\": []\n}"
+							"raw": "{\n  \"rating\": 3,\n  \"comment\": \"Sản phẩm tạm ổn, giá hơi cao. Chất lượng trung bình, không xuất sắc như mong đợi.\",\n  \"images\": []\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/products/{{product_id}}/reviews",
@@ -353,7 +418,8 @@
 								"{{product_id}}",
 								"reviews"
 							]
-						}
+						},
+						"description": "Create 3-star review without images."
 					},
 					"response": []
 				}
@@ -361,7 +427,7 @@
 			"description": "Customer endpoints to create reviews"
 		},
 		{
-			"name": "3. Customer - Update Review",
+			"name": "4. Customer - Update Review",
 			"item": [
 				{
 					"name": "Update Review - Change Rating & Comment",
@@ -432,7 +498,7 @@
 			"description": "Customer endpoints to update reviews"
 		},
 		{
-			"name": "4. Customer - Delete Review",
+			"name": "5. Customer - Delete Review",
 			"item": [
 				{
 					"name": "Delete Review",
@@ -463,7 +529,7 @@
 			"description": "Customer endpoints to delete reviews"
 		},
 		{
-			"name": "5. Seller - Manage Reviews",
+			"name": "6. Seller - Manage Reviews",
 			"item": [
 				{
 					"name": "Get Shop Reviews",
@@ -614,7 +680,7 @@
 			"description": "Seller endpoints to manage and respond to reviews"
 		},
 		{
-			"name": "6. Error Cases",
+			"name": "7. Error Cases",
 			"item": [
 				{
 					"name": "Create Review - Unauthorized (No Token)",

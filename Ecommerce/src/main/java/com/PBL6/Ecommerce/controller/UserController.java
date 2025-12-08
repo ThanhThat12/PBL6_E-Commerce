@@ -35,6 +35,9 @@ import com.PBL6.Ecommerce.domain.Shop;
 
 
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Users", description = "User management APIs")
 @RestController
 @RequestMapping("/api")
 public class UserController {

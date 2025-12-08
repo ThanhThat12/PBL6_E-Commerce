@@ -26,6 +26,9 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.PBL6.Ecommerce.domain.User;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Checkout", description = "Checkout process, order preview, shipping fee calculation")
 @RestController
 @RequestMapping("/api/checkout")
 public class CheckoutController {
@@ -427,9 +430,9 @@ public class CheckoutController {
             order.setReceiverName(buyerAddress.getContactName());
             order.setReceiverPhone(buyerAddress.getContactPhone());
             order.setReceiverAddress(buyerAddress.getFullAddress());
-            order.setProvince(buyerAddress.getProvinceName());
-            order.setDistrict(buyerAddress.getDistrictName());
-            order.setWard(buyerAddress.getWardName());
+            order.setProvinceId(buyerAddress.getProvinceId());
+            order.setDistrictId(buyerAddress.getDistrictId());
+            order.setWardCode(buyerAddress.getWardCode());
             
             // ✅ SET SHIPPING FEE
             order.setShippingFee(shippingFee);

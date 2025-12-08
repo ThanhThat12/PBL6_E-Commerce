@@ -24,6 +24,9 @@ import com.PBL6.Ecommerce.service.UserService;
 
 import jakarta.validation.Valid;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Addresses", description = "User address management")
 @RestController
 @RequestMapping("/api/me/addresses")
 public class AddressController {
