@@ -44,9 +44,21 @@ public class ProductReviewDTO {
     // Product info
     private Long productId;
     private String productName;
+    private String productImage;     // Main image of the product
+    private String variantInfo;      // Variant description (e.g., "Màu: Đỏ, Size: L")
     
     // Order info
     private Long orderId;
+    private LocalDateTime purchaseDate;  // When the order was completed
+    
+    // Like info
+    private Long likesCount;
+    private Boolean isLikedByCurrentUser;
+    
+    // Review constraints info (for UI)
+    private Boolean canEdit;           // Can user edit this review (only 1 time within 30 days)
+    private Integer editCount;         // Number of times edited (max 1)
+    private Integer daysRemainingToEdit; // Days remaining to edit (from review creation date)
 
     // Constructors
     public ProductReviewDTO() {}
@@ -196,11 +208,75 @@ public class ProductReviewDTO {
         this.productName = productName;
     }
 
+    public String getProductImage() {
+        return productImage;
+    }
+
+    public void setProductImage(String productImage) {
+        this.productImage = productImage;
+    }
+
+    public String getVariantInfo() {
+        return variantInfo;
+    }
+
+    public void setVariantInfo(String variantInfo) {
+        this.variantInfo = variantInfo;
+    }
+
     public Long getOrderId() {
         return orderId;
     }
 
     public void setOrderId(Long orderId) {
         this.orderId = orderId;
+    }
+
+    public LocalDateTime getPurchaseDate() {
+        return purchaseDate;
+    }
+
+    public void setPurchaseDate(LocalDateTime purchaseDate) {
+        this.purchaseDate = purchaseDate;
+    }
+    
+    public Long getLikesCount() {
+        return likesCount;
+    }
+
+    public void setLikesCount(Long likesCount) {
+        this.likesCount = likesCount;
+    }
+
+    public Boolean getIsLikedByCurrentUser() {
+        return isLikedByCurrentUser;
+    }
+
+    public void setIsLikedByCurrentUser(Boolean isLikedByCurrentUser) {
+        this.isLikedByCurrentUser = isLikedByCurrentUser;
+    }
+    
+    public Boolean getCanEdit() {
+        return canEdit;
+    }
+
+    public void setCanEdit(Boolean canEdit) {
+        this.canEdit = canEdit;
+    }
+
+    public Integer getEditCount() {
+        return editCount;
+    }
+
+    public void setEditCount(Integer editCount) {
+        this.editCount = editCount;
+    }
+
+    public Integer getDaysRemainingToEdit() {
+        return daysRemainingToEdit;
+    }
+
+    public void setDaysRemainingToEdit(Integer daysRemainingToEdit) {
+        this.daysRemainingToEdit = daysRemainingToEdit;
     }
 }

@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.config;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -13,7 +14,8 @@ import java.util.Map;
  */
 @Configuration
 @ConfigurationProperties(prefix = "image.upload")
-@Data
+@Getter
+@Setter
 public class ImageUploadConfig {
 
     private long maxSize; // Max file size in bytes
@@ -23,13 +25,15 @@ public class ImageUploadConfig {
     private Map<String, String> folderPaths; // Cloudinary folder paths
     private Map<String, Transformation> transformations; // Image transformations
 
-    @Data
+    @Getter
+    @Setter
     public static class Dimensions {
         private int width;
         private int height;
     }
 
-    @Data
+    @Getter
+    @Setter
     public static class Transformation {
         private int width;
         private int height;

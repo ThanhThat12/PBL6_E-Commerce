@@ -28,6 +28,9 @@ import com.PBL6.Ecommerce.repository.*;
 
 import jakarta.validation.Valid;
 
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+@Tag(name = "Orders", description = "Order management for all user roles")
 @RestController
 @RequestMapping("/api/seller")
 public class OrdersController {

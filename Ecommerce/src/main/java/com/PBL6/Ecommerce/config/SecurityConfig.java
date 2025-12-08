@@ -76,7 +76,16 @@ public class SecurityConfig {
                     "/api/wallet/deposit/callback",
                     // WebSocket endpoints - allow SockJS handshake and STOMP connections
                     "/ws/**",
-                    "/ws"
+                    "/ws",
+                    // Swagger UI endpoints - MUST be public for API documentation access
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**",
+                    "/v3/api-docs",
+                    "/swagger-resources/**",
+                    "/configuration/**",
+                    "/webjars/**",
+                    "/api-docs/**"
                 ).permitAll()
                 
                 // Checkout endpoints - require authentication except for testing
@@ -86,6 +95,19 @@ public class SecurityConfig {
 
                 // Allow unauthenticated GET for the products collection (with or without query params)
                 .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+
+                // Search API - public endpoints
+                .requestMatchers(HttpMethod.GET, "/api/search/suggestions").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/search/trending").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/search/facets").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/search/shops").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/search/track").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/search/track-click").permitAll()
+                // Search history - authenticated endpoints
+                .requestMatchers("/api/search/history/**").authenticated()
+
+                // Shop public endpoints
+                .requestMatchers(HttpMethod.GET, "/api/shops/*").permitAll()
 
                 // Protect creating products (POST) for ADMIN/SELLER
                 .requestMatchers(HttpMethod.POST, "/api/products").hasAnyRole("ADMIN", "SELLER")
@@ -97,15 +119,25 @@ public class SecurityConfig {
                 // Cart endpoints - require authentication
                 .requestMatchers("/api/cart/**").authenticated()
 
+                // Product Attributes - public for frontend to load classification types
+                .requestMatchers(HttpMethod.GET, "/api/product-attributes").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/product-attributes/*").permitAll()
+
                 // Review endpoints
                 .requestMatchers(HttpMethod.GET, "/api/products/*/reviews").permitAll() // Public: view product reviews
                 .requestMatchers(HttpMethod.GET, "/api/products/*/rating-summary").permitAll() // Public: rating summary
                 .requestMatchers(HttpMethod.GET, "/api/users/*/reviews").permitAll() // Public: user reviews
-                .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").hasRole("BUYER") // Create review from product detail page
-                .requestMatchers(HttpMethod.PUT, "/api/reviews/*").hasRole("BUYER") // Update review
-                .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasAnyRole("ADMIN", "BUYER") // Delete review (admin or owner)
-                .requestMatchers(HttpMethod.GET, "/api/my-reviews").hasRole("BUYER") // My reviews
+                .requestMatchers(HttpMethod.GET, "/api/products/*/review-eligibility").hasAnyRole("BUYER", "SELLER") // Check review eligibility
+                .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").hasAnyRole("BUYER", "SELLER") // Create review (BUYER or SELLER who bought from other shops)
+                .requestMatchers(HttpMethod.PUT, "/api/reviews/*").hasAnyRole("BUYER", "SELLER") // Update review (only 1 time within 30 days)
+                .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasRole("ADMIN") // Delete review (ADMIN only - users cannot delete reviews)
+                .requestMatchers(HttpMethod.GET, "/api/my-reviews").hasAnyRole("BUYER", "SELLER") // My reviews
                 .requestMatchers(HttpMethod.POST, "/api/reviews/*/reply").hasRole("SELLER") // Seller reply
+                // Review Like/Report endpoints
+                .requestMatchers(HttpMethod.POST, "/api/reviews/*/like").hasAnyRole("BUYER", "SELLER") // Toggle like
+                .requestMatchers(HttpMethod.GET, "/api/reviews/*/like").permitAll() // Get like status (public)
+                .requestMatchers(HttpMethod.POST, "/api/reviews/*/report").hasAnyRole("BUYER", "SELLER") // Report review
+                .requestMatchers("/api/admin/reviews/reports/**").hasRole("ADMIN") // Admin report management
                 
                 // Seller shop reviews management
                 .requestMatchers(HttpMethod.GET, "/api/shops/*/reviews").hasRole("SELLER") // Get shop reviews with filters
@@ -117,8 +149,14 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/profile").hasAnyRole("BUYER", "SELLER")
                 .requestMatchers(HttpMethod.POST, "/api/profile/**").hasAnyRole("BUYER", "SELLER")
 
-                // Seller Registration (Buyer upgrade to Seller - Shopee style)
+                // Seller Registration (Buyer upgrade to Seller - Shopee style with Admin approval)
                 .requestMatchers(HttpMethod.POST, "/api/seller/register").hasRole("BUYER")
+                .requestMatchers(HttpMethod.GET, "/api/seller/registration/status").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.DELETE, "/api/seller/registration").hasRole("BUYER")
+                .requestMatchers(HttpMethod.GET, "/api/seller/registration/can-submit").hasRole("BUYER")
+
+                // Admin - Seller Registration Management
+                .requestMatchers("/api/admin/seller-registrations/**").hasRole("ADMIN")
 
                 // Seller Shop Management
                 .requestMatchers(HttpMethod.GET, "/api/seller/shop").hasRole("SELLER")

@@ -1,0 +1,1023 @@
+{
+	"info": {
+		"_postman_id": "seller-registration-001",
+		"name": "Seller Registration API",
+		"description": "Complete API testing for Seller Registration feature with KYC image uploads.\n\n**Workflow:**\n1. Login as BUYER to get access token\n2. Upload KYC images (ID card front, back, selfie, logo)\n3. Submit registration with uploaded image URLs\n4. Check registration status\n5. Admin login and approve/reject\n\n**Features:**\n- Real file upload for KYC images\n- Automatic token management\n- Environment variables for URLs and IDs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login as BUYER",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    ",
+									"    // Lưu access token",
+									"    if (response.data && response.data.access_token) {",
+									"        pm.environment.set('buyer_access_token', response.data.access_token);",
+									"        console.log('✅ Buyer token saved');",
+									"    }",
+									"    ",
+									"    // Lưu user ID nếu có",
+									"    if (response.data && response.data.user && response.data.user.id) {",
+									"        pm.environment.set('buyer_user_id', response.data.user.id);",
+									"    }",
+									"}",
+									"",
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Access token exists', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data.access_token).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{buyer_username}}\",\n  \"password\": \"{{buyer_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as BUYER to get access token for seller registration"
+					},
+					"response": []
+				},
+				{
+					"name": "Login as ADMIN",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    ",
+									"    if (response.data && response.data.access_token) {",
+									"        pm.environment.set('admin_access_token', response.data.access_token);",
+									"        console.log('✅ Admin token saved');",
+									"    }",
+									"}",
+									"",
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{admin_username}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as ADMIN to approve/reject applications"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for BUYER and ADMIN"
+		},
+		{
+			"name": "Image Upload (KYC)",
+			"item": [
+				{
+					"name": "Upload ID Card Front",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    ",
+									"    // Lưu URL và publicId",
+									"    if (response.data) {",
+									"        const imageUrl = response.data.url || response.data.imageUrl;",
+									"        const publicId = response.data.publicId;",
+									"        ",
+									"        pm.environment.set('id_card_front_url', imageUrl);",
+									"        pm.environment.set('id_card_front_public_id', publicId);",
+									"        ",
+									"        console.log('✅ ID Card Front uploaded');",
+									"        console.log('URL:', imageUrl);",
+									"        console.log('PublicId:', publicId);",
+									"    }",
+									"}",
+									"",
+									"pm.test('Upload successful', function() {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});",
+									"",
+									"pm.test('Image URL exists', function() {",
+									"    const response = pm.response.json();",
+									"    const imageUrl = response.data.url || response.data.imageUrl;",
+									"    pm.expect(imageUrl).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{buyer_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": [],
+									"description": "Chọn ảnh mặt trước CMND/CCCD (JPG/PNG, max 5MB)"
+								},
+								{
+									"key": "folder",
+									"value": "kyc",
+									"type": "text",
+									"description": "Folder name for KYC images"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/images/upload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"images",
+								"upload"
+							]
+						},
+						"description": "Upload ID card front image to Cloudinary.\n\n**IMPORTANT:** \n- Click on 'file' field and select an actual image file from your computer\n- Image should be clear photo of ID card front\n- Max size: 5MB\n- Accepted formats: JPG, PNG, JPEG"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload ID Card Back",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    ",
+									"    if (response.data) {",
+									"        const imageUrl = response.data.url || response.data.imageUrl;",
+									"        const publicId = response.data.publicId;",
+									"        ",
+									"        pm.environment.set('id_card_back_url', imageUrl);",
+									"        pm.environment.set('id_card_back_public_id', publicId);",
+									"        ",
+									"        console.log('✅ ID Card Back uploaded');",
+									"        console.log('URL:', imageUrl);",
+									"    }",
+									"}",
+									"",
+									"pm.test('Upload successful', function() {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{buyer_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": [],
+									"description": "Chọn ảnh mặt sau CMND/CCCD"
+								},
+								{
+									"key": "folder",
+									"value": "kyc",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/images/upload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"images",
+								"upload"
+							]
+						},
+						"description": "Upload ID card back image"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Selfie with ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    ",
+									"    if (response.data) {",
+									"        const imageUrl = response.data.url || response.data.imageUrl;",
+									"        const publicId = response.data.publicId;",
+									"        ",
+									"        pm.environment.set('selfie_with_id_url', imageUrl);",
+									"        pm.environment.set('selfie_with_id_public_id', publicId);",
+									"        ",
+									"        console.log('✅ Selfie with ID uploaded');",
+									"        console.log('URL:', imageUrl);",
+									"    }",
+									"}",
+									"",
+									"pm.test('Upload successful', function() {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{buyer_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": [],
+									"description": "Chọn ảnh chân dung cầm CMND/CCCD (Optional)"
+								},
+								{
+									"key": "folder",
+									"value": "kyc",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/images/upload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"images",
+								"upload"
+							]
+						},
+						"description": "Upload selfie with ID card (optional but recommended)"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Shop Logo (Optional)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    ",
+									"    if (response.data) {",
+									"        const imageUrl = response.data.url || response.data.imageUrl;",
+									"        const publicId = response.data.publicId;",
+									"        ",
+									"        pm.environment.set('shop_logo_url', imageUrl);",
+									"        pm.environment.set('shop_logo_public_id', publicId);",
+									"        ",
+									"        console.log('✅ Shop logo uploaded');",
+									"        console.log('URL:', imageUrl);",
+									"    }",
+									"}",
+									"",
+									"pm.test('Upload successful', function() {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{buyer_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": [],
+									"description": "Chọn logo shop (Optional)"
+								},
+								{
+									"key": "folder",
+									"value": "kyc",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/images/upload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"images",
+								"upload"
+							]
+						},
+						"description": "Upload shop logo (optional)"
+					},
+					"response": []
+				}
+			],
+			"description": "Upload KYC images before submitting registration.\n\n**Important Steps:**\n1. Run these requests IN ORDER\n2. For each request, click the 'file' field and SELECT AN ACTUAL IMAGE FILE\n3. Each successful upload will save the URL to environment variables\n4. These URLs will be automatically used in the registration request"
+		},
+		{
+			"name": "Buyer Registration Flow",
+			"item": [
+				{
+					"name": "Check Can Submit Registration",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Can submit check', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data.canSubmit).to.be.a('boolean');",
+									"    console.log('Can submit:', response.data.canSubmit);",
+									"    console.log('Message:', response.data.message);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{buyer_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/seller/registration/can-submit",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"seller",
+								"registration",
+								"can-submit"
+							]
+						},
+						"description": "Check if buyer can submit new registration"
+					},
+					"response": []
+				},
+				{
+					"name": "Submit Seller Registration",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    ",
+									"    if (response.data && response.data.shopId) {",
+									"        pm.environment.set('pending_shop_id', response.data.shopId);",
+									"        console.log('✅ Registration submitted successfully');",
+									"        console.log('Shop ID:', response.data.shopId);",
+									"        console.log('Status:', response.data.status);",
+									"    }",
+									"}",
+									"",
+									"pm.test('Status code is 201', function() {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Shop created with PENDING status', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data.status).to.equal('PENDING');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Validate that images were uploaded",
+									"const idFront = pm.environment.get('id_card_front_url');",
+									"const idBack = pm.environment.get('id_card_back_url');",
+									"",
+									"if (!idFront || !idBack) {",
+									"    console.error('❌ ERROR: You must upload ID card images first!');",
+									"    console.error('Please run the \"Image Upload (KYC)\" folder first.');",
+									"    throw new Error('Missing required image uploads. Upload ID card front and back first.');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{buyer_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"shopName\": \"Sport Pro Shop - Test {{$randomInt}}\",\n  \"description\": \"Chuyên cung cấp đồ thể thao chất lượng cao, chính hãng từ các thương hiệu nổi tiếng\",\n  \"shopPhone\": \"0901234567\",\n  \"shopEmail\": \"sportpro{{$randomInt}}@example.com\",\n  \"fullAddress\": \"123 Lê Lợi\",\n  \"provinceId\": \"202\",\n  \"districtId\": \"1454\",\n  \"wardCode\": \"21012\",\n  \"provinceName\": \"Hồ Chí Minh\",\n  \"districtName\": \"Quận 1\",\n  \"wardName\": \"Phường Bến Nghé\",\n  \"contactPhone\": \"0901234567\",\n  \"contactName\": \"Nguyen Van A\",\n  \"idCardNumber\": \"001234567890\",\n  \"idCardName\": \"NGUYEN VAN A\",\n  \"idCardFrontUrl\": \"{{id_card_front_url}}\",\n  \"idCardFrontPublicId\": \"{{id_card_front_public_id}}\",\n  \"idCardBackUrl\": \"{{id_card_back_url}}\",\n  \"idCardBackPublicId\": \"{{id_card_back_public_id}}\",\n  \"selfieWithIdUrl\": \"{{selfie_with_id_url}}\",\n  \"selfieWithIdPublicId\": \"{{selfie_with_id_public_id}}\",\n  \"logoUrl\": \"{{shop_logo_url}}\",\n  \"logoPublicId\": \"{{shop_logo_public_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/seller/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"seller",
+								"register"
+							]
+						},
+						"description": "Submit seller registration with uploaded KYC images.\n\n**Prerequisites:**\n1. Must upload ID card front and back first\n2. Selfie and logo are optional\n3. All image URLs are auto-populated from previous uploads"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Registration Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Registration status exists', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data.status).to.exist;",
+									"    console.log('Status:', response.data.status);",
+									"    console.log('Shop Name:', response.data.shopName);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{buyer_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/seller/registration/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"seller",
+								"registration",
+								"status"
+							]
+						},
+						"description": "Get current registration status for buyer"
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Rejected Application",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Application cancelled', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{buyer_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/seller/registration",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"seller",
+								"registration"
+							]
+						},
+						"description": "Cancel a rejected application to allow re-submission.\n\n**Note:** Only works if application status is REJECTED"
+					},
+					"response": []
+				}
+			],
+			"description": "Buyer workflow for seller registration"
+		},
+		{
+			"name": "Admin Approval Flow",
+			"item": [
+				{
+					"name": "Get Pending Applications",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Pending applications list', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data.content).to.be.an('array');",
+									"    console.log('Total pending:', response.data.totalElements);",
+									"    ",
+									"    if (response.data.content.length > 0) {",
+									"        console.log('First application:', response.data.content[0].shopName);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/seller-registrations/pending?page=0&size=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"seller-registrations",
+								"pending"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Get list of pending seller applications (ADMIN only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Search Pending Applications",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/seller-registrations/search?keyword=sport&page=0&size=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"seller-registrations",
+								"search"
+							],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "sport",
+									"description": "Search by shop name, email, or phone"
+								},
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Search pending applications by keyword"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pending Count",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Count exists', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data.count).to.be.a('number');",
+									"    console.log('Pending count:', response.data.count);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/seller-registrations/pending/count",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"seller-registrations",
+								"pending",
+								"count"
+							]
+						},
+						"description": "Get count of pending applications (for badge display)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Application Detail",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Application detail exists', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data.shopId).to.exist;",
+									"    console.log('Shop:', response.data.shopName);",
+									"    console.log('Owner:', response.data.ownerUsername);",
+									"    console.log('ID Card:', response.data.idCardNumber);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/seller-registrations/{{pending_shop_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"seller-registrations",
+								"{{pending_shop_id}}"
+							]
+						},
+						"description": "Get detailed information of a specific application including full KYC data"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Registration",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Registration approved', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data.status).to.equal('ACTIVE');",
+									"    console.log('✅ Shop approved and activated');",
+									"    console.log('Shop ID:', response.data.shopId);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"shopId\": {{pending_shop_id}},\n  \"note\": \"KYC documents verified successfully. All information is correct.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/seller-registrations/approve",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"seller-registrations",
+								"approve"
+							]
+						},
+						"description": "Approve seller registration.\n\n**Effects:**\n- Shop status → ACTIVE\n- User role → SELLER\n- Shop can start selling"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Registration",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Registration rejected', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data.status).to.equal('REJECTED');",
+									"    console.log('❌ Registration rejected');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"shopId\": {{pending_shop_id}},\n  \"rejectionReason\": \"Ảnh CMND/CCCD không rõ ràng. Vui lòng chụp lại với ánh sáng tốt hơn và đảm bảo tất cả thông tin đều có thể đọc được.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/seller-registrations/reject",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"seller-registrations",
+								"reject"
+							]
+						},
+						"description": "Reject seller registration with reason.\n\n**Effects:**\n- Shop status → REJECTED\n- User remains BUYER\n- User can cancel and resubmit"
+					},
+					"response": []
+				}
+			],
+			"description": "Admin workflow for reviewing and approving/rejecting applications"
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://localhost:8081/api",
+			"type": "string"
+		}
+	]
+}

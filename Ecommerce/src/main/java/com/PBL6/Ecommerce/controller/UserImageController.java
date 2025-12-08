@@ -1,5 +1,6 @@
 package com.PBL6.Ecommerce.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
  * Security: All endpoints require authentication.
  * Users can only manage their own avatars (ownership enforced by extracting userId from Authentication).
  */
+@Tag(name = "User Images", description = "User avatar upload")
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor

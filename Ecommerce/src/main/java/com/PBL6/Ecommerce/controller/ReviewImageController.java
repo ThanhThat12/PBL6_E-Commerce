@@ -1,7 +1,9 @@
 package com.PBL6.Ecommerce.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.TempImageUploadResponseDTO;
 import com.PBL6.Ecommerce.dto.response.ImageDeleteResponse;
 import com.PBL6.Ecommerce.dto.response.ImageUploadResponse;
 import com.PBL6.Ecommerce.service.ImageService;
@@ -28,12 +31,14 @@ import lombok.extern.slf4j.Slf4j;
  * REST controller for review image management.
  * 
  * Endpoints:
- * - POST /api/reviews/{id}/images - Upload images to a review (up to 5)
+ * - POST /api/reviews/images/upload - Upload temporary images BEFORE creating review
+ * - POST /api/reviews/{id}/images - Upload images to an existing review (up to 5)
  * - DELETE /api/reviews/{id}/images/{index} - Delete image from review by index
  * 
  * Security: All endpoints require authentication.
  * Users can only manage images on their own reviews (ownership enforced by service layer).
  */
+@Tag(name = "Review Images", description = "Review image upload")
 @RestController
 @RequestMapping("/api/reviews")
 @RequiredArgsConstructor
@@ -42,6 +47,40 @@ public class ReviewImageController {
 
     private final ImageService imageService;
     private final UserService userService;
+
+    /**
+     * Upload images TEMPORARILY before creating a review.
+     * Images are uploaded to Cloudinary with folder "review-temp".
+     * Frontend stores the returned URLs and sends them when creating the review.
+     * 
+     * Flow:
+     * 1. User selects images
+     * 2. Frontend calls POST /api/reviews/images/upload
+     * 3. Returns URLs array
+     * 4. Frontend calls POST /api/products/{productId}/reviews with { images: [urls] }
+     * 
+     * @param files List of image files (1-5 files)
+     * @param authentication Spring Security Authentication object (injected)
+     * @return List of TempImageUploadResponseDTO with URLs
+     */
+    @PostMapping(value = "/images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResponseDTO<List<TempImageUploadResponseDTO>>> uploadTempReviewImages(
+            @RequestParam("files") List<MultipartFile> files,
+            Authentication authentication) {
+        
+        log.info("Upload temp review images request from user: {}, file count: {}", 
+                 authentication.getName(), files != null ? files.size() : 0);
+        
+        // Extract userId from authenticated user
+        Long userId = extractUserId(authentication);
+        
+        // Upload images via service (temporary folder)
+        List<TempImageUploadResponseDTO> responses = imageService.uploadTempReviewImages(files, userId);
+        
+        return ResponseDTO.success(responses, 
+            String.format("Tải lên %d ảnh thành công. Hãy sử dụng URLs khi gửi đánh giá.", responses.size()));
+    }
 
     /**
      * Upload images to a product review (up to 5 images total).

@@ -179,6 +179,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 //      */
     List<Order> findByStatus(Order.OrderStatus status);
     
+    /**
+     * Tìm đơn hàng theo status với phân trang, sắp xếp theo ngày tạo mới nhất
+     * Dùng cho Admin filter orders by status
+     */
+    Page<Order> findByStatusOrderByCreatedAtDesc(Order.OrderStatus status, Pageable pageable);
+    
 //     /**
 //      * Lấy ngày đặt hàng gần nhất của user (tất cả trạng thái)
 //      */
@@ -235,6 +241,20 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "AND o.createdAt < :cutoffDate " +
            "AND (o.updatedAt IS NULL OR o.updatedAt = o.createdAt)")
     List<Order> findOrdersReadyForSellerPayout(@Param("cutoffDate") java.util.Date cutoffDate);
+    // ============= ADMIN STATISTICS QUERIES =============
+    
+    /**
+     * Đếm số đơn hàng theo status (cho admin)
+     */
+    Long countByStatus(Order.OrderStatus status);
+    
+    /**
+     * Tính tổng doanh thu của tất cả đơn hàng (không tính CANCELLED)
+     * Dùng cho admin dashboard
+     */
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +
+           "WHERE o.status != 'CANCELLED'")
+    BigDecimal calculateTotalRevenue();
    
 }
 

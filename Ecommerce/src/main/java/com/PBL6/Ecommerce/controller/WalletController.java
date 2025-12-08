@@ -7,6 +7,7 @@ import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.service.WalletService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 /**
  * Controller for Wallet operations
  */
+@Tag(name = "Wallet", description = "User wallet and balance management")
 @RestController
 @RequestMapping("/api/wallet")
 public class WalletController {

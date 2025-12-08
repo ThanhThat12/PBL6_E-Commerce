@@ -20,22 +20,7 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     @Query("SELECT pv FROM ProductVariant pv WHERE pv.product.id = :productId AND pv.stock > 0")
     List<ProductVariant> findInStockVariantsByProductId(@Param("productId") Long productId);
     
-    /**
-     * Find all variants for a product that have a specific Group 1 value name
-     * Used for batch variant image upload where images are associated by Group 1 value (e.g., "Red", "Blue")
-     * 
-     * @param productId The product ID
-     * @param valueName The Group 1 variant value name (e.g., "Red")
-     * @param attributeId The Group 1 attribute ID (e.g., Color attribute ID)
-     * @return List of ProductVariants matching the Group 1 value
-     */
-    @Query("SELECT DISTINCT pv FROM ProductVariant pv " +
-           "JOIN pv.productVariantValues pvv " +
-           "WHERE pv.product.id = :productId " +
-           "AND pvv.productAttribute.id = :attributeId " +
-           "AND pvv.value = :valueName")
-    List<ProductVariant> findByProductIdAndAttributeValue(
-            @Param("productId") Long productId,
-            @Param("attributeId") Long attributeId,
-            @Param("valueName") String valueName);
+    // Tính tổng stock cho một product
+    @Query("SELECT COALESCE(SUM(pv.stock), 0) FROM ProductVariant pv WHERE pv.product.id = :productId")
+    Long getTotalStockByProductId(@Param("productId") Long productId);
 }

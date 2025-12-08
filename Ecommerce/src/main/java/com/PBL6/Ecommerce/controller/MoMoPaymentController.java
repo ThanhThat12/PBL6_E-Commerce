@@ -12,6 +12,7 @@ import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.service.MoMoService;
 import com.PBL6.Ecommerce.service.PaymentTransactionService;
 import com.PBL6.Ecommerce.service.UserService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,7 @@ import java.util.Map;
 /**
  * Controller for MoMo payment operations
  */
+@Tag(name = "MoMo Payment", description = "MoMo payment integration")
 @RestController
 @RequestMapping("/api/payment/momo")
 public class MoMoPaymentController {

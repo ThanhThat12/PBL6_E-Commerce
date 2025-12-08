@@ -1,10 +1,15 @@
 package com.PBL6.Ecommerce.controller;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,135 +18,50 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.oauth2.jwt.Jwt;
+
 import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
+import com.PBL6.Ecommerce.domain.dto.RegistrationStatusDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.SellerRegistrationRequestDTO;
+import com.PBL6.Ecommerce.domain.dto.SellerRegistrationResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
+import com.PBL6.Ecommerce.domain.dto.ShopDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
+import com.PBL6.Ecommerce.service.GhnService;
+import com.PBL6.Ecommerce.service.SellerRegistrationService;
 import com.PBL6.Ecommerce.service.ShopService;
 import com.PBL6.Ecommerce.service.UserService;
-import com.PBL6.Ecommerce.service.GhnService;
-import java.util.HashMap;
-import java.util.Map;
-import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
-import com.PBL6.Ecommerce.domain.dto.GhnServiceSelectionDTO;
-import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
 
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Shop Management", description = "APIs for shop profile, seller registration, and shop analytics")
 public class ShopController {
     
     private final ShopService shopService;
     private final UserService userService;
     private final GhnService ghnService;
+    private final SellerRegistrationService sellerRegistrationService;
     
-    public ShopController(ShopService shopService, UserService userService, GhnService ghnService) {
+    public ShopController(ShopService shopService, UserService userService, GhnService ghnService,
+                          SellerRegistrationService sellerRegistrationService) {
         this.shopService = shopService;
         this.userService = userService;
         this.ghnService = ghnService;
+        this.sellerRegistrationService = sellerRegistrationService;
     }
-
-    // /**
-    //  * Lấy danh sách dịch vụ GHN khả dụng cho shop (frontend gọi để hiển thị lựa chọn service)
-    //  * GET /api/shops/{shopId}/ghn-services?toDistrictId=...&toWardCode=...&weight=...
-    //  * This endpoint is public (no owner requirement) so checkout flows can call it.
-    //  */
-    // @GetMapping("/shops/{shopId}/ghn-services")
-    // public ResponseEntity<ResponseDTO<Map<String, Object>>> getGhnServices(
-    //         @PathVariable Long shopId,
-    //         @RequestParam(required = false) Integer toDistrictId,
-    //         @RequestParam(required = false) String toWardCode,
-    //         @RequestParam(required = false) Integer weight) {
-    //     try {
-    //         // build payload for GHN
-    //         Map<String, Object> payload = new HashMap<>();
-    //         if (toDistrictId != null) payload.put("to_district_id", toDistrictId);
-    //         if (toWardCode != null) payload.put("to_ward_code", toWardCode);
-    //         if (weight != null) payload.put("weight", weight);
-
-    //         // call GhnService, letting it populate from_* via shop pickupAddress
-    //         Map<String, Object> resp = ghnService.getAvailableServices(payload, shopId);
-    //         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Lấy danh sách dịch vụ thành công", resp));
-    //     } catch (Exception e) {
-    //         return ResponseEntity.status(400).body(new ResponseDTO<>(400, e.getMessage(), "Lấy danh sách dịch vụ thất bại", null));
-    //     }
-    // }
-
-    // /**
-    //  * Lưu selection service_id/service_type_id cho shop
-    //  * PUT /api/shops/{shopId}/ghn-service-selection
-    //  */
-    // @PutMapping("/shops/{shopId}/ghn-service-selection")
-    // @PreAuthorize("hasRole('SELLER')")
-    // public ResponseEntity<ResponseDTO<com.PBL6.Ecommerce.domain.dto.ShopDTO>> selectGhnService(
-    //         @PathVariable Long shopId,
-    //         @RequestBody GhnServiceSelectionDTO selection) {
-    //     try {
-    //         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    //         com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
-
-    //         com.PBL6.Ecommerce.domain.Shop shop = shopService.getShopByIdAndOwner(shopId, user);
-
-    //         // Validate selection against GHN available services if possible
-    //         Map<String,Object> checkPayload = new HashMap<>();
-    //         // Try to populate using shop pickup address (GhnService will do it)
-    //         Map<String,Object> availResp = ghnService.getAvailableServices(checkPayload, shopId);
-
-    //         boolean valid = false;
-    //         try {
-    //                 Object data = availResp.get("data");
-    //                 if (data instanceof Map) {
-    //                     @SuppressWarnings("unchecked")
-    //                     Map<String, Object> dataMap = (Map<String, Object>) data;
-    //                     Object services = dataMap.get("services");
-    //                     if (services instanceof Iterable) {
-    //                         for (Object sObj : (Iterable<?>) services) {
-    //                             if (sObj instanceof Map) {
-    //                                 @SuppressWarnings("unchecked")
-    //                                 Map<String, Object> s = (Map<String, Object>) sObj;
-    //                                 Object sid = s.get("service_id");
-    //                                 Object stid = s.get("service_type_id");
-    //                                 if (sid != null && stid != null) {
-    //                                     try {
-    //                                         int sidI = Integer.parseInt(String.valueOf(sid));
-    //                                         int stidI = Integer.parseInt(String.valueOf(stid));
-    //                                         if (selection.getServiceId() != null && selection.getServiceTypeId() != null
-    //                                                 && sidI == selection.getServiceId() && stidI == selection.getServiceTypeId()) {
-    //                                             valid = true; break;
-    //                                         }
-    //                                     } catch (Exception ignored) {}
-    //                                 }
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //         } catch (Exception ignored) {}
-
-    //         if (!valid) {
-    //             // If we couldn't validate (unknown format) allow save but warn in message
-    //             // Otherwise, if validation failed explicitly, return 400
-    //             // For now, allow save but include warning in response message
-    //         }
-
-    //         shop.setGhnServiceId(selection.getServiceId());
-    //         shop.setGhnServiceTypeId(selection.getServiceTypeId());
-    //         Shop saved = shopService.saveShop(shop);
-    //         com.PBL6.Ecommerce.domain.dto.ShopDTO dto = shopService.toDTO(saved);
-
-    //         String msg = valid ? "Lưu dịch vụ GHN thành công" : "Lưu dịch vụ GHN (không kiểm chứng bởi GHN)";
-    //         return ResponseEntity.ok(new ResponseDTO<>(200, null, msg, dto));
-    //     } catch (RuntimeException e) {
-    //         String msg = e.getMessage();
-    //         int code = msg != null && msg.contains("không có quyền") ? 403 : 400;
-    //         return ResponseEntity.status(code).body(new ResponseDTO<>(code, msg, "Lưu thất bại", null));
-    //     } catch (Exception ex) {
-    //         return ResponseEntity.status(500).body(new ResponseDTO<>(500, ex.getMessage(), "Lỗi hệ thống", null));
-    //     }
-    // }
 
     /**
      * API lấy thông tin shop của seller
@@ -149,6 +69,18 @@ public class ShopController {
      * Tự động lấy shop theo seller đang đăng nhập
      * Chỉ SELLER mới có quyền truy cập
      */
+    @Operation(
+        summary = "Get seller's shop information",
+        description = "Get basic shop information for the currently authenticated seller",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved shop information",
+            content = @Content(schema = @Schema(implementation = ShopDTO.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized - Invalid or missing JWT token"),
+        @ApiResponse(responseCode = "403", description = "Forbidden - User is not a seller"),
+        @ApiResponse(responseCode = "404", description = "Shop not found for this seller")
+    })
     @GetMapping("/seller/shop")
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ResponseDTO<ShopDTO>> getShop() {
@@ -182,57 +114,42 @@ public class ShopController {
         }
     }
 
-    // /**
-    //  * Kết nối shop với GHN (đăng ký shop trên GHN)
-    //  * POST /api/shops/{shopId}/connect-ghn
-    //  * Chỉ owner (SELLER) mới được phép
-    //  */
-    // @PostMapping("/shops/{shopId}/connect-ghn")
-    // @PreAuthorize("hasRole('SELLER')")
-    // public ResponseEntity<ResponseDTO<Map<String, Object>>> connectGhn(@PathVariable Long shopId) {
-    //     try {
-    //         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    //         com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
+    /**
+     * API lấy thông tin shop CHI TIẾT của seller (bao gồm GHN, KYC, address, owner info)
+     * GET /api/seller/shop/detail
+     * Trả về ShopDetailDTO với đầy đủ thông tin để frontend hiển thị và cho phép chỉnh sửa
+     * Chỉ SELLER mới có quyền truy cập
+     */
+    @GetMapping("/seller/shop/detail")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<ShopDetailDTO>> getShopDetail() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
 
-    //         // ensure ownership
-    //         com.PBL6.Ecommerce.domain.Shop shop = shopService.getShopByIdAndOwner(shopId, user);
+            ShopDetailDTO shopDetail = shopService.getSellerShopDetail(username);
 
-    //         // build payload from shop (use pickupAddress if available)
-    //         Map<String, Object> payload = new HashMap<>();
-    //         payload.put("shop_name", shop.getName());
-    //         payload.put("phone", user.getPhoneNumber());
-    //         if (shop.getPickupAddress() != null) {
-    //             var pa = shop.getPickupAddress();
-    //             payload.put("shop_address", pa.getFullAddress());
-    //             if (pa.getDistrictId() != null) payload.put("from_district_id", pa.getDistrictId());
-    //             if (pa.getWardCode() != null) payload.put("from_ward_code", pa.getWardCode());
-    //         }
+            return ResponseEntity.ok(
+                new ResponseDTO<>(200, null, "Lấy thông tin chi tiết shop thành công", shopDetail)
+            );
+        } catch (RuntimeException e) {
+            String errorMessage = e.getMessage();
+            int statusCode;
 
-    //         // try to create GHN shop synchronously (best-effort)
-    //         String externalGhnId = ghnService.createGhnShop(payload);
-    //         if (externalGhnId == null) {
-    //             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-    //                 new ResponseDTO<>(500, "GHN kết nối thất bại", "Kết nối GHN thất bại", null)
-    //             );
-    //         }
+            if (errorMessage.contains("chưa có shop")) {
+                statusCode = 404;
+            } else if (errorMessage.contains("không phải là seller")) {
+                statusCode = 403;
+            } else {
+                statusCode = 400;
+            }
 
-    //         // save GHN id to shop
-    //         shop.setGhnShopId(externalGhnId);
-    //         shopService.saveShop(shop);
+            return ResponseEntity.status(statusCode).body(
+                new ResponseDTO<>(statusCode, errorMessage, "Lấy thông tin shop thất bại", null)
+            );
+        }
+    }
 
-    //         Map<String, Object> result = new HashMap<>();
-    //         result.put("ghnShopId", externalGhnId);
-
-    //         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Kết nối GHN thành công", result));
-
-    //     } catch (RuntimeException e) {
-    //         String msg = e.getMessage();
-    //         int code = msg != null && msg.contains("không có quyền") ? 403 : 400;
-    //         return ResponseEntity.status(code).body(new ResponseDTO<>(code, msg, "Kết nối GHN thất bại", null));
-    //     } catch (Exception ex) {
-    //         return ResponseEntity.status(500).body(new ResponseDTO<>(500, ex.getMessage(), "Lỗi hệ thống", null));
-    //     }
-    // }
 
     /**
      * Cập nhật GHN credentials cho 1 shop (token, service ids, external shop id)
@@ -262,19 +179,20 @@ public class ShopController {
     /**
      * API cập nhật thông tin shop
      * PUT /api/seller/shop
-     * Cập nhật: name, address, description, status
+     * Cập nhật: name, description, contact, branding, address, GHN credentials, status
      * Chỉ SELLER mới có quyền và chỉ cập nhật được shop của mình
+     * Trả về ShopDetailDTO với đầy đủ thông tin sau khi cập nhật
      */
     @PutMapping("/seller/shop")
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ResponseDTO<ShopDTO>> updateShop(@RequestBody UpdateShopDTO updateShopDTO) {
+    public ResponseEntity<ResponseDTO<ShopDetailDTO>> updateShop(@RequestBody UpdateShopDTO updateShopDTO) {
         try {
             // Lấy thông tin user từ JWT token
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String username = authentication.getName();
 
             // Cập nhật thông tin shop
-            ShopDTO updatedShop = shopService.updateSellerShop(username, updateShopDTO);
+            ShopDetailDTO updatedShop = shopService.updateSellerShop(username, updateShopDTO);
 
             return ResponseEntity.ok(
                 new ResponseDTO<>(200, null, "Cập nhật thông tin shop thành công", updatedShop)
@@ -349,34 +267,33 @@ public class ShopController {
         }
     }
     /**
-     * Đăng ký seller (Buyer upgrade to Seller) - sử dụng ShopRegistrationDTO duy nhất
+     * NEW: Submit seller registration (Buyer applies to become Seller)
      * POST /api/seller/register
+     * Creates PENDING shop, requires admin approval
      */
     @PostMapping("/seller/register")
     @PreAuthorize("hasRole('BUYER')")
-    public ResponseEntity<ResponseDTO<ShopDTO>> registerAsSeller(
-            @Valid @RequestBody ShopRegistrationDTO registrationDTO) {
+    public ResponseEntity<ResponseDTO<SellerRegistrationResponseDTO>> submitSellerRegistration(
+            @Valid @RequestBody SellerRegistrationRequestDTO registrationDTO) {
         try {
             // Get current authenticated user
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
 
-            // Create shop and upgrade to seller (auto-approval)
-            Shop shop = shopService.createShopFromSellerRegistration(user, registrationDTO);
-
-            ShopDTO dto = shopService.toDTO(shop);
+            // Submit registration (creates PENDING shop)
+            SellerRegistrationResponseDTO response = sellerRegistrationService.submitRegistration(user, registrationDTO);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                new ResponseDTO<>(201, null, "Đăng ký seller thành công! Role đã được nâng cấp.", dto)
+                new ResponseDTO<>(201, null, response.getMessage(), response)
             );
 
         } catch (RuntimeException e) {
             String errorMessage = e.getMessage();
             int statusCode;
 
-            if (errorMessage.contains("Chỉ BUYER")) {
+            if (errorMessage.contains("Chỉ tài khoản BUYER")) {
                 statusCode = 403;
-            } else if (errorMessage.contains("đã tồn tại") || errorMessage.contains("đã có shop")) {
+            } else if (errorMessage.contains("đã có đơn đăng ký") || errorMessage.contains("Tên shop đã tồn tại")) {
                 statusCode = 409;
             } else {
                 statusCode = 400;
@@ -387,6 +304,93 @@ public class ShopController {
             );
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(new ResponseDTO<>(500, ex.getMessage(), "Lỗi hệ thống", null));
+        }
+    }
+
+    /**
+     * NEW: Get registration status for current user
+     * GET /api/seller/registration/status
+     */
+    @GetMapping("/seller/registration/status")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
+    public ResponseEntity<ResponseDTO<RegistrationStatusDTO>> getRegistrationStatus() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
+
+            RegistrationStatusDTO status = sellerRegistrationService.getRegistrationStatus(user);
+
+            return ResponseEntity.ok(
+                new ResponseDTO<>(200, null, "Lấy trạng thái đăng ký thành công", status)
+            );
+
+        } catch (RuntimeException e) {
+            String errorMessage = e.getMessage();
+            int statusCode = errorMessage.contains("chưa có đơn đăng ký") ? 404 : 400;
+
+            return ResponseEntity.status(statusCode).body(
+                new ResponseDTO<>(statusCode, errorMessage, "Lấy trạng thái thất bại", null)
+            );
+        }
+    }
+
+    /**
+     * NEW: Cancel rejected application (allows re-submission)
+     * DELETE /api/seller/registration
+     */
+    @DeleteMapping("/seller/registration")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ResponseDTO<Boolean>> cancelRejectedApplication() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
+
+            boolean cancelled = sellerRegistrationService.cancelRejectedApplication(user);
+
+            if (cancelled) {
+                return ResponseEntity.ok(
+                    new ResponseDTO<>(200, null, "Đã hủy đơn đăng ký bị từ chối. Bạn có thể đăng ký lại.", true)
+                );
+            } else {
+                return ResponseEntity.status(404).body(
+                    new ResponseDTO<>(404, "Không tìm thấy đơn đăng ký bị từ chối", "Thất bại", false)
+                );
+            }
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                new ResponseDTO<>(500, e.getMessage(), "Lỗi hệ thống", false)
+            );
+        }
+    }
+
+    /**
+     * NEW: Check if current user can submit new registration
+     * GET /api/seller/registration/can-submit
+     */
+    @GetMapping("/seller/registration/can-submit")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ResponseDTO<Map<String, Object>>> canSubmitRegistration() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
+
+            boolean canSubmit = sellerRegistrationService.canSubmitRegistration(user);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("canSubmit", canSubmit);
+            result.put("message", canSubmit 
+                ? "Bạn có thể đăng ký bán hàng" 
+                : "Bạn đã có đơn đăng ký đang chờ duyệt hoặc shop đang hoạt động");
+
+            return ResponseEntity.ok(
+                new ResponseDTO<>(200, null, "Kiểm tra thành công", result)
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                new ResponseDTO<>(500, e.getMessage(), "Lỗi hệ thống", null)
+            );
         }
     }
     
@@ -441,6 +445,35 @@ public class ShopController {
                 false
             );
             return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * Get shop by ID (public endpoint)
+     * GET /api/shops/{shopId}
+     */
+    @GetMapping("/shops/{shopId}")
+    public ResponseEntity<ResponseDTO<ShopDTO>> getShopById(@PathVariable Long shopId) {
+        try {
+            Shop shop = shopService.getShopById(shopId);
+            if (shop != null) {
+                ShopDTO dto = shopService.toDTO(shop);
+                return ResponseEntity.ok(
+                    new ResponseDTO<>(HttpStatus.OK.value(), null, "Lấy thông tin shop thành công", dto)
+                );
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    new ResponseDTO<>(HttpStatus.NOT_FOUND.value(), "Shop không tồn tại", "Thất bại", null)
+                );
+            }
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                new ResponseDTO<>(HttpStatus.NOT_FOUND.value(), e.getMessage(), "Thất bại", null)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(
+                new ResponseDTO<>(HttpStatus.BAD_REQUEST.value(), e.getMessage(), "Thất bại", null)
+            );
         }
     }
 }
