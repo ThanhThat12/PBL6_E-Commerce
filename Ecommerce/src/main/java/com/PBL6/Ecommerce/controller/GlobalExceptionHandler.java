@@ -48,6 +48,11 @@ import com.PBL6.Ecommerce.exception.UserHasReferencesException;
 import com.PBL6.Ecommerce.exception.UserNotActivatedException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
 import com.PBL6.Ecommerce.exception.ImageUploadException;
+import com.PBL6.Ecommerce.exception.ConversationNotFoundException;
+import com.PBL6.Ecommerce.exception.NotConversationMemberException;
+import com.PBL6.Ecommerce.exception.ConversationPermissionDeniedException;
+import com.PBL6.Ecommerce.exception.MessageNotAllowedException;
+import com.PBL6.Ecommerce.exception.InvalidConversationDataException;
 import com.PBL6.Ecommerce.exception.ImageValidationException;
 import com.PBL6.Ecommerce.exception.CloudinaryServiceException;
 import com.PBL6.Ecommerce.exception.ImageNotFoundException;
@@ -565,6 +570,70 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
+
+    // ===== Chat Module Exception Handlers =====
+
+    @ExceptionHandler(ConversationNotFoundException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleConversationNotFoundException(ConversationNotFoundException ex) {
+        log.warn("Conversation not found", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            404,
+            "CONVERSATION_NOT_FOUND",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    @ExceptionHandler(NotConversationMemberException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleNotConversationMemberException(NotConversationMemberException ex) {
+        log.warn("Not a conversation member", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            403,
+            "NOT_CONVERSATION_MEMBER",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(ConversationPermissionDeniedException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleConversationPermissionDeniedException(ConversationPermissionDeniedException ex) {
+        log.warn("Conversation permission denied", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            403,
+            "CONVERSATION_PERMISSION_DENIED",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(MessageNotAllowedException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleMessageNotAllowedException(MessageNotAllowedException ex) {
+        log.warn("Message not allowed", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            403,
+            "MESSAGE_NOT_ALLOWED",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(InvalidConversationDataException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleInvalidConversationDataException(InvalidConversationDataException ex) {
+        log.warn("Invalid conversation data", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            400,
+            "INVALID_CONVERSATION_DATA",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    // ===== End Chat Module Exception Handlers =====
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Object> handleRuntimeException(RuntimeException ex) {
