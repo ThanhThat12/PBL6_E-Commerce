@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminListProductDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminProductDetailDTO;
 import com.PBL6.Ecommerce.exception.ProductNotFoundException;
 import com.PBL6.Ecommerce.service.AdminProductService;
 
@@ -123,5 +124,19 @@ public class AdminProductController {
             @RequestParam(value = "size", defaultValue = "10") int size) {
         Page<AdminListProductDTO> products = adminProductService.searchProducts(name, page, size);
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Products searched successfully", products));
+    }
+
+    /**
+     * API lấy chi tiết sản phẩm theo ID (Admin only)
+     * GET /api/admin/products/{productId}/detail
+     * @param productId - ID sản phẩm cần xem chi tiết
+     * @return ResponseDTO<AdminProductDetailDTO> - Thông tin chi tiết đầy đủ của sản phẩm
+     * @throws ProductNotFoundException - Nếu sản phẩm không tồn tại
+     */
+    @GetMapping("/{productId}/detail")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminProductDetailDTO>> getProductDetail(@PathVariable Long productId) {
+        AdminProductDetailDTO productDetail = adminProductService.getProductDetail(productId);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Product detail retrieved successfully", productDetail));
     }
 }

@@ -36,8 +36,8 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
      */
     // Optional<Vouchers> findByCode(String code);
     
-    /**
-     * Lấy danh sách vouchers với thông tin cơ bản (Admin)
+    /** ADMIN
+     * Lấy danh sách vouchers với thông tin cơ bản 
      * Sắp xếp theo ID tăng dần
      */
     @Query("SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO(" +
@@ -74,4 +74,22 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
 
     @Query("SELECT v FROM Vouchers v WHERE v.status = com.PBL6.Ecommerce.domain.Vouchers.Status.ACTIVE AND v.startDate <= :now AND v.endDate >= :now")
     List<Vouchers> findActiveVouchers(@Param("now") LocalDateTime now);
+
+    /**
+     * ADMIN Đếm tổng số vouchers
+     */
+    @Query("SELECT COUNT(v) FROM Vouchers v")
+    Long countTotalVouchers();
+
+    /**
+     * ADMIN Đếm số vouchers đang active
+     */
+    @Query("SELECT COUNT(v) FROM Vouchers v WHERE v.status = com.PBL6.Ecommerce.domain.Vouchers.Status.ACTIVE")
+    Long countActiveVouchers();
+
+    /**
+     * ADMIN Tính tổng số lượt sử dụng của tất cả vouchers
+     */
+    @Query("SELECT COALESCE(SUM(v.usedCount), 0) FROM Vouchers v")
+    Long sumUsedVouchers();
 }

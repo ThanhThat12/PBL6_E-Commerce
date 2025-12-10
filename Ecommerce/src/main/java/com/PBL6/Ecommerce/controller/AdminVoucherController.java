@@ -1,10 +1,14 @@
 package com.PBL6.Ecommerce.controller;
 
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherCreateDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherUpdateDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherStatsDTO;
 import com.PBL6.Ecommerce.service.AdminVoucherService;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -45,6 +49,18 @@ public class AdminVoucherController {
     }
 
     /**
+     * API lấy thống kê vouchers (Admin only)
+     * GET /api/admin/vouchers/stats
+     * @return ResponseDTO<AdminVoucherStatsDTO> - Thống kê vouchers
+     */
+    @GetMapping("/vouchers/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminVoucherStatsDTO>> getVoucherStats() {
+        AdminVoucherStatsDTO stats = adminVoucherService.getVoucherStats();
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Voucher stats retrieved successfully", stats));
+    }
+
+    /**
      * API xóa voucher theo ID (Admin only)
      * DELETE /api/admin/voucher/{id}
      * @param id - ID của voucher cần xóa
@@ -55,5 +71,48 @@ public class AdminVoucherController {
     public ResponseEntity<ResponseDTO<String>> deleteVoucher(@PathVariable Long id) {
         adminVoucherService.deleteVoucher(id);
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Voucher deleted successfully", "Voucher with ID " + id + " has been deleted"));
+    }
+
+    /**
+     * API lấy chi tiết voucher theo ID (Admin only)
+     * GET /api/admin/vouchers/{id}
+     * @param id - ID của voucher
+     * @return ResponseDTO<AdminVoucherDetailDTO> - Thông tin chi tiết voucher
+     */
+    @GetMapping("/vouchers/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminVoucherDetailDTO>> getVoucherDetail(@PathVariable Long id) {
+        AdminVoucherDetailDTO voucherDetail = adminVoucherService.getVoucherDetail(id);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Voucher detail retrieved successfully", voucherDetail));
+    }
+
+    /**
+     * API tạo voucher mới (Admin only)
+     * POST /api/admin/vouchers
+     * @param createDTO - DTO chứa thông tin voucher cần tạo
+     * @return ResponseDTO<AdminVoucherDetailDTO> - Thông tin voucher vừa tạo
+     */
+    @PostMapping("/vouchers")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminVoucherDetailDTO>> createVoucher(
+            @Valid @RequestBody AdminVoucherCreateDTO createDTO) {
+        AdminVoucherDetailDTO createdVoucher = adminVoucherService.createVoucher(createDTO);
+        return ResponseEntity.ok(new ResponseDTO<>(201, null, "Voucher created successfully", createdVoucher));
+    }
+
+    /**
+     * API cập nhật voucher (Admin only)
+     * PUT /api/admin/vouchers/{id}
+     * @param id - ID của voucher cần cập nhật
+     * @param updateDTO - DTO chứa thông tin cần cập nhật
+     * @return ResponseDTO<AdminVoucherDetailDTO> - Thông tin voucher sau khi cập nhật
+     */
+    @PutMapping("/vouchers/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<AdminVoucherDetailDTO>> updateVoucher(
+            @PathVariable Long id,
+            @Valid @RequestBody AdminVoucherUpdateDTO updateDTO) {
+        AdminVoucherDetailDTO updatedVoucher = adminVoucherService.updateVoucher(id, updateDTO);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Voucher updated successfully", updatedVoucher));
     }
 }

@@ -179,6 +179,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 //      */
     List<Order> findByStatus(Order.OrderStatus status);
     
+    /**
+     * Tìm đơn hàng theo status với phân trang, sắp xếp theo ngày tạo mới nhất
+     * Dùng cho Admin filter orders by status
+     */
+    Page<Order> findByStatusOrderByCreatedAtDesc(Order.OrderStatus status, Pageable pageable);
+    
 //     /**
 //      * Lấy ngày đặt hàng gần nhất của user (tất cả trạng thái)
 //      */
@@ -223,6 +229,37 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     // Lấy đơn hàng theo shop, sắp xếp theo ngày tạo
     List<Order> findByShopIdOrderByCreatedAtDesc(Long shopId);
+
+    /**
+     * Tìm các đơn hàng đã thanh toán nhưng chưa chuyển tiền cho seller
+     * - paymentStatus = PAID
+     * - createdAt < cutoffDate (đã qua 2 phút)
+     * - Chưa có transaction PAYMENT_TO_SELLER cho seller này
+     */
+    @Query("SELECT o FROM Order o " +
+           "WHERE o.paymentStatus = 'PAID' " +
+           "AND o.createdAt < :cutoffDate " +
+           "AND NOT EXISTS (" +
+           "  SELECT 1 FROM WalletTransaction wt " +
+           "  WHERE wt.relatedOrder = o " +
+           "  AND wt.type = 'PAYMENT_TO_SELLER' " +
+           "  AND wt.wallet.user.id = o.shop.owner.id" +
+           ")")
+    List<Order> findOrdersReadyForSellerPayout(@Param("cutoffDate") java.util.Date cutoffDate);
+    // ============= ADMIN STATISTICS QUERIES =============
+    
+    /**
+     * Đếm số đơn hàng theo status (cho admin)
+     */
+    Long countByStatus(Order.OrderStatus status);
+    
+    /**
+     * Tính tổng doanh thu của tất cả đơn hàng (không tính CANCELLED)
+     * Dùng cho admin dashboard
+     */
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +
+           "WHERE o.status != 'CANCELLED'")
+    BigDecimal calculateTotalRevenue();
    
 }
 

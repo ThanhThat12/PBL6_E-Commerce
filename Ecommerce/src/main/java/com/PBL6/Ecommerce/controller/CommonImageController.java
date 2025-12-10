@@ -83,18 +83,18 @@ public class CommonImageController {
             // Upload to Cloudinary
             CloudinaryUploadResult result = cloudinaryClient.uploadImage(file, folder, publicId);
             
-            log.info("Image uploaded successfully to folder '{}': {}", folder, result.getUrl());
+            log.info("Image uploaded successfully to folder '{}': {}", folder, result.getSecureUrl());
 
-            // Generate transformations
+            // Generate transformations (these will also use HTTPS)
             Map<TransformationType, String> transformations =
                 cloudinaryClient.generateTransformedUrls(result.getPublicId(), result.getFormat());
             
-            // Ensure the original URL from the upload result is in the map.
-            transformations.put(TransformationType.ORIGINAL, result.getUrl());
+            // Ensure the original SECURE URL from the upload result is in the map
+            transformations.put(TransformationType.ORIGINAL, result.getSecureUrl());
 
-            // Build response
+            // Build response with HTTPS URL
             ImageUploadResponse response = ImageUploadResponse.builder()
-                    .url(result.getUrl())
+                    .url(result.getSecureUrl())  // Use secureUrl instead of url
                     .publicId(result.getPublicId())
                     .transformations(transformations)
                     .width(result.getWidth())

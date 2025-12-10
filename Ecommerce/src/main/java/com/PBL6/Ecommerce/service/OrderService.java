@@ -80,6 +80,7 @@ public class OrderService {
     private final AddressRepository addressRepository;
     private final ProductRepository productRepository;
     private final GhnService ghnService;
+    private final NotificationService notificationService;
     
     @Autowired
     private RefundRepository refundRepository;
@@ -102,7 +103,8 @@ public class OrderService {
                         UserRepository userRepository,
                         ShopRepository shopRepository,
                         AddressRepository addressRepository,
-                        GhnService ghnService) {
+                        GhnService ghnService,
+                        NotificationService notificationService) {
         // ...existing code...
         this.productVariantRepository = productVariantRepository;
         this.orderRepository = orderRepository;
@@ -112,6 +114,7 @@ public class OrderService {
         this.addressRepository = addressRepository;
         this.productRepository = productRepository;
         this.ghnService = ghnService;
+        this.notificationService = notificationService;
     }
 // ...existing code...
     // ...existing code...
@@ -975,6 +978,40 @@ public class OrderService {
         // Lưu vào database
         Order updatedOrder = orderRepository.save(order);
 
+        // ========== GỬI THÔNG BÁO CHO BUYER ==========
+        try {
+            Long buyerId = updatedOrder.getUser().getId();
+            String notificationType = "";
+            String buyerMessage = "";
+            
+            switch (orderStatus) {
+                case PROCESSING:
+                    notificationType = "ORDER_CONFIRMED";
+                    buyerMessage = "Đơn hàng #" + updatedOrder.getId() + " đã được xác nhận bởi người bán";
+                    break;
+                case SHIPPING:
+                    notificationType = "ORDER_SHIPPING";
+                    buyerMessage = "Đơn hàng #" + updatedOrder.getId() + " đang được giao";
+                    break;
+                case COMPLETED:
+                    notificationType = "ORDER_COMPLETED";
+                    buyerMessage = "Đơn hàng #" + updatedOrder.getId() + " đã hoàn thành";
+                    break;
+                case CANCELLED:
+                    notificationType = "ORDER_CANCELLED";
+                    buyerMessage = "Đơn hàng #" + updatedOrder.getId() + " đã bị hủy";
+                    break;
+                default:
+                    notificationType = "ORDER_STATUS_UPDATE";
+                    buyerMessage = "Đơn hàng #" + updatedOrder.getId() + " đã được cập nhật";
+            }
+            
+            notificationService.sendOrderNotification(buyerId, notificationType, buyerMessage);
+            System.out.println("✅ Sent order status notification to buyer #" + buyerId);
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to send buyer notification: " + e.getMessage());
+        }
+
         // Convert sang DTO và trả về
         return convertToDetailDTO(updatedOrder);
     }
@@ -1232,7 +1269,36 @@ public class OrderService {
         order.setStatus(Order.OrderStatus.COMPLETED);
         order.setUpdatedAt(new Date());
         
-        return orderRepository.save(order);
+        // ========== DEPOSIT VÀO VÍ ADMIN NẾU LÀ COD ==========
+        if ("COD".equalsIgnoreCase(order.getMethod())) {
+            try {
+                // Cập nhật paymentStatus thành PAID
+                order.setPaymentStatus(Order.PaymentStatus.PAID);
+                order.setPaidAt(new Date());
+                
+                walletService.depositToAdminWallet(order.getTotalAmount(), order, "COD");
+                logger.info("✅ [COD] Deposited {} to admin wallet for order #{}", 
+                           order.getTotalAmount(), order.getId());
+            } catch (Exception e) {
+                logger.error("❌ [COD] Failed to deposit to admin wallet for order {}: {}", 
+                            order.getId(), e.getMessage());
+                // Không throw exception, order vẫn hợp lệ
+            }
+        }
+        
+        Order savedOrder = orderRepository.save(order);
+        
+        // ========== GỬI THÔNG BÁO CHO SELLER ==========
+        try {
+            Long sellerId = order.getShop().getOwner().getId();
+            String sellerMessage = "Đơn hàng #" + order.getId() + " đã được người mua xác nhận đã nhận hàng";
+            notificationService.sendSellerNotification(sellerId, "ORDER_COMPLETED", sellerMessage, order.getId());
+            System.out.println("✅ Sent order completed notification to seller #" + sellerId);
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to send seller notification: " + e.getMessage());
+        }
+        
+        return savedOrder;
     }
 
     /**
@@ -1326,7 +1392,19 @@ public class OrderService {
         refund.setRequiresReturn(true); // Yêu cầu trả hàng
         refund.setCreatedAt(LocalDateTime.now());
         
-        return refundRepository.save(refund);
+        Refund savedRefund = refundRepository.save(refund);
+        
+        // ========== GỬI THÔNG BÁO CHO SELLER ==========
+        try {
+            Long sellerId = order.getShop().getOwner().getId();
+            String sellerMessage = "Có yêu cầu trả hàng cho đơn #" + order.getId() + " - " + orderItem.getVariantName();
+            notificationService.sendSellerNotification(sellerId, "RETURN_REQUESTED", sellerMessage, order.getId());
+            System.out.println("✅ Sent return request notification to seller #" + sellerId);
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to send seller notification: " + e.getMessage());
+        }
+        
+        return savedRefund;
     }
 
     /**
