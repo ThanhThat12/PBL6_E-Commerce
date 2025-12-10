@@ -238,11 +238,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Long countByStatus(Order.OrderStatus status);
     
     /**
-     * Tính tổng doanh thu của tất cả đơn hàng (không tính CANCELLED)
+     * Tính tổng doanh thu của tất cả đơn hàng COMPLETED
      * Dùng cho admin dashboard
      */
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +
-           "WHERE o.status != 'CANCELLED'")
+           "WHERE o.status = 'COMPLETED'")
     BigDecimal calculateTotalRevenue();
    
 }
