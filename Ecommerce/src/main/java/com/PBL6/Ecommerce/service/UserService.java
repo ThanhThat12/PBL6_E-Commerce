@@ -371,7 +371,20 @@ public class UserService {
             return new UserNotFoundException("User not found");
         });
 
-        return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name(), user.getFullName());
+        // Get shopId if user is seller and has shop
+        // Need to query shop separately because of LAZY fetch
+        Long shopId = null;
+        if (user.getRole() == Role.SELLER) {
+            Shop shop = shopRepository.findByOwnerId(user.getId()).orElse(null);
+            if (shop != null) {
+                shopId = shop.getId();
+                log.info("User {} has shop with ID: {}", user.getId(), shopId);
+            } else {
+                log.info("User {} is SELLER but has no shop yet", user.getId());
+            }
+        }
+
+        return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name(), user.getFullName(), shopId);
     }
 
     /**

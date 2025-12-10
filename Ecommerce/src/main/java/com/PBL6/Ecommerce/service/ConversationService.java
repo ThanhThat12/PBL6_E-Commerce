@@ -174,6 +174,12 @@ public class ConversationService {
         Shop shop = shopRepository.findById(request.getShopId())
             .orElseThrow(() -> new RuntimeException("Shop not found"));
 
+        // Prevent shop owner from chatting with their own shop
+        User shopOwner = shop.getOwner();
+        if (shopOwner != null && shopOwner.getId().equals(currentUser.getId())) {
+            throw new InvalidConversationDataException("Bạn không thể chat với shop của chính mình");
+        }
+
         // Build conversation WITHOUT members
         Conversation conversation = Conversation.builder()
             .type(ConversationType.SHOP)
@@ -193,8 +199,6 @@ public class ConversationService {
             .build();
         members.add(userMember);
 
-        // Add shop owner as member
-        User shopOwner = shop.getOwner();
         // Only add shop owner if different from current user
         if (!shopOwner.getId().equals(currentUser.getId())) {
             ConversationMember ownerMember = ConversationMember.builder()
