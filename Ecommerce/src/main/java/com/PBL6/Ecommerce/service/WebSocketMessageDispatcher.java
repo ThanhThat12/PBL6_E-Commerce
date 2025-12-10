@@ -34,8 +34,10 @@ public class WebSocketMessageDispatcher {
      */
     public void broadcastMessage(Long conversationId, WebSocketMessageResponse message) {
         String destination = "/topic/conversations/" + conversationId;
-        log.info("Broadcasting message {} to conversation {}", message.getId(), conversationId);
+        log.info("Broadcasting message {} to conversation {} (destination: {})", 
+                message.getId(), conversationId, destination);
         messagingTemplate.convertAndSend(destination, message);
+        log.info("Message {} broadcast completed", message.getId());
     }
 
     /**

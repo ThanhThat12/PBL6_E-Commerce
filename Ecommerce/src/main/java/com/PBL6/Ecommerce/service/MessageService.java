@@ -2,6 +2,7 @@ package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.domain.Conversation;
 import com.PBL6.Ecommerce.domain.Message;
+import com.PBL6.Ecommerce.domain.MessageReadStatus;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.dto.MessageResponse;
 import com.PBL6.Ecommerce.dto.SendMessageRequest;
@@ -9,6 +10,7 @@ import com.PBL6.Ecommerce.exception.ConversationNotFoundException;
 import com.PBL6.Ecommerce.exception.MessageNotAllowedException;
 import com.PBL6.Ecommerce.repository.ConversationRepository;
 import com.PBL6.Ecommerce.repository.MessageRepository;
+import com.PBL6.Ecommerce.repository.MessageReadStatusRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.util.ConversationPermissionValidator;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final ConversationRepository conversationRepository;
     private final UserRepository userRepository;
+    private final MessageReadStatusRepository messageReadStatusRepository;
     private final ConversationPermissionValidator permissionValidator;
 
     /**
@@ -224,4 +227,104 @@ public class MessageService {
             .createdAt(message.getCreatedAt())
             .build();
     }
+
+    /**
+     * Mark a message as read by the current user.
+     * 
+     * @param messageId The ID of the message to mark as read
+     * @param currentUserId The ID of the current user
+     */
+    @Transactional
+    public void markMessageAsRead(Long messageId, Long currentUserId) {
+        log.info("Marking message {} as read by user {}", messageId, currentUserId);
+
+        // Check if already marked as read
+        if (messageReadStatusRepository.existsByMessageIdAndUserId(messageId, currentUserId)) {
+            log.debug("Message {} already marked as read by user {}", messageId, currentUserId);
+            return;
+        }
+
+        Message message = messageRepository.findById(messageId)
+            .orElseThrow(() -> new RuntimeException("Message not found"));
+
+        // Don't mark own messages as read
+        if (message.getSender().getId().equals(currentUserId)) {
+            return;
+        }
+
+        User user = userRepository.findById(currentUserId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+        MessageReadStatus readStatus = MessageReadStatus.builder()
+            .message(message)
+            .user(user)
+            .build();
+
+        messageReadStatusRepository.save(readStatus);
+        log.info("Message {} marked as read by user {}", messageId, currentUserId);
+    }
+
+    /**
+     * Mark all messages in a conversation as read by the current user.
+     * 
+     * @param conversationId The ID of the conversation
+     * @param currentUserId The ID of the current user
+     */
+    @Transactional
+    public void markConversationAsRead(Long conversationId, Long currentUserId) {
+        log.info("Marking all messages in conversation {} as read by user {}", conversationId, currentUserId);
+
+        // Validate user is a member of the conversation
+        permissionValidator.validateConversationAccess(conversationId, currentUserId);
+
+        List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+        User user = userRepository.findById(currentUserId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+        for (Message message : messages) {
+            // Skip own messages and already read messages
+            if (message.getSender().getId().equals(currentUserId)) {
+                continue;
+            }
+
+            if (messageReadStatusRepository.existsByMessageIdAndUserId(message.getId(), currentUserId)) {
+                continue;
+            }
+
+            MessageReadStatus readStatus = MessageReadStatus.builder()
+                .message(message)
+                .user(user)
+                .build();
+
+            messageReadStatusRepository.save(readStatus);
+        }
+
+        log.info("All messages in conversation {} marked as read by user {}", conversationId, currentUserId);
+    }
+
+    /**
+     * Get unread message count for a conversation.
+     * 
+     * @param conversationId The ID of the conversation
+     * @param currentUserId The ID of the current user
+     * @return Number of unread messages
+     */
+    @Transactional(readOnly = true)
+    public Long getUnreadCount(Long conversationId, Long currentUserId) {
+        return messageReadStatusRepository.countUnreadMessages(conversationId, currentUserId);
+    }
+
+    /**
+     * Get total unread message count for user across all conversations.
+     * 
+     * @param userId The user ID
+     * @return Total number of unread messages
+     */
+    @Transactional(readOnly = true)
+    public Long getUserUnreadCount(Long userId) {
+        Long count = messageReadStatusRepository.countUserUnreadMessages(userId);
+        log.info("User {} has {} unread messages", userId, count);
+        return count;
+    }
 }
+

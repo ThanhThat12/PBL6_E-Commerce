@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -163,7 +164,7 @@ public class MessageController {
         Long currentUserId = userService.extractUserIdFromJwt(jwt);
         long count = messageService.getMessageCount(conversationId, currentUserId);
         
-        return ResponseDTO.success(count, "Message count retrieved successfully");
+        return ResponseDTO.<Long>success(count, "Message count retrieved successfully");
     }
 
     /**
@@ -184,6 +185,93 @@ public class MessageController {
         Long currentUserId = userService.extractUserIdFromJwt(jwt);
         messageService.deleteMessage(messageId, currentUserId);
         
-        return ResponseDTO.success(null, "Message deleted successfully");
+        return ResponseDTO.<Void>success(null, "Message deleted successfully");
+    }
+
+    /**
+     * Mark a message as read.
+     * 
+     * POST /api/messages/{messageId}/read
+     * 
+     * @param jwt JWT token for authentication
+     * @param messageId The ID of the message to mark as read
+     * @return Success response
+     */
+    @PostMapping("/{messageId}/read")
+    public ResponseEntity<ResponseDTO<Void>> markMessageAsRead(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("messageId") Long messageId) {
+        
+        Long currentUserId = userService.extractUserIdFromJwt(jwt);
+        messageService.markMessageAsRead(messageId, currentUserId);
+        
+        return ResponseDTO.<Void>success(null, "Message marked as read");
+    }
+
+    /**
+     * Mark all messages in a conversation as read.
+     * 
+     * POST /api/messages/conversation/{conversationId}/read-all
+     * 
+     * @param jwt JWT token for authentication
+     * @param conversationId The ID of the conversation
+     * @return Success response
+     */
+    @PostMapping("/conversation/{conversationId}/read-all")
+    public ResponseEntity<ResponseDTO<Void>> markConversationAsRead(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("conversationId") Long conversationId) {
+        
+        Long currentUserId = userService.extractUserIdFromJwt(jwt);
+        messageService.markConversationAsRead(conversationId, currentUserId);
+        
+        return ResponseDTO.<Void>success(null, "All messages marked as read");
+    }
+
+    /**
+     * Get unread message count for a conversation.
+     * 
+     * GET /api/messages/conversation/{conversationId}/unread-count
+     * 
+     * @param jwt JWT token for authentication
+     * @param conversationId The ID of the conversation
+     * @return Number of unread messages
+     */
+    @GetMapping("/conversation/{conversationId}/unread-count")
+    public ResponseEntity<ResponseDTO<Long>> getUnreadCount(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("conversationId") Long conversationId) {
+        
+        Long currentUserId = userService.extractUserIdFromJwt(jwt);
+        Long count = messageService.getUnreadCount(conversationId, currentUserId);
+        
+        return ResponseDTO.<Long>success(count, "Unread count retrieved successfully");
+    }
+
+    /**
+     * Get total unread message count for current user across all conversations.
+     * 
+     * GET /api/messages/user/{userId}/unread-count
+     * 
+     * @param jwt JWT token for authentication
+     * @param userId The ID of the user
+     * @return Total number of unread messages
+     */
+    @GetMapping("/user/{userId}/unread-count")
+    public ResponseEntity<ResponseDTO<Long>> getUserUnreadCount(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("userId") Long userId) {
+        
+        Long currentUserId = userService.extractUserIdFromJwt(jwt);
+        
+        // Ensure user can only get their own unread count
+        if (!currentUserId.equals(userId)) {
+            return ResponseDTO.<Long>error(HttpStatus.FORBIDDEN.value(), "FORBIDDEN", "Unauthorized access");
+        }
+        
+        Long count = messageService.getUserUnreadCount(userId);
+        
+        return ResponseDTO.<Long>success(count, "User unread count retrieved successfully");
     }
 }
+

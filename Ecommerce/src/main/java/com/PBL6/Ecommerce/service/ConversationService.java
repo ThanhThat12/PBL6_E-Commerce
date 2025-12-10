@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,16 +26,17 @@ public class ConversationService {
 
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
+    private final MessageReadStatusRepository messageReadStatusRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final ShopRepository shopRepository;
     private final ConversationPermissionValidator permissionValidator;
+    private final WebSocketMessageDispatcher messageDispatcher;
 
     /**
      * Create a new conversation or return existing one.
      * 
      * Logic:
-     * - ORDER type: Auto-add buyer + seller (seller = shop.owner)
      * - SHOP type: Add user + shop.owner
      * - SUPPORT type: Add user + admin
      * 
@@ -59,14 +61,28 @@ public class ConversationService {
 
         // Create new conversation based on type
         Conversation conversation = switch (request.getType()) {
-            case ORDER -> createOrderConversation(request, currentUser);
             case SHOP -> createShopConversation(request, currentUser);
             case SUPPORT -> createSupportConversation(request, currentUser);
+            default -> throw new InvalidConversationDataException("Unsupported conversation type: " + request.getType());
         };
 
         // Save conversation
         conversation = conversationRepository.save(conversation);
         log.info("Created new conversation {} of type {}", conversation.getId(), conversation.getType());
+        
+        // Log all members after save
+        log.info("Conversation {} has {} members:", conversation.getId(), conversation.getMembers().size());
+        for (ConversationMember member : conversation.getMembers()) {
+            log.info("  - Member: userId={}, userName={}, role={}", 
+                    member.getUser().getId(), 
+                    member.getUser().getFullName(),
+                    member.getUser().getRole());
+        }
+
+        // If SUPPORT conversation, notify all admins
+        if (request.getType() == ConversationType.SUPPORT) {
+            notifyAdminsOfNewSupportConversation(conversation);
+        }
 
         return mapToConversationResponse(conversation, currentUserId);
     }
@@ -83,6 +99,12 @@ public class ConversationService {
         log.info("Fetching all conversations for user {}", currentUserId);
 
         List<Conversation> conversations = conversationRepository.findAllByUserId(currentUserId);
+        log.info("Found {} conversations for user {}", conversations.size(), currentUserId);
+        
+        for (Conversation conv : conversations) {
+            log.info("  - Conversation {}: type={}, members={}", 
+                    conv.getId(), conv.getType(), conv.getMembers().size());
+        }
 
         return conversations.stream()
             .map(conv -> mapToConversationListResponse(conv, currentUserId))
@@ -118,15 +140,6 @@ public class ConversationService {
      */
     private Conversation findExistingConversation(CreateConversationRequest request, Long userId) {
         return switch (request.getType()) {
-            case ORDER -> {
-                if (request.getOrderId() != null) {
-                    yield conversationRepository.findByOrderIdAndType(
-                        request.getOrderId(),
-                        ConversationType.ORDER
-                    ).orElse(null);
-                }
-                yield null;
-            }
             case SHOP -> {
                 if (request.getShopId() != null) {
                     yield conversationRepository.findShopConversation(
@@ -141,61 +154,8 @@ public class ConversationService {
                 userId,
                 ConversationType.SUPPORT
             ).orElse(null);
+            default -> null;
         };
-    }
-
-    /**
-     * Create an ORDER conversation.
-     * Automatically adds buyer and seller (shop owner) as members.
-     * 
-     * @param request The conversation creation request
-     * @param currentUser The user creating the conversation
-     * @return Created conversation
-     */
-    private Conversation createOrderConversation(CreateConversationRequest request, User currentUser) {
-        if (request.getOrderId() == null) {
-            throw new InvalidConversationDataException("Order ID is required for ORDER conversations");
-        }
-
-        Order order = orderRepository.findById(request.getOrderId())
-            .orElseThrow(() -> new RuntimeException("Order not found"));
-
-        // Validate current user is buyer or seller
-        if (!permissionValidator.canParticipateInOrderConversation(order, currentUser.getId())) {
-            throw new ConversationPermissionDeniedException(
-                "You are not authorized to create a conversation for this order"
-            );
-        }
-
-        // Build conversation
-        Conversation conversation = Conversation.builder()
-            .type(ConversationType.ORDER)
-            .order(order)
-            .shop(order.getShop())
-            .createdBy(currentUser)
-            .build();
-
-        // Add buyer as member
-        User buyer = order.getUser();
-        ConversationMember buyerMember = ConversationMember.builder()
-            .conversation(conversation)
-            .user(buyer)
-            .build();
-
-        // Add seller (shop owner) as member
-        User seller = order.getShop().getOwner();
-        ConversationMember sellerMember = ConversationMember.builder()
-            .conversation(conversation)
-            .user(seller)
-            .build();
-
-        conversation.getMembers().add(buyerMember);
-        // Only add seller if different from buyer
-        if (!seller.getId().equals(buyer.getId())) {
-            conversation.getMembers().add(sellerMember);
-        }
-
-        return conversation;
     }
 
     /**
@@ -214,73 +174,136 @@ public class ConversationService {
         Shop shop = shopRepository.findById(request.getShopId())
             .orElseThrow(() -> new RuntimeException("Shop not found"));
 
-        // Build conversation
+        // Build conversation WITHOUT members
         Conversation conversation = Conversation.builder()
             .type(ConversationType.SHOP)
             .shop(shop)
             .createdBy(currentUser)
             .build();
 
-        // Add current user as member
+        // Save first to get ID
+        conversation = conversationRepository.save(conversation);
+
+        // Now add members
+        List<ConversationMember> members = new ArrayList<>();
+        
         ConversationMember userMember = ConversationMember.builder()
             .conversation(conversation)
             .user(currentUser)
             .build();
+        members.add(userMember);
 
         // Add shop owner as member
         User shopOwner = shop.getOwner();
-        ConversationMember ownerMember = ConversationMember.builder()
-            .conversation(conversation)
-            .user(shopOwner)
-            .build();
-
-        conversation.getMembers().add(userMember);
         // Only add shop owner if different from current user
         if (!shopOwner.getId().equals(currentUser.getId())) {
-            conversation.getMembers().add(ownerMember);
+            ConversationMember ownerMember = ConversationMember.builder()
+                .conversation(conversation)
+                .user(shopOwner)
+                .build();
+            members.add(ownerMember);
         }
+
+        conversation.setMembers(members);
+        conversation = conversationRepository.save(conversation);
 
         return conversation;
     }
 
     /**
      * Create a SUPPORT conversation.
-     * Adds the requesting user and an admin as members.
+     * Adds the requesting user and ALL admins as members.
      * 
      * @param request The conversation creation request
      * @param currentUser The user creating the conversation
      * @return Created conversation
      */
     private Conversation createSupportConversation(CreateConversationRequest request, User currentUser) {
-        // Build conversation
+        // Build conversation WITHOUT members first
         Conversation conversation = Conversation.builder()
             .type(ConversationType.SUPPORT)
             .createdBy(currentUser)
             .build();
 
+        // Save conversation first to get ID
+        conversation = conversationRepository.save(conversation);
+        log.info("Created SUPPORT conversation {} (empty members)", conversation.getId());
+
+        // Now add members after conversation has ID
+        List<ConversationMember> members = new ArrayList<>();
+        
         // Add current user as member
         ConversationMember userMember = ConversationMember.builder()
             .conversation(conversation)
             .user(currentUser)
             .build();
+        members.add(userMember);
 
-        conversation.getMembers().add(userMember);
-
-        // Add admin if specified, otherwise admin will be added later when they respond
-        if (request.getTargetUserId() != null) {
-            User admin = userRepository.findById(request.getTargetUserId())
-                .orElseThrow(() -> new RuntimeException("Target user not found"));
-
-            ConversationMember adminMember = ConversationMember.builder()
-                .conversation(conversation)
-                .user(admin)
-                .build();
-
-            conversation.getMembers().add(adminMember);
+        // Add ALL admins to the conversation
+        List<User> admins = userRepository.findByRole(com.PBL6.Ecommerce.domain.Role.ADMIN);
+        log.info("Adding {} admin(s) to SUPPORT conversation", admins.size());
+        
+        for (User admin : admins) {
+            // Skip if admin is the current user (already added)
+            if (!admin.getId().equals(currentUser.getId())) {
+                ConversationMember adminMember = ConversationMember.builder()
+                    .conversation(conversation)
+                    .user(admin)
+                    .build();
+                
+                members.add(adminMember);
+                log.info("Added admin {} to SUPPORT conversation", admin.getId());
+            }
         }
+        
+        // Set members list and save again
+        conversation.setMembers(members);
+        conversation = conversationRepository.save(conversation);
+        
+        log.info("Total members in SUPPORT conversation: {}", conversation.getMembers().size());
 
         return conversation;
     }
+
+    /**
+     * Notify all admins about a new SUPPORT conversation via WebSocket.
+     * Sends a notification to each admin's personal queue so they can
+     * refresh their conversation list or auto-subscribe.
+     * 
+     * @param conversation The newly created SUPPORT conversation
+     */
+    private void notifyAdminsOfNewSupportConversation(Conversation conversation) {
+        try {
+            List<User> admins = userRepository.findByRole(com.PBL6.Ecommerce.domain.Role.ADMIN);
+            
+            for (User admin : admins) {
+                // Skip if admin is the creator
+                if (!admin.getId().equals(conversation.getCreatedBy().getId())) {
+                    // Send notification to admin's personal queue
+                    messageDispatcher.sendUserNotification(
+                        admin.getId(),
+                        new SupportConversationNotification(
+                            conversation.getId(),
+                            conversation.getCreatedBy().getFullName(),
+                            "Có yêu cầu hỗ trợ mới từ " + conversation.getCreatedBy().getFullName()
+                        )
+                    );
+                    log.info("Notified admin {} about new SUPPORT conversation {}", 
+                            admin.getId(), conversation.getId());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to notify admins about new SUPPORT conversation: {}", e.getMessage(), e);
+            // Don't throw - notification failure shouldn't break conversation creation
+        }
+    }
+
+    // Inner class for support conversation notification
+    private record SupportConversationNotification(
+        Long conversationId,
+        String requesterName,
+        String message
+    ) {}
 
     /**
      * Map Conversation entity to ConversationResponse DTO.
@@ -344,7 +367,7 @@ public class ConversationService {
             .otherParticipantAvatar(otherParticipant != null ? otherParticipant.getAvatarUrl() : null)
             .lastActivityAt(conversation.getLastActivityAt())
             .lastMessage(lastMessageResponse)
-            .unreadCount(0L) // TODO: Implement unread count logic
+            .unreadCount(messageReadStatusRepository.countUnreadMessages(conversation.getId(), currentUserId))
             .build();
     }
 

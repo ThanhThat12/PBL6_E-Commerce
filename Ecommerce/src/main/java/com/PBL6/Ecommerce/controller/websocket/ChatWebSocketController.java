@@ -1,9 +1,12 @@
 package com.PBL6.Ecommerce.controller.websocket;
 
 import com.PBL6.Ecommerce.config.websocket.WebSocketAuthInterceptor;
+import com.PBL6.Ecommerce.domain.Conversation;
+import com.PBL6.Ecommerce.domain.ConversationMember;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.dto.*;
 import com.PBL6.Ecommerce.exception.MessageNotAllowedException;
+import com.PBL6.Ecommerce.repository.ConversationRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.service.MessageService;
 import com.PBL6.Ecommerce.service.WebSocketMessageDispatcher;
@@ -43,6 +46,7 @@ public class ChatWebSocketController {
     private final WebSocketMessageDispatcher messageDispatcher;
     private final ConversationPermissionValidator permissionValidator;
     private final UserRepository userRepository;
+    private final ConversationRepository conversationRepository;
 
     /**
      * Handle incoming chat messages via WebSocket.
@@ -128,6 +132,31 @@ public class ChatWebSocketController {
                 authenticatedUserId, 
                 savedMessage.getId()
             );
+
+            // Send browser notifications to all conversation members (except sender)
+            try {
+                Conversation conversation = conversationRepository.findById(request.getConversationId())
+                    .orElse(null);
+                
+                if (conversation != null) {
+                    conversation.getMembers().stream()
+                        .filter(member -> !member.getUser().getId().equals(authenticatedUserId))
+                        .forEach(member -> {
+                            try {
+                                messageDispatcher.sendPrivateMessage(
+                                    member.getUser().getId(),
+                                    wsResponse
+                                );
+                                log.debug("Sent notification to user {}", member.getUser().getId());
+                            } catch (Exception e) {
+                                log.error("Failed to send notification to user {}: {}", 
+                                    member.getUser().getId(), e.getMessage());
+                            }
+                        });
+                }
+            } catch (Exception e) {
+                log.error("Error sending browser notifications: {}", e.getMessage());
+            }
 
             log.info("Message {} broadcast successfully to conversation {}", 
                     savedMessage.getId(), request.getConversationId());
