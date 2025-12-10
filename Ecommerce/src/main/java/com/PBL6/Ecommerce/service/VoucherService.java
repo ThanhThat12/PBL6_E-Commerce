@@ -97,6 +97,27 @@ public class VoucherService {
         voucher.setApplicableType(request.getApplicableType());
         voucher.setTopBuyersCount(request.getTopBuyersCount());
         
+        if (request.getStartDate() == null || request.getEndDate() == null) {
+            throw new RuntimeException("Ngày bắt đầu và ngày kết thúc không được để trống");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        Status computedStatus;
+        try {
+            if (request.getStartDate().isAfter(now)) {
+                computedStatus = Status.UPCOMING;
+            } else if (request.getEndDate().isBefore(now)) {
+                computedStatus = Status.EXPIRED;
+            } else {
+                computedStatus = Status.ACTIVE;
+            }
+        } catch (Exception e) {
+            // Fallback để tránh insert null vào DB
+            computedStatus = Status.UPCOMING;
+        }
+
+        voucher.setStatus(computedStatus);
+        
         Vouchers savedVoucher = vouchersRepository.save(voucher);
         
         // Lưu sản phẩm áp dụng (nếu có)
@@ -158,7 +179,7 @@ public class VoucherService {
     /**
      * Lấy danh sách voucher của shop
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public List<VoucherDTO> getShopVouchers(Authentication authentication) {
         String username = authentication.getName();
         User seller = userRepository.findByUsername(username)
@@ -168,13 +189,14 @@ public class VoucherService {
             .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
         
         List<Vouchers> vouchers = vouchersRepository.findByShopId(shop.getId());
+        // convertToDTO sẽ tự động cập nhật status
         return vouchers.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     /**
      * Lấy voucher đang active của shop
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public List<VoucherDTO> getActiveShopVouchers(Authentication authentication) {
         String username = authentication.getName();
         User seller = userRepository.findByUsername(username)
@@ -184,6 +206,7 @@ public class VoucherService {
             .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
         
         List<Vouchers> vouchers = vouchersRepository.findActiveVouchersByShop(shop.getId(), LocalDateTime.now());
+        // convertToDTO sẽ tự động cập nhật status
         return vouchers.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
@@ -212,9 +235,41 @@ public class VoucherService {
     }
 
     /**
+     * Cập nhật status voucher dựa trên thời gian hiện tại
+     */
+    private void updateVoucherStatus(Vouchers voucher) {
+        LocalDateTime now = LocalDateTime.now();
+        Status currentStatus = voucher.getStatus();
+        Status newStatus = currentStatus;
+        
+        // Chỉ cập nhật nếu status hiện tại không phải EXPIRED (do deactivate)
+        // hoặc cần tự động chuyển sang EXPIRED/ACTIVE theo thời gian
+        if (now.isBefore(voucher.getStartDate())) {
+            newStatus = Status.UPCOMING;
+        } else if (now.isAfter(voucher.getEndDate())) {
+            newStatus = Status.EXPIRED;
+        } else {
+            // Trong khoảng thời gian hiệu lực
+            if (!Status.EXPIRED.equals(currentStatus)) {
+                newStatus = Status.ACTIVE;
+            }
+        }
+        
+        // Chỉ lưu nếu status thay đổi
+        if (!newStatus.equals(currentStatus)) {
+            voucher.setStatus(newStatus);
+            vouchersRepository.save(voucher);
+            log.info("Updated voucher {} status from {} to {}", voucher.getCode(), currentStatus, newStatus);
+        }
+    }
+
+    /**
      * Convert Vouchers entity sang VoucherDTO
      */
     private VoucherDTO convertToDTO(Vouchers voucher) {
+        // Cập nhật status trước khi convert
+        updateVoucherStatus(voucher);
+        
         VoucherDTO dto = new VoucherDTO();
         dto.setId(voucher.getId());
         dto.setCode(voucher.getCode());
@@ -251,7 +306,7 @@ public class VoucherService {
     /**
      * Lấy danh sách voucher khả dụng cho user
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public List<VoucherDTO> getAvailableVouchersForUser(Long shopId, String username, List<Long> productIds, BigDecimal cartTotal) {
         // Get user
         User user = userRepository.findByUsername(username)
@@ -269,6 +324,14 @@ public class VoucherService {
         List<Vouchers> activeVouchers = vouchersRepository.findActiveVouchersByShop(shopId, now);
         
         for (Vouchers voucher : activeVouchers) {
+            // Cập nhật status trước khi kiểm tra
+            updateVoucherStatus(voucher);
+            
+            // Bỏ qua nếu đã expired
+            if (Status.EXPIRED.equals(voucher.getStatus())) {
+                continue;
+            }
+            
             // Kiểm tra usage limit
             if (voucher.getUsedCount() >= voucher.getUsageLimit()) {
                 continue;
@@ -358,12 +421,15 @@ public class VoucherService {
         Vouchers voucher = vouchersRepository.findByCode(voucherCode)
             .orElseThrow(() -> new RuntimeException("Voucher không tồn tại"));
         
+        // Cập nhật status trước khi kiểm tra
+        updateVoucherStatus(voucher);
+        
         // Kiểm tra voucher còn active không
         if (!Status.ACTIVE.equals(voucher.getStatus())) {
-            throw new RuntimeException("Voucher đã bị vô hiệu hóa");
+            throw new RuntimeException("Voucher đã hết hạn hoặc không còn hiệu lực");
         }
         
-        // Kiểm tra thời gian hiệu lực
+        // Kiểm tra thời gian hiệu lực (double check)
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(voucher.getStartDate()) || now.isAfter(voucher.getEndDate())) {
             throw new RuntimeException("Voucher đã hết hạn hoặc chưa có hiệu lực");
