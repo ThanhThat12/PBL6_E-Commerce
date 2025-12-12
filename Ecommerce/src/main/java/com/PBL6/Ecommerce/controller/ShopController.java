@@ -312,7 +312,7 @@ public class ShopController {
      * GET /api/seller/registration/status
      */
     @GetMapping("/seller/registration/status")
-    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
+    @PreAuthorize("hasAnyRole('BUYER')")
     public ResponseEntity<ResponseDTO<RegistrationStatusDTO>> getRegistrationStatus() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -337,9 +337,10 @@ public class ShopController {
     /**
      * NEW: Cancel rejected application (allows re-submission)
      * DELETE /api/seller/registration
+     * Allows both BUYER (before approval) and SELLER (after rejection) to cancel
      */
     @DeleteMapping("/seller/registration")
-    @PreAuthorize("hasRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER')")
     public ResponseEntity<ResponseDTO<Boolean>> cancelRejectedApplication() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -360,6 +361,35 @@ public class ShopController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(
                 new ResponseDTO<>(500, e.getMessage(), "Lỗi hệ thống", false)
+            );
+        }
+    }
+    /**
+     * Update rejected application with new information
+     * PUT /api/seller/registration
+     * Allows BUYER to fix issues and resubmit as PENDING
+     */
+    @PutMapping("/seller/registration")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ResponseDTO<SellerRegistrationResponseDTO>> updateRejectedApplication(
+            @Valid @RequestBody SellerRegistrationRequestDTO request) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
+
+            SellerRegistrationResponseDTO response = sellerRegistrationService.updateRejectedApplication(user, request);
+
+            return ResponseEntity.ok(
+                    new ResponseDTO<>(200, null, response.getMessage(), response)
+            );
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(
+                    new ResponseDTO<>(400, e.getMessage(), "Cập nhật đơn đăng ký thất bại", null)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                    new ResponseDTO<>(500, e.getMessage(), "Lỗi hệ thống", null)
             );
         }
     }

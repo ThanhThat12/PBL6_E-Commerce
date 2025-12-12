@@ -374,20 +374,103 @@ public class SellerRegistrationService {
     }
 
     /**
-     * Allow rejected user to re-submit registration
-     * Deletes old rejected shop and allows new submission
-     * 
-     * @param user - User wanting to resubmit
-     * @return boolean - true if old application was deleted
+     * Update rejected application with new information
+     * Allows BUYER to fix issues mentioned in rejection reason
+     * Changes status from REJECTED back to PENDING
+     *
+     * @param user - BUYER user wanting to resubmit
+     * @param request - Updated registration data
+     * @return SellerRegistrationResponseDTO
+     */
+    @Transactional
+    public SellerRegistrationResponseDTO updateRejectedApplication(User user, SellerRegistrationRequestDTO request) {
+        // Validate user is BUYER
+        if (user.getRole() != Role.BUYER) {
+            throw new RuntimeException("Chỉ tài khoản BUYER mới có thể cập nhật đơn đăng ký");
+        }
+
+        // Find rejected shop
+        Shop shop = shopRepository.findByOwnerAndStatus(user, ShopStatus.REJECTED)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn đăng ký bị từ chối"));
+
+        // Check shop name uniqueness (if changed)
+        if (!shop.getName().equals(request.getShopName().trim())) {
+            List<ShopStatus> activeOrPendingStatuses = Arrays.asList(ShopStatus.ACTIVE, ShopStatus.PENDING);
+            if (shopRepository.existsByNameAndStatusIn(request.getShopName().trim(), activeOrPendingStatuses)) {
+                throw new RuntimeException("Tên shop đã tồn tại, vui lòng chọn tên khác");
+            }
+        }
+
+        // Check ID card uniqueness (if changed)
+        if (request.getIdCardNumber() != null && !request.getIdCardNumber().equals(shop.getIdCardNumber())) {
+            List<ShopStatus> activeOrPendingStatuses = Arrays.asList(ShopStatus.ACTIVE, ShopStatus.PENDING);
+            if (shopRepository.existsByIdCardNumberAndStatusIn(request.getIdCardNumber().trim(), activeOrPendingStatuses)) {
+                throw new RuntimeException("Số CMND/CCCD này đã được sử dụng để đăng ký shop khác");
+            }
+        }
+
+        // Update shop information
+        shop.setName(request.getShopName().trim());
+        shop.setDescription(request.getDescription());
+        shop.setShopPhone(request.getShopPhone());
+        shop.setShopEmail(request.getShopEmail());
+
+        // Update KYC info
+        shop.setIdCardNumber(request.getIdCardNumber());
+        shop.setIdCardFrontUrl(request.getIdCardFrontUrl());
+        shop.setIdCardFrontPublicId(request.getIdCardFrontPublicId());
+        shop.setIdCardBackUrl(request.getIdCardBackUrl());
+        shop.setIdCardBackPublicId(request.getIdCardBackPublicId());
+        shop.setSelfieWithIdUrl(request.getSelfieWithIdUrl());
+        shop.setSelfieWithIdPublicId(request.getSelfieWithIdPublicId());
+        shop.setIdCardName(request.getIdCardName());
+
+        // Update branding
+        shop.setLogoUrl(request.getLogoUrl());
+        shop.setLogoPublicId(request.getLogoPublicId());
+        shop.setBannerUrl(request.getBannerUrl());
+        shop.setBannerPublicId(request.getBannerPublicId());
+
+        // Reset status to PENDING
+        shop.setStatus(ShopStatus.PENDING);
+        shop.setSubmittedAt(LocalDateTime.now());
+        shop.setReviewedAt(null);
+        shop.setReviewedBy(null);
+        shop.setRejectionReason(null);
+
+        Shop updatedShop = shopRepository.save(shop);
+
+        // Update address if provided
+        handleAddress(user, request, updatedShop);
+
+        return SellerRegistrationResponseDTO.success(
+                "Đã cập nhật đơn đăng ký thành công! Đơn của bạn đang chờ xét duyệt lại.",
+                updatedShop.getId(),
+                updatedShop.getName(),
+                "PENDING"
+        );
+    }
+
+    /**
+     * Delete rejected application completely (optional - if user wants to start fresh)
+     *
+     * @param user - User wanting to delete rejected application
+     * @return boolean - true if application was deleted
      */
     @Transactional
     public boolean cancelRejectedApplication(User user) {
+        // Validate user is BUYER (rejected users are BUYER)
+        if (user.getRole() != Role.BUYER) {
+            throw new RuntimeException("Chỉ tài khoản BUYER mới có thể hủy đơn đăng ký");
+        }
+
         return shopRepository.findByOwnerAndStatus(user, ShopStatus.REJECTED)
-            .map(shop -> {
-                shopRepository.delete(shop);
-                return true;
-            })
-            .orElse(false);
+                .map(shop -> {
+                    // Delete rejected shop completely
+                    shopRepository.delete(shop);
+                    return true;
+                })
+                .orElse(false);
     }
 
     /**

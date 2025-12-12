@@ -151,8 +151,9 @@ public class SecurityConfig {
 
                 // Seller Registration (Buyer upgrade to Seller - Shopee style with Admin approval)
                 .requestMatchers(HttpMethod.POST, "/api/seller/register").hasRole("BUYER")
-                .requestMatchers(HttpMethod.GET, "/api/seller/registration/status").hasAnyRole("BUYER", "SELLER")
-                .requestMatchers(HttpMethod.DELETE, "/api/seller/registration").hasRole("BUYER")
+                .requestMatchers(HttpMethod.GET, "/api/seller/registration/status").hasAnyRole("BUYER")
+                .requestMatchers(HttpMethod.DELETE, "/api/seller/registration").hasAnyRole("BUYER") // Allow SELLER to cancel REJECTED application
+                .requestMatchers(HttpMethod.PUT, "/api/seller/registration").hasRole("BUYER")
                 .requestMatchers(HttpMethod.GET, "/api/seller/registration/can-submit").hasRole("BUYER")
 
                 // Admin - Seller Registration Management
