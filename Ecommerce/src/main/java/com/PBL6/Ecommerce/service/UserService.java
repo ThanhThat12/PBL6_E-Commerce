@@ -3,18 +3,32 @@ package com.PBL6.Ecommerce.service;
 // ============================================
 // DOMAIN IMPORTS
 // ============================================
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.PBL6.Ecommerce.domain.Address;
 import com.PBL6.Ecommerce.domain.Cart;
-import com.PBL6.Ecommerce.domain.Role;
 import com.PBL6.Ecommerce.domain.Product;
+import com.PBL6.Ecommerce.domain.Role;
 import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.domain.Shop.ShopStatus;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.Verification;
-
-// ============================================
-// DTO IMPORTS
-// ============================================
 import com.PBL6.Ecommerce.domain.dto.ChangePasswordDTO;
 import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
 import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
@@ -24,8 +38,8 @@ import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
 import com.PBL6.Ecommerce.domain.dto.UserListDTO;
 import com.PBL6.Ecommerce.domain.dto.UserProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
-import com.PBL6.Ecommerce.domain.dto.admin.AdminCreateAdminDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminChangePasswordDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminCreateAdminDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminMyProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminStatsDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminUpdateMyProfileDTO;
@@ -37,13 +51,9 @@ import com.PBL6.Ecommerce.domain.dto.admin.ListAdminUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.ListCustomerUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.ListSellerUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.SellerStatsDTO;
-
-// ============================================
-// EXCEPTION IMPORTS
-// ============================================
 import com.PBL6.Ecommerce.exception.DuplicateEmailException;
-import com.PBL6.Ecommerce.exception.DuplicateUsernameException;
 import com.PBL6.Ecommerce.exception.DuplicatePhoneException;
+import com.PBL6.Ecommerce.exception.DuplicateUsernameException;
 import com.PBL6.Ecommerce.exception.ExpiredOtpException;
 import com.PBL6.Ecommerce.exception.InvalidOtpException;
 import com.PBL6.Ecommerce.exception.InvalidRoleException;
@@ -53,10 +63,6 @@ import com.PBL6.Ecommerce.exception.UnauthenticatedException;
 import com.PBL6.Ecommerce.exception.UnauthorizedUserActionException;
 import com.PBL6.Ecommerce.exception.UserHasReferencesException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
-
-// ============================================
-// REPOSITORY IMPORTS
-// ============================================
 import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
@@ -69,30 +75,6 @@ import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.repository.VerificationRepository;
 import com.PBL6.Ecommerce.repository.VouchersRepository;
 import com.PBL6.Ecommerce.repository.WalletRepository;
-
-// ============================================
-// SPRING IMPORTS
-// ============================================
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.data.domain.PageImpl;
-
-// ============================================
-// JAVA IMPORTS
-// ============================================
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.Random;
-import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -424,14 +406,6 @@ public class UserService {
         }
 
         User user = resolveCurrentUser(authentication);
-
-        // Check if username is being changed and already exists
-        if (dto.getUsername() != null && !dto.getUsername().equals(user.getUsername())) {
-            if (userRepository.findOneByUsername(dto.getUsername()).isPresent()) {
-                throw new RuntimeException("Username already exists");
-            }
-            user.setUsername(dto.getUsername());
-        }
 
         // Check if email is being changed and already exists
         if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {

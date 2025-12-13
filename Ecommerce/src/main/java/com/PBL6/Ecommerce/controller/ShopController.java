@@ -35,7 +35,6 @@ import com.PBL6.Ecommerce.service.ShopService;
 import com.PBL6.Ecommerce.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -267,10 +266,26 @@ public class ShopController {
         }
     }
     /**
-     * NEW: Submit seller registration (Buyer applies to become Seller)
-     * POST /api/seller/register
-     * Creates PENDING shop, requires admin approval
+     * Submit seller registration (BUYER applies to become SELLER)
+     * POST /api/registration/submit
+     * Creates PENDING shop, requires admin approval for role transition
+     * 
+     * NOTE: User remains BUYER role until admin APPROVES. After approval,
+     * role automatically changes to SELLER and user can access /api/seller/** endpoints.
      */
+    @Operation(
+        summary = "Submit seller registration application",
+        description = "Allows BUYER to apply for seller status. Creates a PENDING shop that requires admin approval. " +
+                      "After approval, user role automatically changes to SELLER.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Registration submitted successfully",
+            content = @Content(schema = @Schema(implementation = SellerRegistrationResponseDTO.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid registration data"),
+        @ApiResponse(responseCode = "403", description = "User is not a BUYER or already has active registration"),
+        @ApiResponse(responseCode = "409", description = "Duplicate shop name or existing PENDING registration")
+    })
     @PostMapping("/seller/register")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ResponseDTO<SellerRegistrationResponseDTO>> submitSellerRegistration(
@@ -281,6 +296,7 @@ public class ShopController {
             com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
 
             // Submit registration (creates PENDING shop)
+            // Role transition (BUYER → SELLER) happens when admin APPROVES (in AdminController)
             SellerRegistrationResponseDTO response = sellerRegistrationService.submitRegistration(user, registrationDTO);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -291,10 +307,12 @@ public class ShopController {
             String errorMessage = e.getMessage();
             int statusCode;
 
-            if (errorMessage.contains("Chỉ tài khoản BUYER")) {
+            if (errorMessage.contains("không phải BUYER") || errorMessage.contains("Chỉ tài khoản BUYER")) {
                 statusCode = 403;
-            } else if (errorMessage.contains("đã có đơn đăng ký") || errorMessage.contains("Tên shop đã tồn tại")) {
-                statusCode = 409;
+            } else if (errorMessage.contains("đã có đơn đăng ký") || errorMessage.contains("đã có shop")) {
+                statusCode = 409;  // Conflict: user already has pending/active registration
+            } else if (errorMessage.contains("Tên shop đã tồn tại")) {
+                statusCode = 409;  // Conflict: shop name duplicate
             } else {
                 statusCode = 400;
             }
@@ -308,11 +326,24 @@ public class ShopController {
     }
 
     /**
-     * NEW: Get registration status for current user
-     * GET /api/seller/registration/status
+     * Get registration status for current user
+     * GET /api/registration/status
+     * Returns registration status: PENDING, APPROVED, REJECTED, or NOT_FOUND
+     * Accessible to both BUYER and SELLER (checks both new applications and approved shops)
      */
+    @Operation(
+        summary = "Get seller registration status",
+        description = "Get the current registration status for the authenticated user (BUYER checking application or SELLER checking approval status)",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Registration status retrieved successfully",
+            content = @Content(schema = @Schema(implementation = RegistrationStatusDTO.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "404", description = "No registration found for this user")
+    })
     @GetMapping("/seller/registration/status")
-    @PreAuthorize("hasAnyRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
     public ResponseEntity<ResponseDTO<RegistrationStatusDTO>> getRegistrationStatus() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -335,26 +366,39 @@ public class ShopController {
     }
 
     /**
-     * NEW: Cancel rejected application (allows re-submission)
-     * DELETE /api/seller/registration
-     * Allows both BUYER (before approval) and SELLER (after rejection) to cancel
+     * Cancel registration application
+     * DELETE /api/registration
+     * Allows BUYER to cancel PENDING application (before admin review)
+     * Allows SELLER to cancel REJECTED application (and submit new one)
+     * After cancellation, new registration can be submitted immediately
      */
+    @Operation(
+        summary = "Cancel seller registration application",
+        description = "Cancel PENDING or REJECTED registration. After cancellation, new registration can be submitted.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Registration cancelled successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "404", description = "No cancellable registration found (PENDING or REJECTED)")
+    })
     @DeleteMapping("/seller/registration")
-    @PreAuthorize("hasAnyRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
     public ResponseEntity<ResponseDTO<Boolean>> cancelRejectedApplication() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
 
+            // Allows cancelling PENDING (BUYER) or REJECTED (SELLER) registrations
             boolean cancelled = sellerRegistrationService.cancelRejectedApplication(user);
 
             if (cancelled) {
                 return ResponseEntity.ok(
-                    new ResponseDTO<>(200, null, "Đã hủy đơn đăng ký bị từ chối. Bạn có thể đăng ký lại.", true)
+                    new ResponseDTO<>(200, null, "Đã hủy đơn đăng ký. Bạn có thể đăng ký lại.", true)
                 );
             } else {
                 return ResponseEntity.status(404).body(
-                    new ResponseDTO<>(404, "Không tìm thấy đơn đăng ký bị từ chối", "Thất bại", false)
+                    new ResponseDTO<>(404, "Không tìm thấy đơn đăng ký đang chờ hoặc bị từ chối để hủy", "Thất bại", false)
                 );
             }
 
@@ -366,9 +410,26 @@ public class ShopController {
     }
     /**
      * Update rejected application with new information
-     * PUT /api/seller/registration
-     * Allows BUYER to fix issues and resubmit as PENDING
+     * PUT /api/registration
+     * Allows BUYER to fix issues on REJECTED application and resubmit as PENDING
+     * Status changes back to PENDING for admin review (approval cycle repeats)
+     * 
+     * IMPORTANT: Only works if current registration status is REJECTED.
+     * Cannot update PENDING or APPROVED registrations.
      */
+    @Operation(
+        summary = "Update rejected seller registration",
+        description = "Update and resubmit REJECTED registration with new information. Status changes back to PENDING for admin review. " +
+                      "Can only update registrations that are in REJECTED state.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Registration updated and resubmitted",
+            content = @Content(schema = @Schema(implementation = SellerRegistrationResponseDTO.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid data or registration not in REJECTED state"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "404", description = "No REJECTED registration found to update")
+    })
     @PutMapping("/seller/registration")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ResponseDTO<SellerRegistrationResponseDTO>> updateRejectedApplication(
@@ -377,6 +438,7 @@ public class ShopController {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             com.PBL6.Ecommerce.domain.User user = userService.resolveCurrentUser(authentication);
 
+            // Only updates REJECTED registrations (resets status to PENDING)
             SellerRegistrationResponseDTO response = sellerRegistrationService.updateRejectedApplication(user, request);
 
             return ResponseEntity.ok(
@@ -384,8 +446,22 @@ public class ShopController {
             );
 
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(
-                    new ResponseDTO<>(400, e.getMessage(), "Cập nhật đơn đăng ký thất bại", null)
+            String errorMessage = e.getMessage();
+            int statusCode;
+            
+            if (errorMessage.contains("không phải REJECTED") || errorMessage.contains("không có") || 
+                errorMessage.contains("không tìm thấy")) {
+                // Not a REJECTED registration or doesn't exist
+                statusCode = 404;
+            } else if (errorMessage.contains("PENDING") || errorMessage.contains("APPROVED")) {
+                // Already PENDING or APPROVED
+                statusCode = 400;
+            } else {
+                statusCode = 400;
+            }
+            
+            return ResponseEntity.status(statusCode).body(
+                    new ResponseDTO<>(statusCode, errorMessage, "Cập nhật đơn đăng ký thất bại", null)
             );
         } catch (Exception e) {
             return ResponseEntity.status(500).body(
@@ -395,9 +471,21 @@ public class ShopController {
     }
 
     /**
-     * NEW: Check if current user can submit new registration
-     * GET /api/seller/registration/can-submit
+     * Check if current user can submit new seller registration
+     * GET /api/registration/can-submit
+     * Returns true if user (BUYER) is eligible to submit registration
+     * Returns false if user already has pending/approved registration or active shop
      */
+    @Operation(
+        summary = "Check if user can submit seller registration",
+        description = "Verify if the current BUYER user is eligible to submit a new seller registration. " +
+                      "Returns false if user already has PENDING/APPROVED registration or active SELLER role.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Eligibility check completed successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
     @GetMapping("/seller/registration/can-submit")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ResponseDTO<Map<String, Object>>> canSubmitRegistration() {
