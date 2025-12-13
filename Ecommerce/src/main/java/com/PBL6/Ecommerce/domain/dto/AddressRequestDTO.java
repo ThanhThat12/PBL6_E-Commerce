@@ -27,7 +27,22 @@ public class AddressRequestDTO {
     @Pattern(regexp = "^(0|\\+84)[0-9]{9,10}$", message = "Số điện thoại không hợp lệ")
     public String contactPhone;
     
-    public boolean primaryAddress; // true nếu muốn đánh dấu primary
+    /**
+     * Type of address: HOME or STORE only
+     * - HOME: Địa chỉ nhận hàng của buyer (có thể có nhiều, chọn 1 primary)
+     * - STORE: Địa chỉ kho/cửa hàng của seller (chỉ có 1, không có primary)
+     * Default: HOME if not specified
+     */
+    @Pattern(regexp = "^(HOME|STORE)$", message = "Loại địa chỉ không hợp lệ. Chỉ chấp nhận: HOME hoặc STORE")
+    public String typeAddress;
+    
+    /**
+     * Primary address flag - CHỈ áp dụng cho type_address = HOME
+     * - Buyer có thể set 1 địa chỉ HOME làm mặc định
+     * - STORE address không dùng primary (seller chỉ có 1 STORE)
+     * - Khi set primary=true, các địa chỉ HOME khác sẽ tự động unset
+     */
+    public boolean primaryAddress;
     
     public String getFullAddress() {
         return fullAddress;
@@ -79,11 +94,16 @@ public class AddressRequestDTO {
     public void setContactPhone(String contactPhone) {
         this.contactPhone = contactPhone;
     }
+    public String getTypeAddress() {
+        return typeAddress;
+    }
+    public void setTypeAddress(String typeAddress) {
+        this.typeAddress = typeAddress;
+    }
     public boolean isPrimaryAddress() {
         return primaryAddress;
     }
     public void setPrimaryAddress(boolean primaryAddress) {
         this.primaryAddress = primaryAddress;
     }
-    
 }

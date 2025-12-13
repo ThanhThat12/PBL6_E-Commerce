@@ -22,10 +22,8 @@ import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.service.AddressService;
 import com.PBL6.Ecommerce.service.UserService;
 
-import jakarta.validation.Valid;
-
-
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 @Tag(name = "Addresses", description = "User address management")
 @RestController
 @RequestMapping("/api/me/addresses")
@@ -53,30 +51,14 @@ public class AddressController {
         d.setDistrictName(a.getDistrictName());
         d.setWardName(a.getWardName());
         
-    d.setContactName(a.getContactName());
+        d.setContactName(a.getContactName());
         d.setContactPhone(a.getContactPhone());
         d.setPrimaryAddress(a.isPrimaryAddress());
+        d.setTypeAddress(a.getTypeAddress() != null ? a.getTypeAddress().name() : "HOME");
         d.setCreatedAt(a.getCreatedAt());
+        d.setUpdatedAt(a.getUpdatedAt());
         return d;
     }
-
-
-    private Long extractUserId(Jwt jwt) {
-    if (jwt == null) return null;
-    
-    // Lấy userId từ claim "userId" thay vì "sub"
-    Object userIdClaim = jwt.getClaim("userId");
-    if (userIdClaim == null) return null;
-    
-    try {
-        if (userIdClaim instanceof Number) {
-            return ((Number) userIdClaim).longValue();
-        }
-        return Long.parseLong(userIdClaim.toString());
-    } catch (NumberFormatException ex) {
-        return null;
-    }
-}
 
     @GetMapping
     public ResponseEntity<ResponseDTO<List<AddressResponseDTO>>> list(@AuthenticationPrincipal Jwt jwt) {

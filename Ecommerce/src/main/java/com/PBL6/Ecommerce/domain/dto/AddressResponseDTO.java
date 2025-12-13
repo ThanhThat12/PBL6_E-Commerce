@@ -17,7 +17,9 @@ public class AddressResponseDTO {
     private String contactName;
     private String contactPhone;
     private Boolean primaryAddress;
+    private String typeAddress; // HOME, STORE, etc.
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public AddressResponseDTO() {}
 
@@ -52,7 +54,13 @@ public class AddressResponseDTO {
 
     public Boolean getPrimaryAddress() { return primaryAddress; }
     public void setPrimaryAddress(Boolean primaryAddress) { this.primaryAddress = primaryAddress; }
+    
+    public String getTypeAddress() { return typeAddress; }
+    public void setTypeAddress(String typeAddress) { this.typeAddress = typeAddress; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

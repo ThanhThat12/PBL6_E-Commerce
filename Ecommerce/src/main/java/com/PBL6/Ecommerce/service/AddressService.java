@@ -2,12 +2,13 @@ package com.PBL6.Ecommerce.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.Address;
 import com.PBL6.Ecommerce.constant.TypeAddress;
+import com.PBL6.Ecommerce.domain.Address;
 import com.PBL6.Ecommerce.domain.User;
 import com.PBL6.Ecommerce.domain.dto.AddressRequestDTO;
 import com.PBL6.Ecommerce.exception.AddressNotFoundException;
@@ -85,8 +86,31 @@ public class AddressService {
                 .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng với ID: " + userId));
         
         resolveNamesIfNeeded(req);
-
-        if (req.primaryAddress) {
+        
+        // Parse and validate type
+        TypeAddress type = TypeAddress.HOME;
+        if (req.typeAddress != null && !req.typeAddress.isBlank()) {
+            try {
+                type = TypeAddress.valueOf(req.typeAddress.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Loại địa chỉ không hợp lệ. Chỉ chấp nhận: HOME hoặc STORE");
+            }
+        }
+        
+        // Business Rule: Seller chỉ có 1 địa chỉ STORE duy nhất
+        if (type == TypeAddress.STORE) {
+            Optional<Address> existingStore = addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.STORE);
+            if (existingStore.isPresent()) {
+                throw new IllegalStateException("Bạn chỉ có thể có một địa chỉ cửa hàng. Vui lòng cập nhật địa chỉ hiện tại thay vì tạo mới.");
+            }
+            // STORE address không được set primary
+            if (req.primaryAddress) {
+                throw new IllegalArgumentException("Địa chỉ STORE không được đánh dấu là địa chỉ mặc định");
+            }
+        }
+        
+        // Business Rule: Primary address chỉ áp dụng cho HOME
+        if (req.primaryAddress && type == TypeAddress.HOME) {
             addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
                     .ifPresent(prev -> {
                         prev.setPrimaryAddress(false);
@@ -100,7 +124,7 @@ public class AddressService {
         a.setProvinceId(req.provinceId);
         a.setDistrictId(req.districtId);
         a.setWardCode(req.wardCode);
-        a.setTypeAddress(TypeAddress.HOME);
+        a.setTypeAddress(type);
         // Set names from request if provided, otherwise resolve from GHN
         if (req.provinceName != null && !req.provinceName.isBlank()) {
             a.setProvinceName(req.provinceName);
@@ -192,8 +216,31 @@ public class AddressService {
         if (!a.getUser().getId().equals(userId)) {
             throw new UnauthorizedAddressAccessException(addressId);
         }
+        
+        // Validate type change
+        if (req.typeAddress != null && !req.typeAddress.isBlank()) {
+            try {
+                TypeAddress newType = TypeAddress.valueOf(req.typeAddress.toUpperCase());
+                
+                // Không cho phép đổi từ HOME sang STORE hoặc ngược lại
+                if (a.getTypeAddress() != newType) {
+                    throw new IllegalArgumentException("Không thể thay đổi loại địa chỉ từ " + a.getTypeAddress() + " sang " + newType);
+                }
+            } catch (IllegalArgumentException e) {
+                if (!e.getMessage().contains("Không thể thay đổi")) {
+                    throw new IllegalArgumentException("Loại địa chỉ không hợp lệ. Chỉ chấp nhận: HOME hoặc STORE");
+                }
+                throw e;
+            }
+        }
+        
+        // Validate primary for STORE
+        if (req.primaryAddress && a.getTypeAddress() == TypeAddress.STORE) {
+            throw new IllegalArgumentException("Địa chỉ STORE không được đánh dấu là địa chỉ mặc định");
+        }
 
-        if (req.primaryAddress && !a.isPrimaryAddress()) {
+        // Unset other primary addresses if setting this as primary
+        if (req.primaryAddress && !a.isPrimaryAddress() && a.getTypeAddress() == TypeAddress.HOME) {
             addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
                     .ifPresent(prev -> {
                         if (!prev.getId().equals(a.getId())) {
@@ -207,6 +254,7 @@ public class AddressService {
         if (req.provinceId != null) a.setProvinceId(req.provinceId);
         if (req.districtId != null) a.setDistrictId(req.districtId);
         if (req.wardCode != null) a.setWardCode(req.wardCode);
+        // Note: Type address cannot be changed after creation
         
         // Set names from request if provided
         if (req.provinceName != null && !req.provinceName.isBlank()) {
@@ -237,9 +285,26 @@ public class AddressService {
             throw new UnauthorizedAddressAccessException(addressId);
         }
         
+        // Business Rule: Không cho xóa địa chỉ primary (phải set primary cho địa chỉ khác trước)
+        if (a.isPrimaryAddress() && a.getTypeAddress() == TypeAddress.HOME) {
+            throw new IllegalStateException("Không thể xóa địa chỉ mặc định. Vui lòng đặt địa chỉ khác làm mặc định trước khi xóa.");
+        }
+        
+        // Business Rule: Không cho xóa địa chỉ STORE (chỉ cho phép update)
+        if (a.getTypeAddress() == TypeAddress.STORE) {
+            throw new IllegalStateException("Không thể xóa địa chỉ cửa hàng. Bạn chỉ có thể cập nhật thông tin.");
+        }
+        
         addressRepository.delete(a);
     }
 
+    /**
+     * Mark address as primary - CHỈ áp dụng cho địa chỉ HOME
+     * Business Rule:
+     * - Chỉ địa chỉ HOME mới có thể set primary
+     * - Tự động unset primary cho các địa chỉ HOME khác của user
+     * - STORE address không có primary
+     */
     @Transactional
     public Address markPrimary(Long userId, Long addressId) {
         Address a = addressRepository.findById(addressId)
@@ -248,16 +313,41 @@ public class AddressService {
         if (!a.getUser().getId().equals(userId)) {
             throw new UnauthorizedAddressAccessException(addressId);
         }
+        
+        // Validate: Chỉ HOME address mới có thể set primary
+        if (a.getTypeAddress() != TypeAddress.HOME) {
+            throw new IllegalArgumentException("Chỉ địa chỉ nhận hàng (HOME) mới có thể đặt làm mặc định. Địa chỉ cửa hàng (STORE) không cần đặt mặc định.");
+        }
 
-        addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
-                .ifPresent(prev -> {
-                    if (!prev.getId().equals(a.getId())) {
-                        prev.setPrimaryAddress(false);
-                        addressRepository.save(prev);
-                    }
-                });
+        // Unset primary for other HOME addresses
+        List<Address> homeAddresses = addressRepository.findByUserId(userId).stream()
+                .filter(addr -> addr.getTypeAddress() == TypeAddress.HOME && addr.isPrimaryAddress() && !addr.getId().equals(addressId))
+                .collect(java.util.stream.Collectors.toList());
+        
+        for (Address prev : homeAddresses) {
+            prev.setPrimaryAddress(false);
+            addressRepository.save(prev);
+        }
         
         a.setPrimaryAddress(true);
         return addressRepository.save(a);
+    }
+    
+    /**
+     * Get primary HOME address for user (for checkout)
+     */
+    public Address getPrimaryHomeAddress(Long userId) {
+        return addressRepository.findByUserId(userId).stream()
+                .filter(a -> a.getTypeAddress() == TypeAddress.HOME && a.isPrimaryAddress())
+                .findFirst()
+                .orElse(null);
+    }
+    
+    /**
+     * Get STORE address for seller (for shipping from_address)
+     */
+    public Address getStoreAddress(Long sellerId) {
+        return addressRepository.findFirstByUserIdAndTypeAddress(sellerId, TypeAddress.STORE)
+                .orElse(null);
     }
 }
