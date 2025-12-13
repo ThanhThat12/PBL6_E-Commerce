@@ -317,4 +317,27 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "WHERE o.status = 'COMPLETED' AND o.createdAt BETWEEN :startDate AND :endDate")
     Long countCompletedOrdersByDateRange(@Param("startDate") LocalDateTime startDate, 
                                         @Param("endDate") LocalDateTime endDate);
+    
+    // ============================================
+    // ADMIN - Customer Statistics Methods
+    // ============================================
+    
+    /**
+     * Đếm tổng số đơn hàng của buyer (tất cả status)
+     */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.user.id = :buyerId")
+    Integer countByBuyerId(@Param("buyerId") Long buyerId);
+    
+    /**
+     * Tính tổng tiền đã chi của buyer từ các đơn hàng COMPLETED
+     */
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0.0) FROM Order o " +
+           "WHERE o.user.id = :buyerId AND o.status = 'COMPLETED'")
+    Double getTotalSpentByBuyerId(@Param("buyerId") Long buyerId);
+    
+    /**
+     * Lấy ngày đặt hàng gần nhất của buyer (tất cả status)
+     */
+    @Query("SELECT MAX(o.createdAt) FROM Order o WHERE o.user.id = :buyerId")
+    LocalDateTime getLastOrderDateByBuyerId(@Param("buyerId") Long buyerId);
 }
