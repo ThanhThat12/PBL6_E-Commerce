@@ -50,6 +50,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = :role AND u.createdAt >= :startDate")
     long countByRoleAndCreatedAtAfter(@Param("role") Role role, @Param("startDate") LocalDateTime startDate);
     
+    // ADMIN Đếm số lượng user theo role và khoảng thời gian
+    Long countByRoleAndCreatedAtBetween(Role role, LocalDateTime startDate, LocalDateTime endDate);
+    
     // Method để kiểm tra phone number đã được sử dụng bởi seller chưa
     List<User> findByPhoneNumberAndRole(String phoneNumber, Role role);
 
