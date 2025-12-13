@@ -125,7 +125,7 @@ public class VoucherService {
         Vouchers savedVoucher = vouchersRepository.save(voucher);
         
         // Lưu sản phẩm áp dụng (nếu có)
-        if (com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.ApplicableType.SPECIFIC_PRODUCTS.equals(request.getApplicableType()) && 
+        if (ApplicableType.SPECIFIC_PRODUCTS.equals(request.getApplicableType()) && 
             request.getProductIds() != null && !request.getProductIds().isEmpty()) {
             
             for (Long productId : request.getProductIds()) {
@@ -145,7 +145,7 @@ public class VoucherService {
         }
         
         // Lưu user áp dụng (nếu có)
-        if (com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.ApplicableType.SPECIFIC_USERS.equals(request.getApplicableType()) && 
+        if (ApplicableType.SPECIFIC_USERS.equals(request.getApplicableType()) && 
             request.getUserIds() != null && !request.getUserIds().isEmpty()) {
             
             for (Long userId : request.getUserIds()) {
@@ -160,7 +160,7 @@ public class VoucherService {
         }
         
         // Lưu top buyers (nếu có)
-        if (com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.ApplicableType.TOP_BUYERS.equals(request.getApplicableType()) && request.getTopBuyersCount() != null) {
+        if (ApplicableType.TOP_BUYERS.equals(request.getApplicableType()) && request.getTopBuyersCount() != null) {
             List<TopBuyerDTO> topBuyers = orderRepository.findTopBuyersByShopWithLimit(
                 shop.getId(), 
                 PageRequest.of(0, request.getTopBuyersCount())
@@ -316,6 +316,19 @@ public class VoucherService {
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new RuntimeException("User not found"));
         Long userId = user.getId();
+        
+        // If shopId not provided, determine from productIds
+        if (shopId == null) {
+            if (productIds == null || productIds.isEmpty()) {
+                throw new RuntimeException("Either shopId or productIds must be provided");
+            }
+            
+            // Get shop from first product
+            Product product = productRepository.findById(productIds.get(0))
+                .orElseThrow(() -> new RuntimeException("Product not found: " + productIds.get(0)));
+            shopId = product.getShop().getId();
+            log.info("Determined shopId {} from productId {}", shopId, productIds.get(0));
+        }
         
         // Verify shop exists
         shopRepository.findById(shopId)
