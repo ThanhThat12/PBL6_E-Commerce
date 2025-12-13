@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.SearchSynonym;
-import com.PBL6.Ecommerce.domain.SearchSynonym.SynonymType;
+import com.PBL6.Ecommerce.domain.entity.search.SearchSynonym;
+import com.PBL6.Ecommerce.domain.entity.search.SearchSynonym.SynonymType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

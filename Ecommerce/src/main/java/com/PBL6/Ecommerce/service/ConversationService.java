@@ -2,7 +2,13 @@ package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.constant.ConversationType;
 import com.PBL6.Ecommerce.domain.*;
-import com.PBL6.Ecommerce.dto.*;
+import com.PBL6.Ecommerce.domain.dto.chat.*;
+import com.PBL6.Ecommerce.domain.entity.chat.Conversation;
+import com.PBL6.Ecommerce.domain.entity.chat.ConversationMember;
+import com.PBL6.Ecommerce.domain.entity.chat.Message;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.exception.*;
 import com.PBL6.Ecommerce.repository.*;
 import com.PBL6.Ecommerce.util.ConversationPermissionValidator;
@@ -240,7 +246,7 @@ public class ConversationService {
         members.add(userMember);
 
         // Add ALL admins to the conversation
-        List<User> admins = userRepository.findByRole(com.PBL6.Ecommerce.domain.Role.ADMIN);
+        List<User> admins = userRepository.findByRole(Role.ADMIN);
         log.info("Adding {} admin(s) to SUPPORT conversation", admins.size());
         
         for (User admin : admins) {
@@ -274,7 +280,7 @@ public class ConversationService {
      */
     private void notifyAdminsOfNewSupportConversation(Conversation conversation) {
         try {
-            List<User> admins = userRepository.findByRole(com.PBL6.Ecommerce.domain.Role.ADMIN);
+            List<User> admins = userRepository.findByRole(Role.ADMIN);
             
             for (User admin : admins) {
                 // Skip if admin is the creator

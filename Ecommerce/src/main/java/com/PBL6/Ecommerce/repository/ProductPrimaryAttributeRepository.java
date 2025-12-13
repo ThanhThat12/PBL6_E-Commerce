@@ -5,7 +5,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.PBL6.Ecommerce.domain.ProductPrimaryAttribute;
+import com.PBL6.Ecommerce.domain.entity.product.ProductPrimaryAttribute;
 
 /**
  * Repository for ProductPrimaryAttribute entity.

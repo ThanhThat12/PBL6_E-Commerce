@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.PlatformFee;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.payment.PlatformFee;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.PlatformFeeRepository;
 import org.slf4j.Logger;

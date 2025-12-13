@@ -12,9 +12,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.OrderItem;
-import com.PBL6.Ecommerce.domain.Order.OrderStatus;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
+import com.PBL6.Ecommerce.constant.OrderStatus;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminOrderDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminOrderDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminOrderItemDTO;
@@ -85,10 +85,10 @@ public class AdminOrderService {
         Long totalOrders = orderRepository.count();
         
         // Số đơn hàng PENDING
-        Long pendingOrders = orderRepository.countByStatus(OrderStatus.PENDING);
+        Long pendingOrders = orderRepository.countByStatus(Order.OrderStatus.PENDING);
         
         // Số đơn hàng COMPLETED
-        Long completedOrders = orderRepository.countByStatus(OrderStatus.COMPLETED);
+        Long completedOrders = orderRepository.countByStatus(Order.OrderStatus.COMPLETED);
         
         // Tổng doanh thu (không tính đơn CANCELLED)
         BigDecimal totalRevenue = orderRepository.calculateTotalRevenue();

@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.domain.dto.admin;
 
-import com.PBL6.Ecommerce.domain.Order;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

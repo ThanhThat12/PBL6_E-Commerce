@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.Vouchers;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherDetailDTO;
 
 import org.springframework.data.domain.Page;
@@ -64,15 +64,13 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
     List<Vouchers> findByShopId(Long shopId);
     
     // Lấy voucher đang active của shop
-        @Query("SELECT v FROM Vouchers v WHERE v.shop.id = :shopId AND v.status = com.PBL6.Ecommerce.domain.Vouchers.Status.ACTIVE " +
-            "AND v.startDate <= :now AND v.endDate >= :now " +
-            "ORDER BY v.createdAt DESC")
-        List<Vouchers> findActiveVouchersByShop(@Param("shopId") Long shopId, @Param("now") LocalDateTime now);
+        @Query("SELECT v FROM Vouchers v WHERE v.shop.id = :shopId AND v.status = 'ACTIVE' AND v.endDate > :currentDate")
+        List<Vouchers> findActiveVouchersByShop(@Param("shopId") Long shopId, @Param("currentDate") LocalDateTime currentDate);
     
     // Kiểm tra voucher code đã tồn tại
     boolean existsByCode(String code);
 
-    @Query("SELECT v FROM Vouchers v WHERE v.status = com.PBL6.Ecommerce.domain.Vouchers.Status.ACTIVE AND v.startDate <= :now AND v.endDate >= :now")
+    @Query("SELECT v FROM Vouchers v WHERE v.status = 'ACTIVE' AND v.startDate <= :now AND v.endDate >= :now")
     List<Vouchers> findActiveVouchers(@Param("now") LocalDateTime now);
 
     /**
@@ -84,7 +82,7 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
     /**
      * ADMIN Đếm số vouchers đang active
      */
-    @Query("SELECT COUNT(v) FROM Vouchers v WHERE v.status = com.PBL6.Ecommerce.domain.Vouchers.Status.ACTIVE")
+    @Query("SELECT COUNT(v) FROM Vouchers v WHERE v.status = 'ACTIVE'")
     Long countActiveVouchers();
 
     /**

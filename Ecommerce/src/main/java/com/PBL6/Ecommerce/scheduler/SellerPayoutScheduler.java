@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.scheduler;
 
-import com.PBL6.Ecommerce.domain.Order;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.service.WalletService;
 import com.PBL6.Ecommerce.service.NotificationService;

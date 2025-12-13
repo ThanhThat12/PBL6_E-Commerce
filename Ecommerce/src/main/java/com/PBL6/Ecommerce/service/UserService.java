@@ -3,14 +3,17 @@ package com.PBL6.Ecommerce.service;
 // ============================================
 // DOMAIN IMPORTS
 // ============================================
-import com.PBL6.Ecommerce.domain.Address;
-import com.PBL6.Ecommerce.domain.Cart;
-import com.PBL6.Ecommerce.domain.Role;
-import com.PBL6.Ecommerce.domain.Product;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.Shop.ShopStatus;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Verification;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.cart.Cart;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.payment.Wallet;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductReview;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop.ShopStatus;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.auth.Verification;
 
 // ============================================
 // DTO IMPORTS
@@ -1566,7 +1569,7 @@ public class UserService {
         log.debug("Deleting all orders for user ID: {}", userId);
         
         // Xóa orders nơi user là buyer
-        List<com.PBL6.Ecommerce.domain.Order> buyerOrders = orderRepository.findByUserId(userId);
+        List<Order> buyerOrders = orderRepository.findByUserId(userId);
         if (!buyerOrders.isEmpty()) {
             orderRepository.deleteAll(buyerOrders);
             log.info("Deleted {} orders where user ID {} was buyer", buyerOrders.size(), userId);
@@ -1575,7 +1578,7 @@ public class UserService {
         // Xóa orders nơi user là seller (through shop)
         Optional<Shop> shopOpt = shopRepository.findByUserId(userId);
         if (shopOpt.isPresent()) {
-            List<com.PBL6.Ecommerce.domain.Order> sellerOrders = orderRepository.findByShopId(shopOpt.get().getId());
+            List<Order> sellerOrders = orderRepository.findByShopId(shopOpt.get().getId());
             if (!sellerOrders.isEmpty()) {
                 orderRepository.deleteAll(sellerOrders);
                 log.info("Deleted {} orders where user ID {} was seller", sellerOrders.size(), userId);
@@ -1590,7 +1593,7 @@ public class UserService {
         log.debug("Deleting all product reviews for user ID: {}", userId);
         
         // Tìm tất cả reviews của user
-        List<com.PBL6.Ecommerce.domain.ProductReview> reviews = 
+        List<ProductReview> reviews = 
             productReviewRepository.findAll().stream()
                 .filter(review -> review.getUser().getId().equals(userId))
                 .collect(Collectors.toList());
@@ -1619,7 +1622,7 @@ public class UserService {
     private void deleteUserWallet(Long userId) {
         log.debug("Deleting wallet for user ID: {}", userId);
         
-        Optional<com.PBL6.Ecommerce.domain.Wallet> walletOpt = walletRepository.findByUserId(userId);
+        Optional<Wallet> walletOpt = walletRepository.findByUserId(userId);
         if (walletOpt.isPresent()) {
             walletRepository.delete(walletOpt.get());
             log.info("Deleted wallet for user ID: {}", userId);

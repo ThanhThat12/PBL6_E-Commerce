@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.User_Vouchers;
+import com.PBL6.Ecommerce.domain.entity.voucher.User_Vouchers;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

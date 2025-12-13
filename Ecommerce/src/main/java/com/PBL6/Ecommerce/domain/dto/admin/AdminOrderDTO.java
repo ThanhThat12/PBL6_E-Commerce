@@ -3,8 +3,8 @@ package com.PBL6.Ecommerce.domain.dto.admin;
 import java.math.BigDecimal;
 import java.util.Date;
 
-import com.PBL6.Ecommerce.domain.Order.OrderStatus;
-import com.PBL6.Ecommerce.domain.Order.PaymentStatus;
+import com.PBL6.Ecommerce.domain.entity.order.Order.OrderStatus;
+import com.PBL6.Ecommerce.domain.entity.order.Order.PaymentStatus;
 
 public class AdminOrderDTO {
     private Long orderId;

@@ -1,10 +1,10 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.PaymentTransaction;
-import com.PBL6.Ecommerce.dto.PaymentCallbackRequest;
-import com.PBL6.Ecommerce.dto.PaymentResponseDTO;
-import com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
+import com.PBL6.Ecommerce.domain.dto.payment.PaymentCallbackRequest;
+import com.PBL6.Ecommerce.domain.dto.payment.PaymentResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.payment.MoMoRefundResponseDTO;
 
 import java.math.BigDecimal;
 

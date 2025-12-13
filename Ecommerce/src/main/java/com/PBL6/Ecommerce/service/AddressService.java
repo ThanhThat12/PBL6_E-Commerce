@@ -6,9 +6,9 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.Address;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
 import com.PBL6.Ecommerce.constant.TypeAddress;
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.AddressRequestDTO;
 import com.PBL6.Ecommerce.exception.AddressNotFoundException;
 import com.PBL6.Ecommerce.exception.UnauthorizedAddressAccessException;

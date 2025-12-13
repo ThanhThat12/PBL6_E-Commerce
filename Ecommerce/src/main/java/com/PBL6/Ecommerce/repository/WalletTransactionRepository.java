@@ -1,9 +1,9 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Wallet;
-import com.PBL6.Ecommerce.domain.WalletTransaction;
-import com.PBL6.Ecommerce.domain.WalletTransaction.TransactionType;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.payment.Wallet;
+import com.PBL6.Ecommerce.domain.entity.payment.WalletTransaction;
+import com.PBL6.Ecommerce.domain.entity.payment.WalletTransaction.TransactionType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

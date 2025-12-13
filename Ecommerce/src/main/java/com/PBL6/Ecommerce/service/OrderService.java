@@ -6,11 +6,11 @@ import com.PBL6.Ecommerce.constant.OrderItemStatus;
 import com.PBL6.Ecommerce.constant.PaymentMethod;
 import com.PBL6.Ecommerce.constant.PaymentStatus;
 import com.PBL6.Ecommerce.constant.RefundStatus;
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Refund;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.PaymentTransaction;
-import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.order.Refund;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.RefundRepository;
 import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
@@ -29,14 +29,16 @@ import java.util.Optional;
 import java.util.Date;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.ShipmentRepository;
-import com.PBL6.Ecommerce.domain.Shipment;
-import com.PBL6.Ecommerce.domain.Address;
+import com.PBL6.Ecommerce.domain.entity.order.Shipment;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
 import com.PBL6.Ecommerce.constant.TypeAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import com.PBL6.Ecommerce.domain.OrderItem;
-import com.PBL6.Ecommerce.domain.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
 import com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.ItemReturnRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.MultiShopOrderResult;
@@ -57,7 +59,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
-import com.PBL6.Ecommerce.domain.Cart;
+import com.PBL6.Ecommerce.domain.entity.cart.Cart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.PBL6.Ecommerce.constant.TypeAddress;
@@ -127,7 +129,7 @@ public class OrderService {
             int qty = item.getQuantity() == null ? 1 : item.getQuantity();
 
             // Lấy product (từ variant->product hoặc trực tiếp từ productRepository)
-            com.PBL6.Ecommerce.domain.Product product = null;
+            Product product = null;
             ProductVariant variant = item.getVariant();
             if (variant != null && variant.getProduct() != null) {
                 product = variant.getProduct();
@@ -673,7 +675,7 @@ public class OrderService {
             .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
 
         // Kiểm tra user có phải seller không
-        if (seller.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+        if (seller.getRole() != Role.SELLER) {
             throw new UnauthorizedOrderAccessException("Người dùng không phải là seller");
         }
 
@@ -702,7 +704,7 @@ public class OrderService {
             .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
 
         // Kiểm tra role SELLER
-        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+        if (user.getRole() != Role.SELLER) {
             throw new UnauthorizedOrderAccessException("Người dùng không phải là seller");
         }
 
@@ -899,7 +901,7 @@ public class OrderService {
             .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
 
         // Kiểm tra role SELLER
-        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+        if (user.getRole() != Role.SELLER) {
             throw new UnauthorizedOrderAccessException("Người dùng không phải là seller");
         }
 

@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.LoginDTO;
 import com.PBL6.Ecommerce.exception.InvalidCredentialsException;
 import com.PBL6.Ecommerce.exception.UserNotActivatedException;

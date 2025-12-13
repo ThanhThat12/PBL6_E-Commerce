@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.PBL6.Ecommerce.dto.profile.request.ChangePasswordRequest;
-import com.PBL6.Ecommerce.dto.profile.ProfileDTO;
-import com.PBL6.Ecommerce.dto.profile.request.UpdateProfileRequest;
+import com.PBL6.Ecommerce.domain.dto.profile.request.ChangePasswordRequest;
+import com.PBL6.Ecommerce.domain.dto.profile.ProfileDTO;
+import com.PBL6.Ecommerce.domain.dto.profile.request.UpdateProfileRequest;
 import com.PBL6.Ecommerce.service.profile.ProfileService;
 
 import jakarta.validation.Valid;

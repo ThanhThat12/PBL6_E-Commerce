@@ -1,9 +1,9 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.Address;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
 import java.util.List;
 import java.util.Optional;
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.PBL6.Ecommerce.constant.TypeAddress;
 

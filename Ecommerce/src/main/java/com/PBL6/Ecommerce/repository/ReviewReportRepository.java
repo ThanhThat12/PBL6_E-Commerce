@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.ReviewReport;
+import com.PBL6.Ecommerce.domain.entity.product.ReviewReport;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

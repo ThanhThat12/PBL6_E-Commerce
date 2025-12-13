@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.ReviewLike;
+import com.PBL6.Ecommerce.domain.entity.product.ReviewLike;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

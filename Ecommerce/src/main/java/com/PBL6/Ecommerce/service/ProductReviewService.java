@@ -22,6 +22,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageImpl;
 import com.PBL6.Ecommerce.domain.dto.ShopReviewsGroupedDTO;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductReview;
+import com.PBL6.Ecommerce.domain.entity.product.ReviewLike;
+import com.PBL6.Ecommerce.domain.entity.product.ReviewReport;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+
 import java.util.List;
 import java.util.stream.Collectors;
 

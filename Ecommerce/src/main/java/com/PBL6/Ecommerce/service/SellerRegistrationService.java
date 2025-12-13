@@ -12,11 +12,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.constant.TypeAddress;
-import com.PBL6.Ecommerce.domain.Address;
-import com.PBL6.Ecommerce.domain.Role;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Shop.ShopStatus;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop.ShopStatus;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.AdminApprovalDTO;
 import com.PBL6.Ecommerce.domain.dto.AdminRejectionDTO;
 import com.PBL6.Ecommerce.domain.dto.PendingApplicationDTO;

@@ -7,10 +7,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.dto.profile.request.ChangePasswordRequest;
-import com.PBL6.Ecommerce.dto.profile.ProfileDTO;
-import com.PBL6.Ecommerce.dto.profile.request.UpdateProfileRequest;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.dto.profile.request.ChangePasswordRequest;
+import com.PBL6.Ecommerce.domain.dto.profile.ProfileDTO;
+import com.PBL6.Ecommerce.domain.dto.profile.request.UpdateProfileRequest;
 import com.PBL6.Ecommerce.exception.BadRequestException;
 import com.PBL6.Ecommerce.exception.NotFoundException;
 import com.PBL6.Ecommerce.repository.UserRepository;

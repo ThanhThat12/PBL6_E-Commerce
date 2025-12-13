@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.repository;
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.constant.OrderStatus;
 import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,9 +14,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import java.util.Optional;
 
 @Repository
@@ -251,7 +252,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     /**
      * Đếm số đơn hàng theo status (cho admin)
      */
-    Long countByStatus(Order.OrderStatus status);
+    Long countByStatus(Order.OrderStatus completed);
     
     /**
      * Tính tổng doanh thu của tất cả đơn hàng COMPLETED

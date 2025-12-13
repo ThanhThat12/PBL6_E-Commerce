@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.PaymentTransaction;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
 import com.PBL6.Ecommerce.constant.PaymentTransactionStatus;
 import com.PBL6.Ecommerce.exception.OrderNotFoundException;
 import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;

@@ -1,20 +1,25 @@
 package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.domain.*;
-import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
-import com.PBL6.Ecommerce.domain.Vouchers.ApplicableType;
-import com.PBL6.Ecommerce.domain.Vouchers.Status;
 import com.PBL6.Ecommerce.domain.dto.CreateVoucherRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherApplicationResultDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherPreviewDiscountDTO;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.voucher.VoucherProduct;
+import com.PBL6.Ecommerce.domain.entity.voucher.VoucherUser;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.ApplicableType;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.DiscountType;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.Status;
 import com.PBL6.Ecommerce.repository.*;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -100,7 +105,7 @@ public class VoucherService {
         Vouchers savedVoucher = vouchersRepository.save(voucher);
         
         // Lưu sản phẩm áp dụng (nếu có)
-        if (ApplicableType.SPECIFIC_PRODUCTS.equals(request.getApplicableType()) && 
+        if (com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.ApplicableType.SPECIFIC_PRODUCTS.equals(request.getApplicableType()) && 
             request.getProductIds() != null && !request.getProductIds().isEmpty()) {
             
             for (Long productId : request.getProductIds()) {
@@ -120,7 +125,7 @@ public class VoucherService {
         }
         
         // Lưu user áp dụng (nếu có)
-        if (ApplicableType.SPECIFIC_USERS.equals(request.getApplicableType()) && 
+        if (com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.ApplicableType.SPECIFIC_USERS.equals(request.getApplicableType()) && 
             request.getUserIds() != null && !request.getUserIds().isEmpty()) {
             
             for (Long userId : request.getUserIds()) {
@@ -135,7 +140,7 @@ public class VoucherService {
         }
         
         // Lưu top buyers (nếu có)
-        if (ApplicableType.TOP_BUYERS.equals(request.getApplicableType()) && request.getTopBuyersCount() != null) {
+        if (com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.ApplicableType.TOP_BUYERS.equals(request.getApplicableType()) && request.getTopBuyersCount() != null) {
             List<TopBuyerDTO> topBuyers = orderRepository.findTopBuyersByShopWithLimit(
                 shop.getId(), 
                 PageRequest.of(0, request.getTopBuyersCount())

@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.domain.dto;
 
-import com.PBL6.Ecommerce.domain.ProductAttribute;
+import com.PBL6.Ecommerce.domain.entity.product.ProductAttribute;
 
 public class ProductAtributeDTO {
     private Long id;

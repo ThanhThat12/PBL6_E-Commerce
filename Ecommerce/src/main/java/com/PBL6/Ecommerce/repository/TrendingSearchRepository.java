@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.TrendingSearch;
-import com.PBL6.Ecommerce.domain.TrendingSearch.TrendPeriod;
+import com.PBL6.Ecommerce.domain.entity.search.TrendingSearch;
+import com.PBL6.Ecommerce.domain.entity.search.TrendingSearch.TrendPeriod;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

@@ -1,8 +1,8 @@
 package com.PBL6.Ecommerce.domain.dto;
 
-import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
-import com.PBL6.Ecommerce.domain.Vouchers.ApplicableType;
-import com.PBL6.Ecommerce.domain.Vouchers.Status;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.DiscountType;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.ApplicableType;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.Status;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;

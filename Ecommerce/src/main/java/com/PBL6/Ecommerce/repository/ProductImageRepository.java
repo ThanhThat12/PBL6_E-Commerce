@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.PBL6.Ecommerce.domain.ProductImage;
+import com.PBL6.Ecommerce.domain.entity.product.ProductImage;
 
 @Repository
 public interface ProductImageRepository extends JpaRepository<ProductImage, Long> {

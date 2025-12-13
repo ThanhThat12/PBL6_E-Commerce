@@ -1,7 +1,8 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Role;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.admin.*;
 import com.PBL6.Ecommerce.repository.CategoryRepository;
 import com.PBL6.Ecommerce.repository.OrderRepository;

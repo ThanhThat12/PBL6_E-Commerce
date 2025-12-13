@@ -2,7 +2,7 @@ package com.PBL6.Ecommerce.domain.dto;
 
 import java.time.LocalDateTime;
 
-import com.PBL6.Ecommerce.domain.Shop.ShopStatus;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop.ShopStatus;
 
 /**
  * DTO for Admin to view pending seller applications

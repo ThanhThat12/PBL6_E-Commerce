@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.RefreshToken;
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.auth.RefreshToken;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.repository.RefreshTokenRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

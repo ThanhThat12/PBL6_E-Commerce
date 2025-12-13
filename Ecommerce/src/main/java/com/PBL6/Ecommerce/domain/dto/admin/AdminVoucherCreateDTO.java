@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.domain.dto.admin;
 
-import com.PBL6.Ecommerce.domain.Vouchers;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;

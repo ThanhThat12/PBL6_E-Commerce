@@ -4,10 +4,12 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import com.PBL6.Ecommerce.dto.request.ImageReorderRequest;
-import com.PBL6.Ecommerce.dto.response.ImageDeleteResponse;
-import com.PBL6.Ecommerce.dto.response.ImageUploadResponse;
-import com.PBL6.Ecommerce.dto.response.ProductImageResponse;
+import com.PBL6.Ecommerce.domain.dto.request.ImageReorderRequest;
+import com.PBL6.Ecommerce.domain.dto.response.ImageDeleteResponse;
+import com.PBL6.Ecommerce.domain.dto.response.ImageUploadResponse;
+import com.PBL6.Ecommerce.domain.dto.response.ProductImageResponse;
+import com.PBL6.Ecommerce.domain.dto.response.ProductImagesResponse;
+import com.PBL6.Ecommerce.domain.dto.response.VariantImageResponse;
 
 /**
  * Service interface for managing image uploads, transformations, and deletions
@@ -265,7 +267,7 @@ public interface ImageService {
      * @throws ImageUploadException if upload to Cloudinary fails
      * @throws SecurityException if user does not own the product
      */
-    com.PBL6.Ecommerce.dto.response.VariantImageResponse uploadVariantImage(
+    VariantImageResponse uploadVariantImage(
         Long productId, 
         MultipartFile file, 
         String attributeValue, 
@@ -289,7 +291,7 @@ public interface ImageService {
      * @param productId The ID of the product
      * @return ProductImagesResponse with all image types
      */
-    com.PBL6.Ecommerce.dto.response.ProductImagesResponse getProductImages(Long productId);
+    ProductImagesResponse getProductImages(Long productId);
 
     /**
      * Get list of primary attribute values for a product.
