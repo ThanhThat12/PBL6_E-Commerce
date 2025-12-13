@@ -144,10 +144,24 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/shops/*/reviews/unreplied").hasRole("SELLER") // Get unreplied reviews
                 .requestMatchers(HttpMethod.GET, "/api/my-shop/reviews/all").hasRole("SELLER") // Get all shop reviews grouped
 
-                // Profile endpoints (Buyer/Seller)
+                // Profile endpoints (Buyer/Seller) - per spec 006-profile US1
                 .requestMatchers(HttpMethod.GET, "/api/profile").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.GET, "/api/profile/*").permitAll() // Public profile by username
                 .requestMatchers(HttpMethod.PUT, "/api/profile").hasAnyRole("BUYER", "SELLER")
-                .requestMatchers(HttpMethod.POST, "/api/profile/**").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.POST, "/api/profile/avatar").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.DELETE, "/api/profile/avatar").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.POST, "/api/profile/change-password").hasAnyRole("BUYER", "SELLER")
+
+                // Address endpoints (Buyer/Seller) - per spec 006-profile US2
+                .requestMatchers(HttpMethod.GET, "/api/addresses").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.GET, "/api/addresses/*").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.POST, "/api/addresses").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.PUT, "/api/addresses/*").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.DELETE, "/api/addresses/*").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.GET, "/api/addresses/auto-fill").hasAnyRole("BUYER", "SELLER")
+                
+                // GHN Locations proxy (public for address forms) - per spec 006-profile US2
+                .requestMatchers(HttpMethod.GET, "/api/locations/**").permitAll()
 
                 // Seller Registration (Buyer upgrade to Seller - Shopee style with Admin approval)
                 .requestMatchers(HttpMethod.POST, "/api/seller/register").hasRole("BUYER")

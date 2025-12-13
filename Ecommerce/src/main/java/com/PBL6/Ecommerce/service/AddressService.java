@@ -86,9 +86,12 @@ public class AddressService {
         
         resolveNamesIfNeeded(req);
 
+        // If setting as primary, unset all other primary addresses for this user
         if (req.primaryAddress) {
-            addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
-                    .ifPresent(prev -> {
+            List<Address> existingAddresses = addressRepository.findByUserId(userId);
+            existingAddresses.stream()
+                    .filter(Address::isPrimaryAddress)
+                    .forEach(prev -> {
                         prev.setPrimaryAddress(false);
                         addressRepository.save(prev);
                     });
@@ -100,7 +103,8 @@ public class AddressService {
         a.setProvinceId(req.provinceId);
         a.setDistrictId(req.districtId);
         a.setWardCode(req.wardCode);
-        a.setTypeAddress(TypeAddress.HOME);
+        // Use typeAddress from request, default to HOME if not specified
+        a.setTypeAddress(req.typeAddress != null ? req.typeAddress : TypeAddress.HOME);
         // Set names from request if provided, otherwise resolve from GHN
         if (req.provinceName != null && !req.provinceName.isBlank()) {
             a.setProvinceName(req.provinceName);
@@ -193,13 +197,15 @@ public class AddressService {
             throw new UnauthorizedAddressAccessException(addressId);
         }
 
+        // If setting as primary, unset all other primary addresses for this user
         if (req.primaryAddress && !a.isPrimaryAddress()) {
-            addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
-                    .ifPresent(prev -> {
-                        if (!prev.getId().equals(a.getId())) {
-                            prev.setPrimaryAddress(false);
-                            addressRepository.save(prev);
-                        }
+            List<Address> existingAddresses = addressRepository.findByUserId(userId);
+            existingAddresses.stream()
+                    .filter(Address::isPrimaryAddress)
+                    .filter(prev -> !prev.getId().equals(a.getId()))
+                    .forEach(prev -> {
+                        prev.setPrimaryAddress(false);
+                        addressRepository.save(prev);
                     });
         }
         
@@ -207,6 +213,7 @@ public class AddressService {
         if (req.provinceId != null) a.setProvinceId(req.provinceId);
         if (req.districtId != null) a.setDistrictId(req.districtId);
         if (req.wardCode != null) a.setWardCode(req.wardCode);
+        if (req.typeAddress != null) a.setTypeAddress(req.typeAddress);
         
         // Set names from request if provided
         if (req.provinceName != null && !req.provinceName.isBlank()) {
@@ -249,12 +256,14 @@ public class AddressService {
             throw new UnauthorizedAddressAccessException(addressId);
         }
 
-        addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
-                .ifPresent(prev -> {
-                    if (!prev.getId().equals(a.getId())) {
-                        prev.setPrimaryAddress(false);
-                        addressRepository.save(prev);
-                    }
+        // Unset all other primary addresses for this user regardless of type
+        List<Address> existingAddresses = addressRepository.findByUserId(userId);
+        existingAddresses.stream()
+                .filter(Address::isPrimaryAddress)
+                .filter(prev -> !prev.getId().equals(a.getId()))
+                .forEach(prev -> {
+                    prev.setPrimaryAddress(false);
+                    addressRepository.save(prev);
                 });
         
         a.setPrimaryAddress(true);

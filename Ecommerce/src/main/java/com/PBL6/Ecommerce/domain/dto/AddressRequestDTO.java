@@ -1,5 +1,7 @@
 package com.PBL6.Ecommerce.domain.dto;
 
+import com.PBL6.Ecommerce.constant.TypeAddress;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -27,6 +29,7 @@ public class AddressRequestDTO {
     @Pattern(regexp = "^(0|\\+84)[0-9]{9,10}$", message = "Số điện thoại không hợp lệ")
     public String contactPhone;
     
+    public TypeAddress typeAddress; // HOME, SHIPPING, STORE
     public boolean primaryAddress; // true nếu muốn đánh dấu primary
     
     public String getFullAddress() {

@@ -1,11 +1,15 @@
 package com.PBL6.Ecommerce.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import com.PBL6.Ecommerce.domain.Order;
+import com.PBL6.Ecommerce.domain.UserFCMToken;
+import com.PBL6.Ecommerce.repository.UserFCMTokenRepository;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,6 +20,12 @@ import java.util.Map;
 public class NotificationService {
     
     private final SimpMessagingTemplate messagingTemplate;
+    
+    @Autowired
+    private FCMService fcmService;
+
+    @Autowired
+    private UserFCMTokenRepository fcmTokenRepository;
     
     // Gửi cho buyer
     public void sendOrderNotification(Long userId, String type, String message) {
@@ -89,51 +99,6 @@ public class NotificationService {
         broadcastNotification(type, message);
     }
     
-    // ===== SHOP REGISTRATION NOTIFICATIONS =====
-    
-    /**
-     * Send notification when shop registration is approved
-     * @param userId - Shop owner user ID
-     * @param shopName - Shop name
-     */
-    public void sendShopApprovedNotification(Long userId, String shopName) {
-        String destination = "/topic/orderws/" + userId;
-        
-        Map<String, Object> notification = new HashMap<>();
-        notification.put("type", "SHOP_APPROVED");
-        notification.put("message", "🎉 Chúc mừng! Đơn đăng ký shop \"" + shopName + "\" đã được phê duyệt. Bạn đã trở thành người bán.");
-        notification.put("timestamp", LocalDateTime.now());
-        notification.put("userType", "BUYER");
-        notification.put("shopName", shopName);
-        
-        messagingTemplate.convertAndSend(destination, notification);
-        System.out.println("📤 Sent SHOP_APPROVED notification to: " + destination);
-        System.out.println("📤 Shop: " + shopName);
-    }
-    
-    /**
-     * Send notification when shop registration is rejected
-     * @param userId - Shop owner user ID
-     * @param shopName - Shop name
-     * @param rejectionReason - Reason for rejection
-     */
-    public void sendShopRejectedNotification(Long userId, String shopName, String rejectionReason) {
-        String destination = "/topic/orderws/" + userId;
-        
-        Map<String, Object> notification = new HashMap<>();
-        notification.put("type", "SHOP_REJECTED");
-        notification.put("message", "❌ Đơn đăng ký shop \"" + shopName + "\" bị từ chối. Lý do: " + rejectionReason);
-        notification.put("timestamp", LocalDateTime.now());
-        notification.put("userType", "BUYER");
-        notification.put("shopName", shopName);
-        notification.put("rejectionReason", rejectionReason);
-        
-        messagingTemplate.convertAndSend(destination, notification);
-        System.out.println("📤 Sent SHOP_REJECTED notification to: " + destination);
-        System.out.println("📤 Shop: " + shopName);
-        System.out.println("📤 Reason: " + rejectionReason);
-    }
-    
     // ===== NEW METHODS =====
     
     // Gửi cho cả buyer và seller - SỬ DỤNG FIELD NAMES ĐÚNG
@@ -204,4 +169,25 @@ public class NotificationService {
     public String healthCheck() {
         return "NotificationService is running at " + LocalDateTime.now();
     }
+
+    public void sendOrderNotificationWithFCM(Long userId, String title, String message, Long orderId) {
+        // Get user's FCM tokens
+        List<UserFCMToken> tokens = fcmTokenRepository.findActiveTokensByUserId(userId);
+        
+        if (!tokens.isEmpty()) {
+            Map<String, String> data = new HashMap<>();
+            data.put("orderId", orderId.toString());
+            data.put("type", "ORDER_UPDATE");
+            
+            for (UserFCMToken token : tokens) {
+                fcmService.sendPushNotification(
+                    token.getFcmToken(),
+                    title,
+                    message,
+                    data
+                );
+            }
+        }
+    }
+        
 }

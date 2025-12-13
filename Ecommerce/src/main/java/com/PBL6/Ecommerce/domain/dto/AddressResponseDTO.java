@@ -2,6 +2,8 @@ package com.PBL6.Ecommerce.domain.dto;
 
 import java.time.LocalDateTime;
 
+import com.PBL6.Ecommerce.constant.TypeAddress;
+
 public class AddressResponseDTO {
     private Long id;
     private String fullAddress;
@@ -16,6 +18,7 @@ public class AddressResponseDTO {
     
     private String contactName;
     private String contactPhone;
+    private TypeAddress typeAddress;
     private Boolean primaryAddress;
     private LocalDateTime createdAt;
 
@@ -49,6 +52,9 @@ public class AddressResponseDTO {
 
     public String getContactPhone() { return contactPhone; }
     public void setContactPhone(String contactPhone) { this.contactPhone = contactPhone; }
+
+    public TypeAddress getTypeAddress() { return typeAddress; }
+    public void setTypeAddress(TypeAddress typeAddress) { this.typeAddress = typeAddress; }
 
     public Boolean getPrimaryAddress() { return primaryAddress; }
     public void setPrimaryAddress(Boolean primaryAddress) { this.primaryAddress = primaryAddress; }
