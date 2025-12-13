@@ -97,7 +97,7 @@ public class CheckoutController {
             Shop shop = shopRepository.findById(req.getShopId())
                 .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
             
-            System.out.println("Shop: " + shop.getName() + ", GhnShopId: " + shop.getGhnShopId() + ", GhnToken: " + shop.getGhnToken());
+            System.out.println("Shop: " + shop.getName() + ", GhnShopId: " + shop.getGhnShopId());
             
             Address shopAddress = addressRepository.findByUserAndTypeAddress(
                 shop.getOwner(), TypeAddress.STORE)

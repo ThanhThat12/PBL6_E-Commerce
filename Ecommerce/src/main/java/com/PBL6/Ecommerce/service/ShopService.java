@@ -299,11 +299,10 @@ public class ShopService {
             .bannerUrl(shop.getBannerUrl())
             .bannerPublicId(shop.getBannerPublicId())
             
-            // GHN
+            // GHN (token managed in application.properties, only shop_id stored in DB)
             .ghnShopId(shop.getGhnShopId())
-            .ghnToken(shop.getGhnToken())
-            .ghnConfigured(shop.getGhnShopId() != null && shop.getGhnToken() != null 
-                          && !shop.getGhnShopId().isEmpty() && !shop.getGhnToken().isEmpty())
+            .ghnToken(null) // Token không còn lưu trong DB
+            .ghnConfigured(shop.getGhnShopId() != null && !shop.getGhnShopId().isEmpty())
             
             // KYC (masked for security)
             .maskedIdCardNumber(ShopDetailDTO.maskIdCardNumber(shop.getIdCardNumber()))
