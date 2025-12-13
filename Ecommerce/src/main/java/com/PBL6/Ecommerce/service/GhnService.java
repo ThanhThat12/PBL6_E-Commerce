@@ -8,6 +8,7 @@ import com.PBL6.Ecommerce.domain.Shop;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.domain.Shipment;
 import com.PBL6.Ecommerce.repository.ShipmentRepository;
+import com.PBL6.Ecommerce.domain.Address;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.*;
@@ -17,6 +18,9 @@ public class GhnService {
 
     @Value("${ghn.api.url}")
     private String ghnApiUrl;
+
+    @Value("${ghn.token}")
+    private String ghnToken;
 
     private final RestTemplate restTemplate;
     private final ShopRepository shopRepository;
@@ -452,6 +456,104 @@ public class GhnService {
             return objectMapper.writeValueAsString(obj);
         } catch (Exception e) {
             return obj != null ? obj.toString() : null;
+        }
+    }
+
+    /**
+     * Register new shop with GHN and return shop_id
+     * API: POST https://online-gateway.ghn.vn/shiip/public-api/v2/shop/register
+     * 
+     * @param shopName - Name of the shop
+     * @param shopPhone - Phone number of the shop
+     * @param address - Full shop address (store address from Address entity)
+     * @return GHN shop_id as String
+     * @throws RuntimeException if registration fails
+     */
+    public String registerGhnShop(String shopName, String shopPhone, Address address) {
+        try {
+            System.out.println("========== GHN SHOP REGISTRATION ==========");
+            System.out.println("Shop Name: " + shopName);
+            System.out.println("Shop Phone: " + shopPhone);
+            System.out.println("Address: " + (address != null ? address.getFullAddress() : "null"));
+            
+            // Validate required fields
+            if (shopName == null || shopName.trim().isEmpty()) {
+                throw new RuntimeException("Shop name is required for GHN registration");
+            }
+            if (shopPhone == null || shopPhone.trim().isEmpty()) {
+                throw new RuntimeException("Shop phone is required for GHN registration");
+            }
+            if (address == null) {
+                throw new RuntimeException("Shop address is required for GHN registration");
+            }
+            if (address.getDistrictId() == null) {
+                throw new RuntimeException("District ID is required for GHN registration");
+            }
+            if (address.getWardCode() == null || address.getWardCode().trim().isEmpty()) {
+                throw new RuntimeException("Ward code is required for GHN registration");
+            }
+
+            // Prepare headers with GHN token
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Token", ghnToken);
+
+            // Prepare request body
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("district_id", address.getDistrictId());
+            requestBody.put("ward_code", address.getWardCode());
+            requestBody.put("name", shopName.trim());
+            requestBody.put("phone", shopPhone.trim());
+            requestBody.put("address", address.getFullAddress());
+
+            System.out.println("Request Body: " + requestBody);
+            System.out.println("GHN Token: " + ghnToken.substring(0, 10) + "...");
+
+            // Make API call
+            String url = ghnApiUrl + "/v2/shop/register";
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+            
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            
+            System.out.println("========== GHN SHOP REGISTRATION RESPONSE ==========");
+            System.out.println("Status Code: " + response.getStatusCode());
+            System.out.println("Response Body: " + response.getBody());
+            System.out.println("===================================================");
+
+            // Parse response
+            Map<String, Object> responseBody = response.getBody();
+            if (responseBody == null) {
+                throw new RuntimeException("GHN registration failed: Empty response");
+            }
+
+            Integer code = (Integer) responseBody.get("code");
+            if (code == null || code != 200) {
+                String message = (String) responseBody.get("message");
+                throw new RuntimeException("GHN registration failed: " + message);
+            }
+
+            // Extract shop_id from data
+            Object dataObj = responseBody.get("data");
+            if (dataObj instanceof Map) {
+                Map<?, ?> data = (Map<?, ?>) dataObj;
+                Object shopIdObj = data.get("shop_id");
+                
+                if (shopIdObj != null) {
+                    String shopId = String.valueOf(shopIdObj);
+                    System.out.println("✅ GHN Shop registered successfully! Shop ID: " + shopId);
+                    return shopId;
+                }
+            }
+
+            throw new RuntimeException("GHN registration failed: shop_id not found in response");
+
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            System.err.println("❌ GHN Registration Error: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Lỗi đăng ký shop GHN: " + e.getMessage() + " - " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            System.err.println("❌ GHN Registration Exception: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi đăng ký shop GHN: " + e.getMessage());
         }
     }
 }

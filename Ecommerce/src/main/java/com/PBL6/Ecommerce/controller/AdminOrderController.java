@@ -58,12 +58,12 @@ public class AdminOrderController {
     /**
      * API lấy chi tiết đơn hàng (Admin only)
      * GET /api/admin/orders/{id}
-     * Admin có thể xem mọi đơn hàng
+     * Admin có thể xem mọi đơn hàng với thông tin đầy đủ
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseDTO<OrderDetailDTO>> getOrderDetail(@PathVariable Long id) {
-        OrderDetailDTO order = orderService.getAdminOrderDetail(id);
+    public ResponseEntity<ResponseDTO<com.PBL6.Ecommerce.domain.dto.admin.AdminOrderDetailDTO>> getOrderDetail(@PathVariable Long id) {
+        com.PBL6.Ecommerce.domain.dto.admin.AdminOrderDetailDTO order = adminOrderService.getOrderDetail(id);
         return ResponseDTO.success(order, "Lấy chi tiết đơn hàng thành công");
     }
 

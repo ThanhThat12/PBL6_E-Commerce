@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -36,13 +37,19 @@ public class SellerRegistrationService {
     private final ShopRepository shopRepository;
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
+    private final GhnService ghnService;
+
+    @Value("${ghn.token}")
+    private String ghnToken;
 
     public SellerRegistrationService(ShopRepository shopRepository, 
                                      UserRepository userRepository,
-                                     AddressRepository addressRepository) {
+                                     AddressRepository addressRepository,
+                                     GhnService ghnService) {
         this.shopRepository = shopRepository;
         this.userRepository = userRepository;
         this.addressRepository = addressRepository;
+        this.ghnService = ghnService;
     }
 
     /**
@@ -293,6 +300,7 @@ public class SellerRegistrationService {
      * Admin approves seller registration
      * - Changes shop status to ACTIVE
      * - Upgrades user role to SELLER
+     * - Auto-register shop with GHN and save shop_id
      * 
      * @param admin - Admin user performing the action
      * @param approvalDTO - Approval request
@@ -313,6 +321,61 @@ public class SellerRegistrationService {
             throw new RuntimeException("Đơn đăng ký này không ở trạng thái chờ duyệt");
         }
 
+        // ========== AUTO-REGISTER GHN SHOP ==========
+        boolean ghnRegistrationSuccess = false;
+        String ghnRegistrationError = null;
+        
+        try {
+            // Get shop's store address
+            Address storeAddress = addressRepository
+                .findFirstByUserIdAndTypeAddress(shop.getOwner().getId(), TypeAddress.STORE)
+                .orElse(null);
+
+            System.out.println("========== GHN AUTO-REGISTRATION DEBUG ==========");
+            System.out.println("Shop ID: " + shop.getId());
+            System.out.println("Shop Name: " + shop.getName());
+            System.out.println("Shop Phone: " + shop.getShopPhone());
+            System.out.println("Store Address Found: " + (storeAddress != null));
+            
+            if (storeAddress != null) {
+                System.out.println("Address Full: " + storeAddress.getFullAddress());
+                System.out.println("District ID: " + storeAddress.getDistrictId());
+                System.out.println("Ward Code: " + storeAddress.getWardCode());
+            }
+            System.out.println("================================================");
+
+            if (storeAddress != null && storeAddress.getDistrictId() != null && storeAddress.getWardCode() != null) {
+                System.out.println("🏪 Attempting to register shop with GHN...");
+                
+                // Call GHN API to register shop
+                String ghnShopId = ghnService.registerGhnShop(
+                    shop.getName(),
+                    shop.getShopPhone(),
+                    storeAddress
+                );
+
+                // Save only GHN shop ID (token is in application.properties)
+                shop.setGhnShopId(ghnShopId);
+                
+                ghnRegistrationSuccess = true;
+                System.out.println("✅ GHN shop registered successfully! Shop ID: " + ghnShopId);
+            } else {
+                ghnRegistrationError = "Missing address information (district_id or ward_code)";
+                System.err.println("⚠️ Cannot register GHN shop: " + ghnRegistrationError);
+                // Leave ghn_shop_id as null - will use application.properties token with no specific shop
+                shop.setGhnShopId(null);
+            }
+        } catch (Exception e) {
+            ghnRegistrationError = e.getMessage();
+            System.err.println("❌ Failed to register GHN shop: " + ghnRegistrationError);
+            e.printStackTrace();
+            
+            // Leave ghn_shop_id as null - will use application.properties token with no specific shop
+            shop.setGhnShopId(null);
+            
+            System.out.println("⚠️ GHN registration failed - shop_id will be null");
+        }
+
         // Update shop status
         shop.setStatus(ShopStatus.ACTIVE);
         shop.setReviewedAt(LocalDateTime.now());
@@ -324,8 +387,21 @@ public class SellerRegistrationService {
         owner.setRole(Role.SELLER);
         userRepository.save(owner);
 
+        // Build detailed success message
+        String message;
+        if (ghnRegistrationSuccess) {
+            message = "Đã phê duyệt đơn đăng ký của " + shop.getName() + ". GHN shop đã được tự động tạo (Shop ID: " + shop.getGhnShopId() + ").";
+        } else {
+            message = "Đã phê duyệt đơn đăng ký của " + shop.getName() + ". " +
+                     "⚠️ Không thể tự động đăng ký GHN shop" + 
+                     (ghnRegistrationError != null ? " (Lỗi: " + ghnRegistrationError + ")" : "") + 
+                     ". Seller cần đăng ký GHN shop thủ công.";
+        }
+        
+        System.out.println("APPROVAL RESULT: " + message);
+
         return SellerRegistrationResponseDTO.success(
-            "Đã phê duyệt đơn đăng ký của " + shop.getName(),
+            message,
             shop.getId(),
             shop.getName(),
             "ACTIVE"

@@ -254,12 +254,67 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Long countByStatus(Order.OrderStatus status);
     
     /**
-     * Tính tổng doanh thu của tất cả đơn hàng (không tính CANCELLED)
+     * Tính tổng doanh thu của tất cả đơn hàng COMPLETED
      * Dùng cho admin dashboard
      */
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +
-           "WHERE o.status != 'CANCELLED'")
+           "WHERE o.status = 'COMPLETED'")
     BigDecimal calculateTotalRevenue();
+    
+    // ============= ADMIN DASHBOARD QUERIES =============
+    
+    /**
+     * Tính tổng doanh thu theo khoảng thời gian
+     */
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +
+           "WHERE o.status = 'COMPLETED' AND o.createdAt BETWEEN :startDate AND :endDate")
+    BigDecimal calculateRevenueByDateRange(@Param("startDate") LocalDateTime startDate, 
+                                          @Param("endDate") LocalDateTime endDate);
+    
+    /**
+     * Đếm số đơn hàng theo khoảng thời gian
+     */
+    Long countByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
+    
+    /**
+     * Top selling products cho admin dashboard
+     */
+    @Query("SELECT p.id, p.name, c.name, p.mainImage, SUM(oi.quantity), SUM(oi.price * oi.quantity), p.isActive " +
+           "FROM OrderItem oi " +
+           "JOIN oi.variant pv " +
+           "JOIN pv.product p " +
+           "LEFT JOIN p.category c " +
+           "JOIN oi.order o " +
+           "WHERE o.status = 'COMPLETED' " +
+           "GROUP BY p.id, p.name, c.name, p.mainImage, p.isActive " +
+           "ORDER BY SUM(oi.quantity) DESC")
+    List<Object[]> findTopSellingProducts(Pageable pageable);
+    
+    /**
+     * Recent orders cho admin dashboard
+     */
+    @Query("SELECT o FROM Order o ORDER BY o.createdAt DESC")
+    List<Order> findRecentOrders(Pageable pageable);
    
+    // ============================================
+    // ADMIN DASHBOARD - Revenue Chart Methods
+    // ============================================
+    
+    /**
+     * ADMIN - Tính tổng doanh thu từ đơn COMPLETED theo khoảng thời gian
+     * Dùng cho biểu đồ doanh thu admin dashboard
+     */
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +
+           "WHERE o.status = 'COMPLETED' AND o.createdAt BETWEEN :startDate AND :endDate")
+    BigDecimal calculateCompletedRevenueByDateRange(@Param("startDate") LocalDateTime startDate, 
+                                                    @Param("endDate") LocalDateTime endDate);
+    
+    /**
+     * ADMIN - Đếm số đơn hàng COMPLETED theo khoảng thời gian
+     * Dùng cho biểu đồ doanh thu admin dashboard
+     */
+    @Query("SELECT COUNT(o) FROM Order o " +
+           "WHERE o.status = 'COMPLETED' AND o.createdAt BETWEEN :startDate AND :endDate")
+    Long countCompletedOrdersByDateRange(@Param("startDate") LocalDateTime startDate, 
+                                        @Param("endDate") LocalDateTime endDate);
 }
-

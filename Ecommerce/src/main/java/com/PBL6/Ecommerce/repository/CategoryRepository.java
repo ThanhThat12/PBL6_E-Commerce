@@ -53,4 +53,19 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
            "LEFT JOIN OrderItem oi ON oi.productId = p.id " +
            "LEFT JOIN oi.order o")
     AdminCategoryStatsDTO getCategoryStats();
+    
+    /**
+     * ADMIN Get categories with sales statistics for dashboard
+     */
+    @Query("SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminCategoryStatsDTO(" +
+           "c.name, " +
+           "COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN o.totalAmount ELSE 0 END), 0), " +
+           "COUNT(DISTINCT CASE WHEN o.status = 'COMPLETED' THEN o.id END)) " +
+           "FROM Category c " +
+           "LEFT JOIN c.products p " +
+           "LEFT JOIN OrderItem oi ON oi.productId = p.id " +
+           "LEFT JOIN oi.order o " +
+           "GROUP BY c.id, c.name " +
+           "ORDER BY SUM(CASE WHEN o.status = 'COMPLETED' THEN o.totalAmount ELSE 0 END) DESC")
+    List<AdminCategoryStatsDTO> getCategoriesWithStats();
 }
