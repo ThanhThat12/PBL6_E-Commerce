@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.dto.cloudinary.CloudinaryUploadResult;
+import com.PBL6.Ecommerce.domain.dto.image.cloudinary.CloudinaryUploadResult;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;

@@ -1,25 +1,27 @@
 package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.constant.TransformationType;
-import com.PBL6.Ecommerce.domain.Product;
-import com.PBL6.Ecommerce.domain.ProductImage;
-import com.PBL6.Ecommerce.domain.ProductPrimaryAttribute;
-import com.PBL6.Ecommerce.domain.ProductReview;
-import com.PBL6.Ecommerce.domain.ProductVariant;
-import com.PBL6.Ecommerce.domain.ProductVariantValue;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductImage;
+import com.PBL6.Ecommerce.domain.entity.product.ProductPrimaryAttribute;
+import com.PBL6.Ecommerce.domain.entity.product.ProductReview;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariantValue;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.TempImageUploadResponseDTO;
-import com.PBL6.Ecommerce.dto.cloudinary.CloudinaryUploadResult;
-import com.PBL6.Ecommerce.dto.request.ImageReorderRequest;
-import com.PBL6.Ecommerce.dto.response.GalleryImageResponse;
-import com.PBL6.Ecommerce.dto.response.ImageDeleteResponse;
-import com.PBL6.Ecommerce.dto.response.ImageTransformationResponse;
-import com.PBL6.Ecommerce.dto.response.ImageUploadResponse;
-import com.PBL6.Ecommerce.dto.response.PrimaryAttributeDTO;
-import com.PBL6.Ecommerce.dto.response.ProductImageResponse;
-import com.PBL6.Ecommerce.dto.response.ProductImagesResponse;
-import com.PBL6.Ecommerce.dto.response.VariantImageResponse;
+import com.PBL6.Ecommerce.domain.dto.image.cloudinary.CloudinaryUploadResult;
+import com.PBL6.Ecommerce.domain.dto.image.response.GalleryImageResponse;
+import com.PBL6.Ecommerce.domain.dto.request.ImageReorderRequest;
+import com.PBL6.Ecommerce.domain.dto.response.ImageDeleteResponse;
+import com.PBL6.Ecommerce.domain.dto.response.ImageTransformationResponse;
+import com.PBL6.Ecommerce.domain.dto.response.ImageUploadResponse;
+import com.PBL6.Ecommerce.domain.dto.response.PrimaryAttributeDTO;
+import com.PBL6.Ecommerce.domain.dto.response.ProductImageResponse;
+import com.PBL6.Ecommerce.domain.dto.response.ProductImagesResponse;
+import com.PBL6.Ecommerce.domain.dto.response.VariantImageResponse;
+
+import com.PBL6.Ecommerce.domain.dto.request.ImageUploadRequest;
 import com.PBL6.Ecommerce.exception.BusinessException;
 import com.PBL6.Ecommerce.exception.CloudinaryServiceException;
 import com.PBL6.Ecommerce.exception.ImageNotFoundException;
@@ -1351,9 +1353,9 @@ public class ImageServiceImpl implements ImageService {
         // Get gallery images
         List<ProductImage> galleryImageEntities = productImageRepository.findGalleryImagesByProductId(productId);
         List<GalleryImageResponse> galleryImages = galleryImageEntities.stream()
-                .map(img -> GalleryImageResponse.builder()
-                        .imageId(img.getId())
-                        .imageUrl(img.getImageUrl())
+                .map((ProductImage img) -> GalleryImageResponse.builder()
+                        .id(img.getId())
+                        .url(img.getImageUrl())
                         .publicId(img.getPublicId())
                         .displayOrder(img.getDisplayOrder())
                         .build())

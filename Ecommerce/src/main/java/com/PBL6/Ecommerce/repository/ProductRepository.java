@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.Product;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -46,7 +47,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     
     // Tìm theo shop entity
     @Query("SELECT p FROM Product p WHERE p.shop = :shop")
-    List<Product> findByShop(@Param("shop") com.PBL6.Ecommerce.domain.Shop shop);
+    List<Product> findByShop(@Param("shop") Shop shop);
 
     // Tìm sản phẩm đang hoạt động
     Page<Product> findByIsActiveTrue(Pageable pageable);

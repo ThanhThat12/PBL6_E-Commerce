@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.service.impl;
 
-import com.PBL6.Ecommerce.domain.Product;
-import com.PBL6.Ecommerce.dto.response.ImageUploadResponse;
+import com.PBL6.Ecommerce.domain.dto.response.ImageUploadResponse;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
 import com.PBL6.Ecommerce.exception.*;
 import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.service.ProductImageService;
@@ -15,7 +15,6 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 import java.util.Map;
 

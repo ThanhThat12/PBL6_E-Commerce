@@ -1,9 +1,10 @@
 package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.config.MoMoConfig;
-import com.PBL6.Ecommerce.dto.PaymentRequestDTO;
-import com.PBL6.Ecommerce.dto.PaymentResponseDTO;
-import com.PBL6.Ecommerce.dto.PaymentCallbackRequest;
+import com.PBL6.Ecommerce.domain.dto.payment.PaymentRequestDTO;
+import com.PBL6.Ecommerce.domain.dto.payment.PaymentResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.payment.MoMoRefundResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.payment.PaymentCallbackRequest;
 import com.PBL6.Ecommerce.exception.MoMoPaymentException;
 import com.PBL6.Ecommerce.util.MoMoHttpUtil;
 import com.PBL6.Ecommerce.util.MoMoSignatureUtil;
@@ -472,7 +473,7 @@ public class MoMoPaymentService {
      * @param transId MoMo transaction ID from original payment
      * @return MoMoRefundResponseDTO containing refund details
      */
-    public com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO refundPayment(String orderId, String requestId, 
+    public MoMoRefundResponseDTO refundPayment(String orderId, String requestId, 
                                                                       BigDecimal amount, String transId) {
         try {
             logger.info("Processing MoMo refund - orderId: {}, amount: {}, transId: {}", orderId, amount, transId);
@@ -511,10 +512,10 @@ public class MoMoPaymentService {
             
             // Send request to MoMo
             logger.info("Sending refund request to: {}", refundEndpoint);
-            com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO response = MoMoHttpUtil.sendPostRequest(
+            MoMoRefundResponseDTO response = MoMoHttpUtil.sendPostRequest(
                 refundEndpoint,
                 refundRequest,
-                com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO.class
+                MoMoRefundResponseDTO.class
             );
             
             if (response == null) {

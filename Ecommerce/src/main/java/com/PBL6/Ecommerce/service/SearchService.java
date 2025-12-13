@@ -1,13 +1,18 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.*;
-import com.PBL6.Ecommerce.domain.TrendingSearch.TrendPeriod;
 import com.PBL6.Ecommerce.domain.dto.search.FacetedSearchDTO;
 import com.PBL6.Ecommerce.domain.dto.search.FacetedSearchDTO.*;
 import com.PBL6.Ecommerce.domain.dto.search.SearchSuggestionDTO;
 import com.PBL6.Ecommerce.domain.dto.search.SearchSuggestionDTO.*;
 import com.PBL6.Ecommerce.domain.dto.search.TrendingSearchDTO;
 import com.PBL6.Ecommerce.domain.dto.search.TrendingSearchDTO.TrendingItem;
+import com.PBL6.Ecommerce.domain.entity.product.Category;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.search.SearchQuery;
+import com.PBL6.Ecommerce.domain.entity.search.SearchSynonym;
+import com.PBL6.Ecommerce.domain.entity.search.TrendingSearch;
+import com.PBL6.Ecommerce.domain.entity.search.TrendingSearch.TrendPeriod;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
 import com.PBL6.Ecommerce.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

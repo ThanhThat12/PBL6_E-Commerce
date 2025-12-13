@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.domain.dto;
 
-import com.PBL6.Ecommerce.domain.Vouchers.DiscountType;
-import com.PBL6.Ecommerce.domain.Vouchers.ApplicableType;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.DiscountType;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.ApplicableType;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

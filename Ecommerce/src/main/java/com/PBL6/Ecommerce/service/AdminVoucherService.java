@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Vouchers;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherCreateDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherUpdateDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherDetailDTO;

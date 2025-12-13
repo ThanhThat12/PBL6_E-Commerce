@@ -4,7 +4,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import com.PBL6.Ecommerce.domain.Category;
+import com.PBL6.Ecommerce.domain.entity.product.Category;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminCategoryDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminCategoryStatsDTO;
 

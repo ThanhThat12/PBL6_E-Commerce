@@ -10,9 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.constant.TypeAddress;
-import com.PBL6.Ecommerce.domain.Address;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
 import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
 import com.PBL6.Ecommerce.domain.dto.MonthlyRevenueDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
@@ -57,7 +58,7 @@ public class ShopService {
             .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         // Kiểm tra role SELLER
-        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+        if (user.getRole() != Role.SELLER) {
             throw new RuntimeException("Người dùng không phải là seller");
         }
 
@@ -81,7 +82,7 @@ public class ShopService {
             .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         // Kiểm tra role SELLER
-        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+        if (user.getRole() != Role.SELLER) {
             throw new RuntimeException("Người dùng không phải là seller");
         }
 
@@ -257,7 +258,7 @@ public class ShopService {
             .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         // Check SELLER role
-        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+        if (user.getRole() != Role.SELLER) {
             throw new RuntimeException("Người dùng không phải là seller");
         }
 
@@ -299,11 +300,10 @@ public class ShopService {
             .bannerUrl(shop.getBannerUrl())
             .bannerPublicId(shop.getBannerPublicId())
             
-            // GHN
+            // GHN (token managed in application.properties, only shop_id stored in DB)
             .ghnShopId(shop.getGhnShopId())
-            .ghnToken(shop.getGhnToken())
-            .ghnConfigured(shop.getGhnShopId() != null && shop.getGhnToken() != null 
-                          && !shop.getGhnShopId().isEmpty() && !shop.getGhnToken().isEmpty())
+            .ghnToken(null) // Token không còn lưu trong DB
+            .ghnConfigured(shop.getGhnShopId() != null && !shop.getGhnShopId().isEmpty())
             
             // KYC (masked for security)
             .maskedIdCardNumber(ShopDetailDTO.maskIdCardNumber(shop.getIdCardNumber()))
@@ -371,7 +371,7 @@ public class ShopService {
             .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         // Kiểm tra role SELLER
-        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+        if (user.getRole() != Role.SELLER) {
             throw new RuntimeException("Người dùng không phải là seller");
         }
 
@@ -499,7 +499,7 @@ public class ShopService {
      */
     public boolean existsByPhone(String phone) {
         // Check if any SELLER user has this phone number
-        List<User> sellersWithPhone = userRepository.findByPhoneNumberAndRole(phone, com.PBL6.Ecommerce.domain.Role.SELLER);
+        List<User> sellersWithPhone = userRepository.findByPhoneNumberAndRole(phone, Role.SELLER);
         return !sellersWithPhone.isEmpty(); 
     }
     
@@ -512,7 +512,7 @@ public class ShopService {
     @Transactional
     public Shop createShopFromSellerRegistration(User user, ShopRegistrationDTO registrationDTO) {
         // validate role / uniqueness omitted for brevity (keep existing checks)
-        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.BUYER) {
+        if (user.getRole() != Role.BUYER) {
             throw new RuntimeException("Chỉ BUYER mới có thể đăng ký seller");
         }
         if (shopRepository.existsByOwner(user)) {
@@ -557,7 +557,7 @@ public class ShopService {
         }
 
         // upgrade role to SELLER
-        user.setRole(com.PBL6.Ecommerce.domain.Role.SELLER);
+        user.setRole(Role.SELLER);
         userRepository.save(user);
 
         return savedShop;

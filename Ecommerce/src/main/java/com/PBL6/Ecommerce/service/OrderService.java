@@ -6,11 +6,11 @@ import com.PBL6.Ecommerce.constant.OrderItemStatus;
 import com.PBL6.Ecommerce.constant.PaymentMethod;
 import com.PBL6.Ecommerce.constant.PaymentStatus;
 import com.PBL6.Ecommerce.constant.RefundStatus;
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Refund;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.PaymentTransaction;
-import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.order.Refund;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.RefundRepository;
 import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
@@ -29,14 +29,16 @@ import java.util.Optional;
 import java.util.Date;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.ShipmentRepository;
-import com.PBL6.Ecommerce.domain.Shipment;
-import com.PBL6.Ecommerce.domain.Address;
+import com.PBL6.Ecommerce.domain.entity.order.Shipment;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
 import com.PBL6.Ecommerce.constant.TypeAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import com.PBL6.Ecommerce.domain.OrderItem;
-import com.PBL6.Ecommerce.domain.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
 import com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.ItemReturnRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.MultiShopOrderResult;
@@ -57,7 +59,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
-import com.PBL6.Ecommerce.domain.Cart;
+import com.PBL6.Ecommerce.domain.entity.cart.Cart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.PBL6.Ecommerce.constant.TypeAddress;
@@ -127,7 +129,7 @@ public class OrderService {
             int qty = item.getQuantity() == null ? 1 : item.getQuantity();
 
             // Lấy product (từ variant->product hoặc trực tiếp từ productRepository)
-            com.PBL6.Ecommerce.domain.Product product = null;
+            Product product = null;
             ProductVariant variant = item.getVariant();
             if (variant != null && variant.getProduct() != null) {
                 product = variant.getProduct();
@@ -497,7 +499,6 @@ public class OrderService {
             Optional<Cart> cartOpt = cartRepository.findByUserId(userId);
             if (cartOpt.isPresent()) {
                 cartItemRepository.deleteByCartIdAndVariantIdIn(cartOpt.get().getId(), variantIds);
-                System.out.println("✅ Cart cleared for user " + userId + " after order #" + orderId);
             }
         } catch (Exception ex) {
             System.err.println("❌ Error clearing cart after successful payment: " + ex.getMessage());
@@ -509,17 +510,10 @@ public class OrderService {
      */
     @Transactional
     public Order updateOrderAfterWalletPayment(Long orderId) {
-        System.out.println("🔄 [SportyPay] Updating order #" + orderId + " after wallet payment");
-
         Order order = orderRepository.findById(orderId)
             .orElseThrow(() -> new OrderNotFoundException(orderId));
 
-        System.out.println("✅ Found order #" + orderId);
-        System.out.println("  - Current status: " + order.getStatus());
-        System.out.println("  - Current payment status: " + order.getPaymentStatus());
-
         if (order.getPaymentStatus() == Order.PaymentStatus.PAID) {
-            System.out.println("⚠️ Order #" + orderId + " already paid. Skipping update.");
             return order;
         }
 
@@ -528,13 +522,7 @@ public class OrderService {
         order.setPaidAt(new Date());
         order.setMethod("SPORTYPAY"); // Set payment method
 
-        System.out.println("  - Updated status: " + order.getStatus());
-        System.out.println("  - Updated payment status: " + order.getPaymentStatus());
-
         Order saved = orderRepository.save(order);
-        System.out.println("✅ Order #" + orderId + " updated successfully!");
-        System.out.println("  - Saved status: " + saved.getStatus());
-        System.out.println("  - Saved payment status: " + saved.getPaymentStatus());
 
         // 💰 DEPOSIT TO ADMIN WALLET - SportyPay payment
         try {
@@ -687,7 +675,7 @@ public class OrderService {
             .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
 
         // Kiểm tra user có phải seller không
-        if (seller.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+        if (seller.getRole() != Role.SELLER) {
             throw new UnauthorizedOrderAccessException("Người dùng không phải là seller");
         }
 
@@ -716,7 +704,7 @@ public class OrderService {
             .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
 
         // Kiểm tra role SELLER
-        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+        if (user.getRole() != Role.SELLER) {
             throw new UnauthorizedOrderAccessException("Người dùng không phải là seller");
         }
 
@@ -913,7 +901,7 @@ public class OrderService {
             .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng: " + username));
 
         // Kiểm tra role SELLER
-        if (user.getRole() != com.PBL6.Ecommerce.domain.Role.SELLER) {
+        if (user.getRole() != Role.SELLER) {
             throw new UnauthorizedOrderAccessException("Người dùng không phải là seller");
         }
 
@@ -967,7 +955,9 @@ public class OrderService {
         // Tự động tạo GHN shipment khi seller confirm (PENDING → PROCESSING)
         if (currentStatus == Order.OrderStatus.PENDING && orderStatus == Order.OrderStatus.PROCESSING) {
             try {
-                createGhnShipmentForOrder(order);
+                logger.info("Creating GHN shipment for order after status update: {}", order.getId());
+                // Shipment sẽ được tạo khi seller xác nhận chi tiết GHN service
+                // Bỏ qua ở đây vì cần thông tin serviceId từ frontend
             } catch (Exception e) {
                 logger.error("Lỗi khi tạo GHN shipment cho order {}: {}", order.getId(), e.getMessage());
                 // Không throw exception để không block việc xác nhận đơn
@@ -1007,9 +997,8 @@ public class OrderService {
             }
             
             notificationService.sendOrderNotification(buyerId, notificationType, buyerMessage);
-            System.out.println("✅ Sent order status notification to buyer #" + buyerId);
         } catch (Exception e) {
-            System.err.println("⚠️ Failed to send buyer notification: " + e.getMessage());
+            logger.error("Failed to send buyer notification: {}", e.getMessage());
         }
 
         // Convert sang DTO và trả về
@@ -1408,14 +1397,302 @@ public class OrderService {
     }
 
     /**
-     * Tạo GHN shipment tự động khi seller confirm order
-     * Đọc thông tin GHN từ order.notes (JSON), gọi API GHN, tạo Shipment entity
+     * Seller xác nhận đơn hàng và tạo GHN shipment
+     * @param orderId - ID đơn hàng
+     * @param sellerId - ID của seller (để verify quyền)
+     * @param serviceId - GHN service ID
+     * @param serviceTypeId - GHN service type ID
+     * @param note - Ghi chú
+     * @return Order đã được cập nhật
      */
-    private void createGhnShipmentForOrder(Order order) throws Exception {
-        logger.info("Auto creating GHN shipment for order {}", order.getId());
+    @Transactional
+    public Order confirmOrderAndCreateShipment(Long orderId, Long sellerId, 
+                                               Integer serviceId, Integer serviceTypeId, 
+                                               String note) {
+        logger.info("Seller {} confirming order {} with GHN service {}", sellerId, orderId, serviceId);
         
-        // TODO: Implement new shipment creation logic if needed, or remove this method if not used.
-        logger.warn("createGhnShipmentForOrder is deprecated: notes field and related shipment logic removed.");
+        // 1. Tìm order và verify quyền
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+        
+        if (!order.getShop().getOwner().getId().equals(sellerId)) {
+            throw new UnauthorizedOrderAccessException("Bạn không có quyền xác nhận đơn hàng này");
+        }
+        
+        // 2. Kiểm tra trạng thái
+        if (order.getStatus() != Order.OrderStatus.PENDING) {
+            throw new InvalidOrderStatusException("Đơn hàng không ở trạng thái chờ xác nhận");
+        }
+        
+        // 3. Validate GHN params
+        if (serviceId == null) {
+            throw new IllegalArgumentException("Thiếu thông tin dịch vụ GHN (serviceId)");
+        }
+        
+        // 4. Kiểm tra Shop có GHN config không
+        Shop shop = order.getShop();
+        logger.info("=== GHN SHIPMENT CREATION START ===");
+        logger.info("Shop: id={}, name={}, ghnShopId={}", shop.getId(), shop.getName(), shop.getGhnShopId());
+        
+        if (shop.getGhnShopId() == null || shop.getGhnShopId().trim().isEmpty()) {
+            throw new RuntimeException("Shop chưa có GHN Shop ID. Seller cần được admin approve để tự động đăng ký GHN shop.");
+        }
+        
+        // 5. Chuẩn bị GHN payload
+        Map<String, Object> ghnPayload = prepareGhnPayloadForOrder(order, serviceId, serviceTypeId, note);
+        
+        // 6. Tạo GHN shipment
+        try {
+            logger.info("Calling GHN API to create shipping order for order #{}", order.getId());
+            Map<String, Object> ghnResponse = ghnService.createShippingOrder(ghnPayload, shop.getId());
+            
+            // 6. Validate GHN response
+            if (ghnResponse == null) {
+                throw new RuntimeException("GHN API returned null response");
+            }
+            
+            logger.info("GHN Response received: {}", ghnResponse);
+            
+            // Check response code
+            Object codeObj = ghnResponse.get("code");
+            if (codeObj == null) {
+                throw new RuntimeException("GHN response missing 'code' field");
+            }
+            
+            int responseCode = Integer.parseInt(String.valueOf(codeObj));
+            if (responseCode != 200) {
+                String message = String.valueOf(ghnResponse.get("message"));
+                logger.error("❌ GHN API error: code={}, message={}", responseCode, message);
+                throw new RuntimeException("GHN API error: " + message + " (code: " + responseCode + ")");
+            }
+            
+            // 7. Tạo Shipment entity
+            Shipment shipment = new Shipment();
+            shipment.setOrderId(order.getId());
+            shipment.setStatus("READY_TO_PICK");
+            
+            // Parse GHN response data
+            if (ghnResponse.get("data") instanceof Map) {
+                Map<?, ?> data = (Map<?, ?>) ghnResponse.get("data");
+                
+                Object orderCode = data.get("order_code");
+                if (orderCode != null) {
+                    shipment.setGhnOrderCode(String.valueOf(orderCode));
+                    logger.info("✅ GHN order_code: {}", orderCode);
+                } else {
+                    logger.warn("⚠️ GHN response data missing 'order_code'");
+                }
+                
+                // Log thêm thông tin từ GHN
+                Object totalFee = data.get("total_fee");
+                Object expectedDelivery = data.get("expected_delivery_time");
+                logger.info("GHN total_fee: {}, expected_delivery: {}", totalFee, expectedDelivery);
+            } else {
+                logger.error("❌ GHN response missing 'data' field or data is not a Map");
+                throw new RuntimeException("GHN response format invalid: missing or invalid 'data' field");
+            }
+            
+            // Lưu response
+            try {
+                shipment.setGhnPayload(new com.fasterxml.jackson.databind.ObjectMapper()
+                    .writeValueAsString(ghnResponse));
+            } catch (Exception e) {
+                shipment.setGhnPayload(ghnResponse != null ? ghnResponse.toString() : "");
+            }
+            
+            Shipment savedShipment = shipmentRepository.save(shipment);
+            logger.info("✅ Shipment saved to database: id={}, ghnOrderCode={}", 
+                savedShipment.getId(), savedShipment.getGhnOrderCode());
+            logger.info("✅ GHN shipment created successfully for order #{}, GHN order code: {}", 
+                order.getId(), shipment.getGhnOrderCode());
+            logger.info("=== GHN SHIPMENT CREATION SUCCESS ===");
+            
+        } catch (Exception e) {
+            logger.error("=== GHN SHIPMENT CREATION FAILED ===");
+            logger.error("❌ Failed to create GHN shipment for order #{}", order.getId());
+            logger.error("Error type: {}", e.getClass().getName());
+            logger.error("Error message: {}", e.getMessage());
+            if (e.getCause() != null) {
+                logger.error("Root cause: {}", e.getCause().getMessage());
+            }
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi tạo vận đơn GHN: " + e.getMessage(), e);
+        }
+        
+        // 7. Cập nhật order status
+        order.setStatus(Order.OrderStatus.PROCESSING);
+        Order savedOrder = orderRepository.save(order);
+        
+        // 8. Gửi notification cho buyer
+        try {
+            notificationService.sendOrderNotification(
+                order.getUser().getId(), 
+                "ORDER_CONFIRMED", 
+                "✅ Đơn hàng #" + order.getId() + " đã được xác nhận và đang chuẩn bị giao"
+            );
+        } catch (Exception e) {
+            logger.warn("Failed to send notification: {}", e.getMessage());
+        }
+        
+        return savedOrder;
+    }
+    
+    /**
+     * Helper method: Chuẩn bị GHN payload từ thông tin order
+     */
+    private Map<String, Object> prepareGhnPayloadForOrder(Order order, Integer serviceId, 
+                                                          Integer serviceTypeId, String note) {
+        Shop shop = order.getShop();
+        
+        // Lấy địa chỉ shop (STORE address)
+        Address shopAddress = addressRepository.findByUserAndTypeAddress(
+            shop.getOwner(), TypeAddress.STORE)
+            .stream().findFirst()
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ STORE của shop"));
+        
+        // Validate shop address có đầy đủ thông tin GHN
+        logger.info("Shop STORE address: district={}, ward={}, province={}", 
+            shopAddress.getDistrictId(), shopAddress.getWardCode(), shopAddress.getProvinceName());
+        
+        if (shopAddress.getDistrictId() == null) {
+            throw new RuntimeException("Địa chỉ STORE của shop thiếu district_id");
+        }
+        if (shopAddress.getWardCode() == null || shopAddress.getWardCode().trim().isEmpty()) {
+            throw new RuntimeException("Địa chỉ STORE của shop thiếu ward_code");
+        }
+        
+        // Tính toán weight, dimensions, COD
+        int totalWeight = calculateTotalChargeableWeightGrams(order.getOrderItems());
+        int codAmount = "COD".equalsIgnoreCase(order.getMethod()) ? 
+            order.getTotalAmount().intValue() : 0;
+        
+        int maxLength = 20, maxWidth = 20, maxHeight = 10; // Default dimensions
+        
+        // Calculate max dimensions from order items
+        for (OrderItem item : order.getOrderItems()) {
+            var product = item.getVariant().getProduct();
+            if (product.getLengthCm() != null) {
+                maxLength = Math.max(maxLength, product.getLengthCm());
+            }
+            if (product.getWidthCm() != null) {
+                maxWidth = Math.max(maxWidth, product.getWidthCm());
+            }
+            if (product.getHeightCm() != null) {
+                maxHeight = Math.max(maxHeight, product.getHeightCm());
+            }
+        }
+        
+        // Build items array for GHN
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (OrderItem item : order.getOrderItems()) {
+            var product = item.getVariant().getProduct();
+            var variant = item.getVariant();
+            
+            Map<String, Object> ghnItem = new HashMap<>();
+            ghnItem.put("name", product.getName());
+            ghnItem.put("code", variant.getSku() != null ? variant.getSku() : "");
+            ghnItem.put("quantity", item.getQuantity());
+            ghnItem.put("price", variant.getPrice() != null ? variant.getPrice().intValue() : 0);
+            ghnItem.put("length", product.getLengthCm() != null ? product.getLengthCm() : 12);
+            ghnItem.put("width", product.getWidthCm() != null ? product.getWidthCm() : 12);
+            ghnItem.put("height", product.getHeightCm() != null ? product.getHeightCm() : 12);
+            ghnItem.put("weight", product.getWeightGrams() != null ? product.getWeightGrams() : 200);
+            
+            Map<String, String> category = new HashMap<>();
+            category.put("level1", product.getCategory() != null ? 
+                product.getCategory().getName() : "Khác");
+            ghnItem.put("category", category);
+            
+            items.add(ghnItem);
+        }
+        
+        // Build final payload
+        Map<String, Object> payload = new HashMap<>();
+        
+        // Thông tin người gửi (shop) - Cascading fallback: contactName → shopName → ownerName
+        String fromName = shopAddress.getContactName();
+        if (fromName == null || fromName.trim().isEmpty()) {
+            fromName = shop.getName();
+        }
+        if (fromName == null || fromName.trim().isEmpty()) {
+            fromName = shop.getOwner().getFullName();
+        }
+        
+        String fromPhone = shopAddress.getContactPhone();
+        if (fromPhone == null || fromPhone.trim().isEmpty()) {
+            fromPhone = shop.getOwner().getPhoneNumber();
+        }
+        
+        payload.put("from_name", fromName);
+        payload.put("from_phone", fromPhone);
+        payload.put("from_address", shopAddress.getFullAddress());
+        payload.put("from_ward_name", shopAddress.getWardName());
+        payload.put("from_district_name", shopAddress.getDistrictName());
+        payload.put("from_province_name", shopAddress.getProvinceName());
+        
+        // Địa chỉ trả hàng
+        payload.put("return_phone", shopAddress.getContactPhone() != null ?
+                shopAddress.getContactPhone() : shop.getOwner().getPhoneNumber());
+        payload.put("return_address", shopAddress.getFullAddress());
+        payload.put("return_district_id", null);
+        payload.put("return_ward_code", "");
+        
+        // Thông tin người nhận (buyer)
+        payload.put("to_name", order.getReceiverName());
+        payload.put("to_phone", order.getReceiverPhone());
+        payload.put("to_address", order.getReceiverAddress());
+        payload.put("to_ward_code", order.getWardCode());
+        payload.put("to_district_id", order.getDistrictId());
+        
+        // Thông tin đơn hàng
+        payload.put("weight", totalWeight);
+        payload.put("length", maxLength);
+        payload.put("width", maxWidth);
+        payload.put("height", maxHeight);
+        
+        // Service selection: nếu serviceId = 0, GHN sẽ auto-detect service phù hợp
+        payload.put("service_id", serviceId != null ? serviceId : 0);
+        payload.put("service_type_id", serviceTypeId != null ? serviceTypeId : 2);
+        
+        payload.put("payment_type_id", 2); // 1=Shop trả, 2=Buyer trả ship
+        payload.put("required_note", "KHONGCHOXEMHANG"); // CHOTHUHANG | CHOXEMHANGKHONGTHU | KHONGCHOXEMHANG
+        payload.put("cod_amount", codAmount);
+        
+        // Insurance value: theo GHN, tối đa 5M cho COD, tổng không quá 10M
+        int insuranceValue = 0;
+        if (codAmount > 0) {
+            insuranceValue = Math.min(5_000_000, codAmount); // Max 5M cho COD
+        }
+        payload.put("insurance_value", insuranceValue);
+        payload.put("items", items);
+        
+        payload.put("client_order_code", "ORD-" + order.getId());
+        payload.put("note", note != null ? note : "");
+        payload.put("content", "Đơn hàng từ " + shop.getName());
+        payload.put("coupon", null);
+        
+        // Pick shift: [2] = chiều, [3] = tối, [4] = sáng hôm sau - mặc định chiều
+        payload.put("pick_shift", new int[]{2});
+        payload.put("pick_station_id", shopAddress.getDistrictId());
+        payload.put("deliver_station_id", null);
+        
+        // Validation: Check required fields
+        if (order.getDistrictId() == null) {
+            throw new RuntimeException("Missing to_district_id for order #" + order.getId());
+        }
+        if (order.getWardCode() == null || order.getWardCode().trim().isEmpty()) {
+            throw new RuntimeException("Missing to_ward_code for order #" + order.getId());
+        }
+        if (totalWeight < 1) {
+            logger.warn("⚠️ Total weight < 1g for order #{}, setting default 200g", order.getId());
+            payload.put("weight", 200);
+        }
+        
+        logger.info("✅ GHN payload prepared for order #{}: to_district={}, ward={}, weight={}g, cod={}, insurance={}, service_id={}", 
+            order.getId(), payload.get("to_district_id"), payload.get("to_ward_code"), 
+            payload.get("weight"), codAmount, insuranceValue, serviceId);
+        
+        return payload;
     }
 }
 

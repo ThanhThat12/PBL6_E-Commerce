@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.PBL6.Ecommerce.domain.ProductVariantValue;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariantValue;
 
 @Repository
 public interface ProductVariantValueRepository extends JpaRepository<ProductVariantValue, Long> {

@@ -1,9 +1,11 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Wallet;
-import com.PBL6.Ecommerce.domain.WalletTransaction;
+import com.PBL6.Ecommerce.domain.dto.payment.PaymentResponseDTO;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.payment.Wallet;
+import com.PBL6.Ecommerce.domain.entity.payment.WalletTransaction;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
 import com.PBL6.Ecommerce.repository.WalletRepository;
 import com.PBL6.Ecommerce.repository.WalletTransactionRepository;
@@ -321,7 +323,7 @@ public class WalletService {
      * Get admin user (first user with ADMIN role)
      */
     private User getAdminUser() {
-        return userRepository.findByRole(com.PBL6.Ecommerce.domain.Role.ADMIN)
+        return userRepository.findByRole(Role.ADMIN)
                 .stream()
                 .findFirst()
                 .orElseThrow(() -> new UserNotFoundException("Admin user not found"));
@@ -510,7 +512,7 @@ public class WalletService {
     /**
      * Create MoMo payment for wallet deposit
      */
-    public com.PBL6.Ecommerce.dto.PaymentResponseDTO createDepositPayment(
+    public PaymentResponseDTO createDepositPayment(
             Long userId, BigDecimal amount, String description, String walletOrderId) {
         try {
             logger.info("Creating MoMo payment for wallet deposit: userId={}, amount={}", userId, amount);
@@ -526,7 +528,7 @@ public class WalletService {
             logger.info("Using wallet IPN URL: {}, mobile redirect: {}", walletIpnUrl, mobileRedirectUrl);
             
             // Use custom redirect and IPN URLs for mobile wallet deposits
-            com.PBL6.Ecommerce.dto.PaymentResponseDTO response = momoPaymentService.createPaymentWithCustomUrls(
+            PaymentResponseDTO response = momoPaymentService.createPaymentWithCustomUrls(
                 walletOrderId,
                 amount,
                 description,

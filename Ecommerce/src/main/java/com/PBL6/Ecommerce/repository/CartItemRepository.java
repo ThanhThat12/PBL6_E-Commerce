@@ -9,9 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.PBL6.Ecommerce.domain.Cart;
-import com.PBL6.Ecommerce.domain.CartItem;
-import com.PBL6.Ecommerce.domain.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.cart.Cart;
+import com.PBL6.Ecommerce.domain.entity.cart.CartItem;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
 
 @Repository
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {

@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Order;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;

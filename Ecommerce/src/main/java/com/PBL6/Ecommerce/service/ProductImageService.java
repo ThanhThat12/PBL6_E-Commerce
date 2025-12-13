@@ -1,6 +1,5 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.dto.response.ImageUploadResponse;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -23,5 +22,5 @@ public interface ProductImageService {
      * @throws com.PBL6.Ecommerce.exception.ImageValidationException if image validation fails
      * @throws com.PBL6.Ecommerce.exception.ImageUploadException if Cloudinary upload fails
      */
-    ImageUploadResponse uploadMainImage(Long productId, MultipartFile file, Long userId);
+    com.PBL6.Ecommerce.domain.dto.response.ImageUploadResponse uploadMainImage(Long productId, MultipartFile file, Long userId);
 }

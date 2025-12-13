@@ -9,11 +9,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.Cart;
-import com.PBL6.Ecommerce.domain.CartItem;
-import com.PBL6.Ecommerce.domain.Product;
-import com.PBL6.Ecommerce.domain.ProductVariant;
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.cart.Cart;
+import com.PBL6.Ecommerce.domain.entity.cart.CartItem;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.CartDTO;
 import com.PBL6.Ecommerce.domain.dto.CartItemDTO;
 import com.PBL6.Ecommerce.exception.CartItemNotFoundException;

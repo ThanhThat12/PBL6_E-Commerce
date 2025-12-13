@@ -1,10 +1,10 @@
 package com.PBL6.Ecommerce.util;
 
 import com.PBL6.Ecommerce.constant.ConversationType;
-import com.PBL6.Ecommerce.domain.Conversation;
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.chat.Conversation;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.exception.ConversationPermissionDeniedException;
 import com.PBL6.Ecommerce.repository.ConversationRepository;
 import lombok.RequiredArgsConstructor;

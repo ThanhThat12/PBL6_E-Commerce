@@ -1,7 +1,7 @@
 // ...existing code...
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.util.TokenProvider;
 import com.PBL6.Ecommerce.domain.dto.GoogleLoginDTO;
@@ -12,7 +12,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import com.PBL6.Ecommerce.domain.Role;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;

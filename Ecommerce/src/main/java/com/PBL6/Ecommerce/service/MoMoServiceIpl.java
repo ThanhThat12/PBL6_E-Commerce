@@ -1,10 +1,11 @@
 package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.constant.PaymentTransactionStatus;
-import com.PBL6.Ecommerce.domain.Order;
-import com.PBL6.Ecommerce.domain.PaymentTransaction;
-import com.PBL6.Ecommerce.dto.PaymentCallbackRequest;
-import com.PBL6.Ecommerce.dto.PaymentResponseDTO;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
+import com.PBL6.Ecommerce.domain.dto.payment.MoMoRefundResponseDTO;
+import com.PBL6.Ecommerce.domain.dto.payment.PaymentCallbackRequest;
+import com.PBL6.Ecommerce.domain.dto.payment.PaymentResponseDTO;
 import com.PBL6.Ecommerce.exception.MoMoPaymentException;
 import com.PBL6.Ecommerce.exception.OrderNotFoundException;
 import com.PBL6.Ecommerce.repository.OrderRepository;
@@ -281,7 +282,7 @@ public class MoMoServiceIpl implements MoMoService {
     }
 
     @Override
-    public com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO refundPayment(Long orderId, BigDecimal amount, String description) {
+    public MoMoRefundResponseDTO refundPayment(Long orderId, BigDecimal amount, String description) {
         try {
             logger.info("Processing MoMo refund for order ID: {}, amount: {}", orderId, amount);
             
@@ -308,7 +309,7 @@ public class MoMoServiceIpl implements MoMoService {
             String refundRequestId = momoPaymentService.generateRequestId("REFUND-" + orderId);
             
             // Call MoMo refund API
-            com.PBL6.Ecommerce.dto.MoMoRefundResponseDTO refundResponse = momoPaymentService.refundPayment(
+            MoMoRefundResponseDTO refundResponse = momoPaymentService.refundPayment(
                 originalTransaction.getOrderIdMomo(),
                 refundRequestId,
                 amount,

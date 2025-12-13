@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.repository;
 
 import com.PBL6.Ecommerce.constant.ConversationType;
-import com.PBL6.Ecommerce.domain.Conversation;
+import com.PBL6.Ecommerce.domain.entity.chat.Conversation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

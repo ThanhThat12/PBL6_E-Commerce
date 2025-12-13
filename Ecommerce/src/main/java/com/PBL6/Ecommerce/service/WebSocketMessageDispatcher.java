@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.dto.WebSocketMessageResponse;
-import com.PBL6.Ecommerce.dto.TypingResponse;
+import com.PBL6.Ecommerce.domain.dto.chat.WebSocketMessageResponse;
+import com.PBL6.Ecommerce.domain.dto.chat.TypingResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

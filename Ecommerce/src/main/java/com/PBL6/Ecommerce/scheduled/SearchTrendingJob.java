@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.scheduled;
 
-import com.PBL6.Ecommerce.domain.TrendingSearch;
-import com.PBL6.Ecommerce.domain.TrendingSearch.TrendPeriod;
+import com.PBL6.Ecommerce.domain.entity.search.TrendingSearch;
+import com.PBL6.Ecommerce.domain.entity.search.TrendingSearch.TrendPeriod;
 import com.PBL6.Ecommerce.repository.SearchQueryRepository;
 import com.PBL6.Ecommerce.repository.TrendingSearchRepository;
 import org.slf4j.Logger;

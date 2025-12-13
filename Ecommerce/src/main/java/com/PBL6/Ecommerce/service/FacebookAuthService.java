@@ -1,10 +1,10 @@
 // ...existing code...
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.FacebookLoginDTO;
 import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.domain.Role;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;

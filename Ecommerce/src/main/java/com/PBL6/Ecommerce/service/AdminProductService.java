@@ -1,8 +1,8 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Product;
-import com.PBL6.Ecommerce.domain.ProductImage;
-import com.PBL6.Ecommerce.domain.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductImage;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminCategoryDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminListProductDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminProductAttributeDTO;

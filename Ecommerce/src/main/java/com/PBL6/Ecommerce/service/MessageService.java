@@ -1,11 +1,11 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Conversation;
-import com.PBL6.Ecommerce.domain.Message;
-import com.PBL6.Ecommerce.domain.MessageReadStatus;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.dto.MessageResponse;
-import com.PBL6.Ecommerce.dto.SendMessageRequest;
+import com.PBL6.Ecommerce.domain.entity.chat.Conversation;
+import com.PBL6.Ecommerce.domain.entity.chat.Message;
+import com.PBL6.Ecommerce.domain.entity.chat.MessageReadStatus;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.dto.chat.MessageResponse;
+import com.PBL6.Ecommerce.domain.dto.chat.SendMessageRequest;
 import com.PBL6.Ecommerce.exception.ConversationNotFoundException;
 import com.PBL6.Ecommerce.exception.MessageNotAllowedException;
 import com.PBL6.Ecommerce.repository.ConversationRepository;

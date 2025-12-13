@@ -1,7 +1,7 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.Role;
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.ForgotPasswordDTO;
 import com.PBL6.Ecommerce.domain.dto.ResetPasswordDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;

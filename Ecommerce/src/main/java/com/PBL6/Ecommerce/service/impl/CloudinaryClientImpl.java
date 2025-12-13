@@ -3,7 +3,7 @@ package com.PBL6.Ecommerce.service.impl;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.PBL6.Ecommerce.constant.TransformationType;
-import com.PBL6.Ecommerce.dto.cloudinary.CloudinaryUploadResult;
+import com.PBL6.Ecommerce.domain.dto.image.cloudinary.CloudinaryUploadResult;
 import com.PBL6.Ecommerce.exception.CloudinaryServiceException;
 import com.PBL6.Ecommerce.exception.ImageUploadException;
 import com.PBL6.Ecommerce.service.CloudinaryClient;

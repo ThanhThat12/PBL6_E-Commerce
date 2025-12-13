@@ -1,6 +1,6 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.Shipment;
+import com.PBL6.Ecommerce.domain.entity.order.Shipment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

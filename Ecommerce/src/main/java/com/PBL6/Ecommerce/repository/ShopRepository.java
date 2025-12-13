@@ -12,9 +12,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.Shop.ShopStatus;
-import com.PBL6.Ecommerce.domain.User;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop.ShopStatus;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 
 @Repository
 public interface ShopRepository extends JpaRepository<Shop, Long> {

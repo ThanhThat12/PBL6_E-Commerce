@@ -3,32 +3,21 @@ package com.PBL6.Ecommerce.service;
 // ============================================
 // DOMAIN IMPORTS
 // ============================================
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.Random;
-import java.util.stream.Collectors;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.cart.Cart;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.payment.Wallet;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductReview;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop.ShopStatus;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.auth.Verification;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.PBL6.Ecommerce.domain.Address;
-import com.PBL6.Ecommerce.domain.Cart;
-import com.PBL6.Ecommerce.domain.Product;
-import com.PBL6.Ecommerce.domain.Role;
-import com.PBL6.Ecommerce.domain.Shop;
-import com.PBL6.Ecommerce.domain.Shop.ShopStatus;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.domain.Verification;
+// ============================================
+// DTO IMPORTS
+// ============================================
 import com.PBL6.Ecommerce.domain.dto.ChangePasswordDTO;
 import com.PBL6.Ecommerce.domain.dto.CheckContactDTO;
 import com.PBL6.Ecommerce.domain.dto.RegisterDTO;
@@ -38,8 +27,8 @@ import com.PBL6.Ecommerce.domain.dto.UserInfoDTO;
 import com.PBL6.Ecommerce.domain.dto.UserListDTO;
 import com.PBL6.Ecommerce.domain.dto.UserProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.VerifyOtpDTO;
-import com.PBL6.Ecommerce.domain.dto.admin.AdminChangePasswordDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminCreateAdminDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.AdminChangePasswordDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminMyProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminStatsDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminUpdateMyProfileDTO;
@@ -51,9 +40,13 @@ import com.PBL6.Ecommerce.domain.dto.admin.ListAdminUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.ListCustomerUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.ListSellerUserDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.SellerStatsDTO;
+
+// ============================================
+// EXCEPTION IMPORTS
+// ============================================
 import com.PBL6.Ecommerce.exception.DuplicateEmailException;
-import com.PBL6.Ecommerce.exception.DuplicatePhoneException;
 import com.PBL6.Ecommerce.exception.DuplicateUsernameException;
+import com.PBL6.Ecommerce.exception.DuplicatePhoneException;
 import com.PBL6.Ecommerce.exception.ExpiredOtpException;
 import com.PBL6.Ecommerce.exception.InvalidOtpException;
 import com.PBL6.Ecommerce.exception.InvalidRoleException;
@@ -63,6 +56,10 @@ import com.PBL6.Ecommerce.exception.UnauthenticatedException;
 import com.PBL6.Ecommerce.exception.UnauthorizedUserActionException;
 import com.PBL6.Ecommerce.exception.UserHasReferencesException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
+
+// ============================================
+// REPOSITORY IMPORTS
+// ============================================
 import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
@@ -75,6 +72,30 @@ import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.repository.VerificationRepository;
 import com.PBL6.Ecommerce.repository.VouchersRepository;
 import com.PBL6.Ecommerce.repository.WalletRepository;
+
+// ============================================
+// SPRING IMPORTS
+// ============================================
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageImpl;
+
+// ============================================
+// JAVA IMPORTS
+// ============================================
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -353,20 +374,7 @@ public class UserService {
             return new UserNotFoundException("User not found");
         });
 
-        // Get shopId if user is seller and has shop
-        // Need to query shop separately because of LAZY fetch
-        Long shopId = null;
-        if (user.getRole() == Role.SELLER) {
-            Shop shop = shopRepository.findByOwnerId(user.getId()).orElse(null);
-            if (shop != null) {
-                shopId = shop.getId();
-                log.info("User {} has shop with ID: {}", user.getId(), shopId);
-            } else {
-                log.info("User {} is SELLER but has no shop yet", user.getId());
-            }
-        }
-
-        return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name(), user.getFullName(), shopId);
+        return new UserInfoDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRole().name(), user.getFullName());
     }
 
     /**
@@ -1553,7 +1561,7 @@ public class UserService {
         log.debug("Deleting all orders for user ID: {}", userId);
         
         // Xóa orders nơi user là buyer
-        List<com.PBL6.Ecommerce.domain.Order> buyerOrders = orderRepository.findByUserId(userId);
+        List<Order> buyerOrders = orderRepository.findByUserId(userId);
         if (!buyerOrders.isEmpty()) {
             orderRepository.deleteAll(buyerOrders);
             log.info("Deleted {} orders where user ID {} was buyer", buyerOrders.size(), userId);
@@ -1562,7 +1570,7 @@ public class UserService {
         // Xóa orders nơi user là seller (through shop)
         Optional<Shop> shopOpt = shopRepository.findByUserId(userId);
         if (shopOpt.isPresent()) {
-            List<com.PBL6.Ecommerce.domain.Order> sellerOrders = orderRepository.findByShopId(shopOpt.get().getId());
+            List<Order> sellerOrders = orderRepository.findByShopId(shopOpt.get().getId());
             if (!sellerOrders.isEmpty()) {
                 orderRepository.deleteAll(sellerOrders);
                 log.info("Deleted {} orders where user ID {} was seller", sellerOrders.size(), userId);
@@ -1577,7 +1585,7 @@ public class UserService {
         log.debug("Deleting all product reviews for user ID: {}", userId);
         
         // Tìm tất cả reviews của user
-        List<com.PBL6.Ecommerce.domain.ProductReview> reviews = 
+        List<ProductReview> reviews =
             productReviewRepository.findAll().stream()
                 .filter(review -> review.getUser().getId().equals(userId))
                 .collect(Collectors.toList());
@@ -1606,7 +1614,7 @@ public class UserService {
     private void deleteUserWallet(Long userId) {
         log.debug("Deleting wallet for user ID: {}", userId);
         
-        Optional<com.PBL6.Ecommerce.domain.Wallet> walletOpt = walletRepository.findByUserId(userId);
+        Optional<Wallet> walletOpt = walletRepository.findByUserId(userId);
         if (walletOpt.isPresent()) {
             walletRepository.delete(walletOpt.get());
             log.info("Deleted wallet for user ID: {}", userId);

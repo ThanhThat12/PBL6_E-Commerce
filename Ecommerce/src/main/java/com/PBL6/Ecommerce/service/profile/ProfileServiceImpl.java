@@ -7,11 +7,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.dto.cloudinary.CloudinaryUploadResult;
-import com.PBL6.Ecommerce.dto.profile.ProfileDTO;
-import com.PBL6.Ecommerce.dto.profile.request.ChangePasswordRequest;
-import com.PBL6.Ecommerce.dto.profile.request.UpdateProfileRequest;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.dto.profile.request.ChangePasswordRequest;
+import com.PBL6.Ecommerce.domain.dto.profile.ProfileDTO;
+import com.PBL6.Ecommerce.domain.dto.profile.request.UpdateProfileRequest;
+import com.PBL6.Ecommerce.domain.dto.image.cloudinary.CloudinaryUploadResult;
 import com.PBL6.Ecommerce.exception.BadRequestException;
 import com.PBL6.Ecommerce.exception.NotFoundException;
 import com.PBL6.Ecommerce.repository.UserRepository;
@@ -82,7 +82,7 @@ public class ProfileServiceImpl implements ProfileService {
         } catch (Exception e) {
             throw new BadRequestException("Không thể tải ảnh lên: " + e.getMessage());
         }
-        
+
         user.setAvatarUrl(result.getSecureUrl());
         user.setAvatarPublicId(result.getPublicId());
         user.setUpdatedAt(LocalDateTime.now());

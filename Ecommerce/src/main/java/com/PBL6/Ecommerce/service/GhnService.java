@@ -4,11 +4,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import com.PBL6.Ecommerce.domain.Shop;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
 import com.PBL6.Ecommerce.repository.ShopRepository;
-import com.PBL6.Ecommerce.domain.Shipment;
+import com.PBL6.Ecommerce.domain.entity.order.Shipment;
 import com.PBL6.Ecommerce.repository.ShipmentRepository;
-import com.PBL6.Ecommerce.domain.Address;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.*;
@@ -56,33 +56,27 @@ public class GhnService {
         // Xóa ShopID nếu có (legacy)
         normalized.remove("ShopID");
         
-        // ✅ DEBUG: Log để kiểm tra required_note
-        System.out.println("========== normalizePayload ==========");
-        System.out.println("Input payload keys: " + payload.keySet());
-        System.out.println("Input required_note: " + payload.get("required_note"));
-        System.out.println("Shop GHN ID: " + shop.getGhnShopId());
-        System.out.println("Output payload keys: " + normalized.keySet());
-        System.out.println("Output required_note: " + normalized.get("required_note"));
-        System.out.println("=====================================");
-        
         return normalized;
     }
 
     /**
-     * Lấy headers với token và ShopId từ shop
+     * Lấy headers với token (từ application.properties) và ShopId (từ Shop entity)
      */
     private HttpHeaders getGhnHeaders(Shop shop) {
-        if (shop.getGhnToken() == null || shop.getGhnToken().trim().isEmpty()) {
-            throw new RuntimeException("Shop chưa cấu hình GHN Token");
+        // ✅ Token được quản lý tập trung trong application.properties
+        if (ghnToken == null || ghnToken.trim().isEmpty()) {
+            throw new RuntimeException("GHN Token chưa được cấu hình trong application.properties");
         }
+        
+        // ✅ ShopId được lưu trong database (ghn_shop_id)
         if (shop.getGhnShopId() == null || shop.getGhnShopId().trim().isEmpty()) {
-            throw new RuntimeException("Shop chưa cấu hình GHN ShopId");
+            throw new RuntimeException("Shop chưa có GHN Shop ID (chưa được đăng ký)");
         }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Token", shop.getGhnToken());
-        headers.set("ShopId", shop.getGhnShopId());
+        headers.set("Token", ghnToken); // ✅ Dùng token từ application.properties
+        headers.set("ShopId", shop.getGhnShopId()); // ✅ Dùng shop_id từ database
         
         return headers;
     }
@@ -91,56 +85,21 @@ public class GhnService {
      * Lấy danh sách dịch vụ vận chuyển khả dụng
      */
     public List<Map<String,Object>> getAvailableServices(Map<String,Object> payload, Long shopId) {
-        System.out.println("========== GHN SERVICE getAvailableServices ===========");
-        System.out.println("Received payload: " + payload);
-        System.out.println("ShopId: " + shopId);
-        
         try {
             Shop shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new RuntimeException("Shop not found"));
-            
-            System.out.println("Found shop: " + shop.getName());
-            System.out.println("Shop GHN Token: " + shop.getGhnToken());
-            System.out.println("Shop GHN ShopId: " + shop.getGhnShopId());
-
-            // MOCK LOGIC: If token is 'DUMMY_TOKEN', return mock data
-            if ("DUMMY_TOKEN".equals(shop.getGhnToken())) {
-                System.out.println("[MOCK] Returning standard delivery service for shopId=" + shopId);
-                List<Map<String, Object>> mockServices = new ArrayList<>();
-                Map<String, Object> standardService = new HashMap<>();
-                standardService.put("service_id", 53320);
-                standardService.put("short_name", "Giao hàng tiêu chuẩn");
-                standardService.put("service_type_id", 1);
-                standardService.put("service_name", "Giao hàng tiêu chuẩn");
-                standardService.put("description", "Dịch vụ giao hàng tiêu chuẩn");
-                mockServices.add(standardService);
-                return mockServices;
-            }
 
             HttpHeaders headers = getGhnHeaders(shop);
 
             // Chuẩn hóa payload
             Map<String, Object> normalizedPayload = normalizePayload(payload, shop);
-
-            System.out.println("========== GHN AVAILABLE SERVICES REQUEST ==========");
-            System.out.println("URL: " + ghnApiUrl + "/v2/shipping-order/available-services");
-            System.out.println("Headers: " + headers);
-            System.out.println("Body: " + normalizedPayload);
-            System.out.println("===================================================");
-
+            
             HttpEntity<Map<String,Object>> request = new HttpEntity<>(normalizedPayload, headers);
-
             String url = ghnApiUrl + "/v2/shipping-order/available-services";
 
             ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
-            
-            System.out.println("========== GHN AVAILABLE SERVICES RESPONSE ==========");
-            System.out.println("Status Code: " + response.getStatusCode());
-            System.out.println("Response Body: " + response.getBody());
-            System.out.println("====================================================");
 
             Map<String,Object> body = response.getBody();
-            System.out.println("GHN Response: " + body);
 
             if (body != null && body.get("data") instanceof List) {
                 List<Map<String,Object>> allServices = (List<Map<String,Object>>) body.get("data");
@@ -153,13 +112,10 @@ public class GhnService {
                     firstService.put("description", "Dịch vụ giao hàng tiêu chuẩn");
                     standardServices.add(firstService);
                 }
-                System.out.println("Returning " + standardServices.size() + " standard delivery service to client");
                 return standardServices;
             }
-            System.out.println("No services found - returning empty list");
             return new ArrayList<>();
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            System.err.println("❌ GHN Error Response: " + e.getResponseBodyAsString());
             throw new RuntimeException("Lỗi gọi GHN available-services: " + e.getMessage() + " - " + e.getResponseBodyAsString());
         } catch (Exception e) {
             e.printStackTrace();
@@ -180,44 +136,6 @@ public class GhnService {
             System.out.println("Total Weight: " + totalWeight + "g");
             System.out.println("Package Type: " + packageType);
             System.out.println("==============================================");
-            
-            // For DUMMY_TOKEN shops, return mock fee based on weight
-            if ("DUMMY_TOKEN".equals(shop.getGhnToken())) {
-                System.out.println("[MOCK] Calculating fee based on weight and location");
-                Map<String, Object> mockResponse = new HashMap<>();
-                Map<String, Object> data = new HashMap<>();
-                
-                // Base fee calculation based on weight and location
-                int baseFee = packageType.equals("light") ? 25000 : 45000; // Light: 25k, Heavy: 45k
-                
-                // Location factor (can be enhanced with real province/district mapping)
-                Integer toDistrictId = (Integer) payload.get("to_district_id");
-                Integer fromDistrictId = (Integer) payload.get("from_district_id");
-                double locationMultiplier = 1.0;
-                
-                if (toDistrictId != null && fromDistrictId != null) {
-                    // Simple distance simulation - in reality this would be more complex
-                    int distanceFactor = Math.abs(toDistrictId - fromDistrictId);
-                    locationMultiplier = 1.0 + (distanceFactor > 100 ? 0.4 : distanceFactor > 50 ? 0.2 : 0.1);
-                }
-                
-                int finalFee = (int) (baseFee * locationMultiplier);
-                
-                data.put("total", finalFee);
-                data.put("service_fee", finalFee);
-                data.put("insurance_fee", 0);
-                data.put("cod_fee", 0);
-                data.put("coupon_value", 0);
-                data.put("package_type", packageType);
-                data.put("weight_category", packageType.equals("light") ? "Hàng nhẹ" : "Hàng nặng");
-                
-                mockResponse.put("code", 200);
-                mockResponse.put("message", "Success");
-                mockResponse.put("data", data);
-                
-                System.out.println("Mock fee calculated: " + finalFee + " VND for " + packageType + " package");
-                return mockResponse;
-            }
             
             HttpHeaders headers = getGhnHeaders(shop);
             
@@ -258,6 +176,19 @@ public class GhnService {
         }
     }
 
+    /**
+     * Create GHN shipping order
+     * API: POST /v2/shipping-order/create
+     * 
+     * Required fields theo tài liệu GHN:
+     * - payment_type_id: 1=Shop trả, 2=Buyer trả
+     * - required_note: CHOTHUHANG | CHOXEMHANGKHONGTHU | KHONGCHOXEMHANG
+     * - from_name, from_phone, from_address, from_ward_name, from_district_name, from_province_name
+     * - to_name, to_phone, to_address, to_ward_code, to_district_id
+     * - weight, length, width, height
+     * - service_id, service_type_id (0 = auto-detect)
+     * - items array
+     */
     public Map<String,Object> createShippingOrder(Map<String,Object> payload, Long shopId) {
         try {
             Shop shop = shopRepository.findById(shopId)
@@ -268,42 +199,20 @@ public class GhnService {
             // ✅ Chuẩn hóa payload
             Map<String, Object> normalizedPayload = normalizePayload(payload, shop);
             
-            // ✅ FORCE thêm required_note nếu thiếu
+            // ✅ Validate required fields theo tài liệu GHN
+            validateGhnPayload(normalizedPayload);
+            
+            // Ensure required_note has valid value
             if (!normalizedPayload.containsKey("required_note") || normalizedPayload.get("required_note") == null) {
-                System.err.println("⚠️ WARNING: required_note is missing, setting default value");
                 normalizedPayload.put("required_note", "KHONGCHOXEMHANG");
             }
             
-            // ✅ Validate required_note value
+            // Validate required_note value
             String requiredNote = String.valueOf(normalizedPayload.get("required_note"));
             List<String> validValues = Arrays.asList("CHOTHUHANG", "CHOXEMHANGKHONGTHU", "KHONGCHOXEMHANG");
             if (!validValues.contains(requiredNote)) {
-                System.err.println("⚠️ WARNING: Invalid required_note value: " + requiredNote);
                 normalizedPayload.put("required_note", "KHONGCHOXEMHANG");
             }
-            
-            // ✅ DEBUG: Log đầy đủ
-            System.out.println("========== CREATE SHIPPING ORDER REQUEST ==========");
-            System.out.println("URL: " + ghnApiUrl + "/v2/shipping-order/create");
-            System.out.println("Headers: " + headers);
-            System.out.println("Full Payload: " + normalizedPayload);
-            System.out.println("Required Note: " + normalizedPayload.get("required_note"));
-            
-            // ✅ Log JSON body sẽ gửi
-            try {
-                String jsonBody = objectMapper.writeValueAsString(normalizedPayload);
-                System.out.println("JSON Body sent to GHN:");
-                System.out.println(jsonBody);
-                
-                // Verify JSON contains required_note
-                if (!jsonBody.contains("required_note")) {
-                    System.err.println("❌ CRITICAL: required_note NOT FOUND in JSON!");
-                    throw new RuntimeException("Payload serialization error: required_note missing");
-                }
-            } catch (Exception e) {
-                System.err.println("❌ Error serializing payload: " + e.getMessage());
-            }
-            System.out.println("===================================================");
             
             HttpEntity<Map<String,Object>> request = new HttpEntity<>(normalizedPayload, headers);
             
@@ -312,10 +221,26 @@ public class GhnService {
             ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
             
             System.out.println("========== CREATE SHIPPING ORDER RESPONSE ==========");
-            System.out.println("Response: " + response.getBody());
+            System.out.println("HTTP Status: " + response.getStatusCode());
+            System.out.println("Response Body: " + response.getBody());
             System.out.println("====================================================");
             
-            return response.getBody();
+            Map<String, Object> responseBody = response.getBody();
+            
+            // ✅ Kiểm tra GHN response code
+            if (responseBody != null) {
+                Object codeObj = responseBody.get("code");
+                if (codeObj != null) {
+                    int ghnCode = Integer.parseInt(String.valueOf(codeObj));
+                    if (ghnCode != 200) {
+                        String message = String.valueOf(responseBody.get("message"));
+                        System.err.println("❌ GHN API Error: code=" + ghnCode + ", message=" + message);
+                        throw new RuntimeException("GHN API Error: " + message + " (code: " + ghnCode + ")");
+                    }
+                }
+            }
+            
+            return responseBody;
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             System.err.println("❌ GHN Error Response: " + e.getResponseBodyAsString());
             throw new RuntimeException("Lỗi tạo đơn: " + e.getMessage() + " - " + e.getResponseBodyAsString());
@@ -555,5 +480,56 @@ public class GhnService {
             e.printStackTrace();
             throw new RuntimeException("Lỗi đăng ký shop GHN: " + e.getMessage());
         }
+    }
+    
+    /**
+     * Validate GHN payload trước khi gửi API
+     * Kiểm tra các trường bắt buộc theo tài liệu GHN
+     */
+    private void validateGhnPayload(Map<String, Object> payload) {
+        // Required fields for shipping order creation
+        String[] requiredFields = {
+            "to_name", "to_phone", "to_address", "to_ward_code", "to_district_id",
+            "from_name", "from_phone", "from_address",
+            "weight", "service_type_id"
+        };
+        
+        for (String field : requiredFields) {
+            if (!payload.containsKey(field) || payload.get(field) == null) {
+                throw new RuntimeException("Missing required field: " + field);
+            }
+            
+            // Check empty string
+            if (payload.get(field) instanceof String) {
+                String value = (String) payload.get(field);
+                if (value.trim().isEmpty()) {
+                    throw new RuntimeException("Empty value for required field: " + field);
+                }
+            }
+        }
+        
+        // Validate numeric fields
+        Integer weight = (Integer) payload.get("weight");
+        if (weight != null && weight < 1) {
+            throw new RuntimeException("Weight must be at least 1 gram");
+        }
+        
+        Integer toDistrictId = (Integer) payload.get("to_district_id");
+        if (toDistrictId != null && toDistrictId <= 0) {
+            throw new RuntimeException("Invalid to_district_id: " + toDistrictId);
+        }
+        
+        // Validate items array if present
+        if (payload.containsKey("items") && payload.get("items") != null) {
+            Object itemsObj = payload.get("items");
+            if (itemsObj instanceof List) {
+                List<?> items = (List<?>) itemsObj;
+                if (items.isEmpty()) {
+                    System.err.println("⚠️ WARNING: items array is empty");
+                }
+            }
+        }
+        
+        System.out.println("✅ GHN payload validation passed");
     }
 }
