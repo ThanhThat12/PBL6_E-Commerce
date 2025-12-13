@@ -39,6 +39,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // Thêm method tìm user theo role với phân trang
     Page<User> findByRole(Role role, Pageable pageable);
+    
+    // Thêm method tìm user theo role và activated status với phân trang
+    Page<User> findByRoleAndActivated(Role role, boolean activated, Pageable pageable);
 
     // Thêm method đếm số lượng user theo role
     long countByRole(Role role);

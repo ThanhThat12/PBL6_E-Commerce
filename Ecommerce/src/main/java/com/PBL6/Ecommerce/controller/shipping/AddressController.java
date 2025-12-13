@@ -15,13 +15,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.PBL6.Ecommerce.domain.entity.user.Address;
 import com.PBL6.Ecommerce.domain.dto.AddressRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.AddressResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
 import com.PBL6.Ecommerce.service.AddressService;
 import com.PBL6.Ecommerce.service.UserService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 @Tag(name = "Addresses", description = "User address management")
@@ -76,6 +80,41 @@ public class AddressController {
     }
 
     @PostMapping
+    @Operation(
+        summary = "Create new address",
+        description = "Create a new address for the current user.\\n\\n" +
+                      "**Auto Primary Logic:**\\n" +
+                      "- When primaryAddress=true for HOME type, automatically unsets primary flag for ALL other HOME addresses\\n" +
+                      "- Ensures only one primary address per user\\n\\n" +
+                      "**Type Constraints:**\\n" +
+                      "- HOME: Unlimited, can have multiple, choose 1 as primary for delivery\\n" +
+                      "- STORE: Maximum 1 per seller, cannot be set as primary\\n\\n" +
+                      "**Response includes:** id, fullAddress, location names (province/district/ward), contactName, contactPhone, typeAddress, primaryAddress, createdAt, updatedAt",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "201",
+            description = "✅ Address created successfully. If primaryAddress=true, other HOME addresses automatically unmarked as primary."
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "❌ Bad Request - Validation errors:\\n" +
+                         "• **typeAddress invalid** - Must be HOME or STORE only\\n" +
+                         "• **STORE limit exceeded** - Seller already has 1 STORE address (can only have 1)\\n" +
+                         "• **STORE cannot be primary** - Only HOME addresses can be marked as primary\\n" +
+                         "• **Invalid phone** - Format must be Vietnamese (0 or +84 followed by 9-10 digits)\\n" +
+                         "• **Invalid GHN IDs** - Province/district/ward codes not found in system"
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "🔐 Unauthorized - JWT token missing, expired, or invalid"
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "⚠️ User not found - The authenticated user does not exist in system"
+        )
+    })
     public ResponseEntity<ResponseDTO<AddressResponseDTO>> create(@AuthenticationPrincipal Jwt jwt, 
                                                                    @Valid @RequestBody AddressRequestDTO req) {
         Long userId = userService.extractUserIdFromJwt(jwt);

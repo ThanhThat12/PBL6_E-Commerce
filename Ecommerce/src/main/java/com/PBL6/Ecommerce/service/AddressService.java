@@ -7,10 +7,10 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.entity.user.Address;
 import com.PBL6.Ecommerce.constant.TypeAddress;
-import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.AddressRequestDTO;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.exception.AddressNotFoundException;
 import com.PBL6.Ecommerce.exception.UnauthorizedAddressAccessException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
@@ -110,12 +110,16 @@ public class AddressService {
         }
 
         // Business Rule: Primary address chỉ áp dụng cho HOME
+        // Tự động unset TẤT CẢ previous primary HOME addresses
         if (req.primaryAddress && type == TypeAddress.HOME) {
-            addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
-                    .ifPresent(prev -> {
-                        prev.setPrimaryAddress(false);
-                        addressRepository.save(prev);
-                    });
+            List<Address> allHomeAddresses = addressRepository.findByUserId(userId).stream()
+                    .filter(addr -> addr.getTypeAddress() == TypeAddress.HOME && addr.isPrimaryAddress())
+                    .toList();
+            
+            for (Address prev : allHomeAddresses) {
+                prev.setPrimaryAddress(false);
+                addressRepository.save(prev);
+            }
         }
 
         Address a = new Address();
