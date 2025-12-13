@@ -1,4 +1,4 @@
-package com.PBL6.Ecommerce.dto.request;
+package com.PBL6.Ecommerce.domain.dto.image;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
