@@ -2,9 +2,9 @@ package com.PBL6.Ecommerce.service.profile;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import com.PBL6.Ecommerce.domain.dto.profile.request.ChangePasswordRequest;
 import com.PBL6.Ecommerce.domain.dto.profile.ProfileDTO;
-import com.PBL6.Ecommerce.domain.dto.profile.request.UpdateProfileRequest;
+import com.PBL6.Ecommerce.domain.dto.request.ChangePasswordRequest;
+import com.PBL6.Ecommerce.domain.dto.request.UpdateProfileRequest;
 
 /**
  * Service interface for Profile Management

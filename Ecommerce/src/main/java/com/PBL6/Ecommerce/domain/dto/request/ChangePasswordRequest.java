@@ -1,4 +1,4 @@
-package com.PBL6.Ecommerce.domain.dto.profile.request;
+package com.PBL6.Ecommerce.domain.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

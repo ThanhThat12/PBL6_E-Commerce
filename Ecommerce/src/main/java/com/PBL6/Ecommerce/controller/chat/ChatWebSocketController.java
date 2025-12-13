@@ -1,10 +1,14 @@
-package com.PBL6.Ecommerce.controller.websocket;
+package com.PBL6.Ecommerce.controller.chat;
 
 import com.PBL6.Ecommerce.config.websocket.WebSocketAuthInterceptor;
-import com.PBL6.Ecommerce.domain.Conversation;
-import com.PBL6.Ecommerce.domain.ConversationMember;
-import com.PBL6.Ecommerce.domain.User;
-import com.PBL6.Ecommerce.dto.*;
+import com.PBL6.Ecommerce.domain.dto.chat.MessageResponse;
+import com.PBL6.Ecommerce.domain.dto.chat.SendMessageRequest;
+import com.PBL6.Ecommerce.domain.dto.chat.TypingRequest;
+import com.PBL6.Ecommerce.domain.dto.chat.TypingResponse;
+import com.PBL6.Ecommerce.domain.dto.chat.WebSocketMessageRequest;
+import com.PBL6.Ecommerce.domain.dto.chat.WebSocketMessageResponse;
+import com.PBL6.Ecommerce.domain.entity.chat.Conversation;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.exception.MessageNotAllowedException;
 import com.PBL6.Ecommerce.repository.ConversationRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
