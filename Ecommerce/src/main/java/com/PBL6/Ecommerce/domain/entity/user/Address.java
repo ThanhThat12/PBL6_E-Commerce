@@ -32,8 +32,8 @@ public class Address {
      * - STORE: Seller's warehouse/shop address (only one per seller, no primary)
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "type_address", length = 50)
-    private TypeAddress typeAddress;
+    @Column(name = "type_address", length = 50, nullable = false)
+    private TypeAddress typeAddress = TypeAddress.HOME; // Default to HOME
 
     @Column(length = 500)
     private String fullAddress;
@@ -125,5 +125,16 @@ public class Address {
     @jakarta.persistence.PreUpdate
     public void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+    
+    /**
+     * PostLoad hook to handle null type_address from database
+     * Set default to HOME if null to prevent enum conversion errors
+     */
+    @jakarta.persistence.PostLoad
+    public void handleNullTypeAddress() {
+        if (this.typeAddress == null) {
+            this.typeAddress = TypeAddress.HOME;
+        }
     }
 }
