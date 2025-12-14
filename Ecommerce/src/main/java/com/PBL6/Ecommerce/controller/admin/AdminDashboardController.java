@@ -16,7 +16,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/dashboard")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
 public class AdminDashboardController {
 
     private final AdminDashboardService dashboardService;
@@ -33,6 +32,7 @@ public class AdminDashboardController {
      * - Growth percentages for each metric
      */
     @GetMapping("/stats")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AdminDashboardStatsDTO> getDashboardStats() {
         return ResponseEntity.ok(dashboardService.getDashboardStats());
     }
@@ -47,6 +47,7 @@ public class AdminDashboardController {
      * - Order Count
      */
     @GetMapping("/sales-by-category")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<SalesByCategoryDTO>> getSalesByCategory() {
         return ResponseEntity.ok(dashboardService.getSalesByCategory());
     }
@@ -54,6 +55,8 @@ public class AdminDashboardController {
     /**
      * 3. Top Selling Products - Get top selling products
      * GET /api/admin/dashboard/top-products?limit=10
+     * 
+     * PUBLIC API - No authentication required
      * 
      * Returns list of top products with:
      * - Product ID, Name, Category, Image
@@ -80,6 +83,7 @@ public class AdminDashboardController {
      * - Order Status
      */
     @GetMapping("/recent-orders")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<RecentOrderDTO>> getRecentOrders(
             @RequestParam(defaultValue = "10") int limit
     ) {
@@ -96,6 +100,7 @@ public class AdminDashboardController {
      * - Order Count
      */
     @GetMapping("/revenue-chart")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<RevenueChartDTO>> getRevenueChart(
             @RequestParam(defaultValue = "12") int months
     ) {

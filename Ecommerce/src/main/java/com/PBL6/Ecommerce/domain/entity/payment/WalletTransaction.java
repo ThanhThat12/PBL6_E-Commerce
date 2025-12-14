@@ -40,7 +40,6 @@ public class WalletTransaction {
         WITHDRAWAL,        // Rút tiền
         REFUND,            // Hoàn tiền
         ORDER_PAYMENT,      // Thanh toán đơn hàng
-        //new 11/8/2025
         PAYMENT_TO_SELLER,      // Thanh toán cho seller
         PLATFORM_FEE           // Phí nền tảng
     }
