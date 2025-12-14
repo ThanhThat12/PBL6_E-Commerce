@@ -505,4 +505,16 @@ public class VoucherService {
         
         return discountAmount;
     }
+
+    /**
+     * Lấy voucher do sàn phát hành (platform vouchers) cho homepage
+     * Ưu tiên vouchers có discount value cao nhất (PERCENTAGE trước, rồi FIXED_AMOUNT)
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<VoucherDTO> getPlatformVouchers(org.springframework.data.domain.Pageable pageable) {
+        LocalDateTime now = LocalDateTime.now();
+        org.springframework.data.domain.Page<Vouchers> vouchers = vouchersRepository
+            .findTopPlatformVouchers(now, pageable);
+        return vouchers.map(this::convertToDTO);
+    }
 }

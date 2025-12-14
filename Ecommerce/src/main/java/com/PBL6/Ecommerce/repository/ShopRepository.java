@@ -41,6 +41,9 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
     // Lấy danh sách shop theo trạng thái
     List<Shop> findByStatus(ShopStatus status);
     
+    // Lấy danh sách shop theo trạng thái (có phân trang)
+    Page<Shop> findByStatus(ShopStatus status, Pageable pageable);
+    
     // ========== SELLER REGISTRATION - New queries ==========
     
     /**
@@ -53,6 +56,13 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
      */
     @Query("SELECT COUNT(s) > 0 FROM Shop s WHERE s.name = :name AND s.status IN :statuses")
     boolean existsByNameAndStatusIn(@Param("name") String name, @Param("statuses") List<ShopStatus> statuses);
+    
+    /**
+     * Check if shop name exists in ACTIVE or PENDING status, excluding a specific user's shop
+     * Used when editing rejected application - user can keep their original shop name
+     */
+    @Query("SELECT COUNT(s) > 0 FROM Shop s WHERE s.name = :name AND s.status IN :statuses AND s.owner.id != :userId")
+    boolean existsByNameAndStatusInExcludingUser(@Param("name") String name, @Param("statuses") List<ShopStatus> statuses, @Param("userId") Long userId);
     
     /**
      * Find shop by owner and status
@@ -80,6 +90,13 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
      */
     @Query("SELECT COUNT(s) > 0 FROM Shop s WHERE s.idCardNumber = :idCardNumber AND s.status IN :statuses")
     boolean existsByIdCardNumberAndStatusIn(@Param("idCardNumber") String idCardNumber, @Param("statuses") List<ShopStatus> statuses);
+    
+    /**
+     * Check if ID card number exists in ACTIVE or PENDING shops, excluding a specific user's shop
+     * Used when editing rejected application - user can keep their original CCCD
+     */
+    @Query("SELECT COUNT(s) > 0 FROM Shop s WHERE s.idCardNumber = :idCardNumber AND s.status IN :statuses AND s.owner.id != :userId")
+    boolean existsByIdCardNumberAndStatusInExcludingUser(@Param("idCardNumber") String idCardNumber, @Param("statuses") List<ShopStatus> statuses, @Param("userId") Long userId);
     
     /**
      * Find shop by ID card number (for checking duplicates)

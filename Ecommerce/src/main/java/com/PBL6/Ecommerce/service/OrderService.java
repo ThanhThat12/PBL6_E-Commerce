@@ -1258,6 +1258,26 @@ public class OrderService {
         order.setStatus(Order.OrderStatus.COMPLETED);
         order.setUpdatedAt(new Date());
         
+        // ========== CẬP NHẬT SOLD_COUNT CHO PRODUCTS ==========
+        try {
+            for (OrderItem item : order.getOrderItems()) {
+                if (item.getProductId() != null) {
+                    // Lấy Product từ productId
+                    Product product = productRepository.findById(item.getProductId())
+                        .orElse(null);
+                    if (product != null) {
+                        int currentSoldCount = product.getSoldCount() != null ? product.getSoldCount() : 0;
+                        product.setSoldCount(currentSoldCount + item.getQuantity());
+                        productRepository.save(product);
+                        logger.info("✅ Updated soldCount for product #{}: {} -> {}", 
+                                   product.getId(), currentSoldCount, product.getSoldCount());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("❌ Failed to update soldCount for order {}: {}", order.getId(), e.getMessage());
+        }
+        
         // ========== DEPOSIT VÀO VÍ ADMIN NẾU LÀ COD ==========
         if ("COD".equalsIgnoreCase(order.getMethod())) {
             try {
@@ -1315,6 +1335,28 @@ public class OrderService {
                 order.setStatus(Order.OrderStatus.COMPLETED);
                 order.setUpdatedAt(new Date());
                 orderRepository.save(order);
+                
+                // ========== CẬP NHẬT SOLD_COUNT CHO PRODUCTS ==========
+                try {
+                    for (OrderItem item : order.getOrderItems()) {
+                        if (item.getProductId() != null) {
+                            // Lấy Product từ productId
+                            Product product = productRepository.findById(item.getProductId())
+                                .orElse(null);
+                            if (product != null) {
+                                int currentSoldCount = product.getSoldCount() != null ? product.getSoldCount() : 0;
+                                product.setSoldCount(currentSoldCount + item.getQuantity());
+                                productRepository.save(product);
+                                logger.info("✅ [Auto-complete] Updated soldCount for product #{}: {} -> {}", 
+                                           product.getId(), currentSoldCount, product.getSoldCount());
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("❌ Auto-complete: Failed to update soldCount for order {}: {}", 
+                                order.getId(), e.getMessage());
+                }
+                
                 logger.info("Auto-completed order: {} (shipment created: {})", 
                     order.getId(), shipment.getCreatedAt());
                 completedCount++;

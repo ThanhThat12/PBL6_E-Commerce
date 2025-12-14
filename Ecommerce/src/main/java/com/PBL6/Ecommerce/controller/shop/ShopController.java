@@ -19,8 +19,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
 import com.PBL6.Ecommerce.domain.dto.RegistrationStatusDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
@@ -30,6 +28,8 @@ import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.service.GhnService;
 import com.PBL6.Ecommerce.service.SellerRegistrationService;
 import com.PBL6.Ecommerce.service.ShopService;
@@ -501,6 +501,120 @@ public class ShopController {
             result.put("message", canSubmit 
                 ? "Bạn có thể đăng ký bán hàng" 
                 : "Bạn đã có đơn đăng ký đang chờ duyệt hoặc shop đang hoạt động");
+
+            return ResponseEntity.ok(
+                new ResponseDTO<>(200, null, "Kiểm tra thành công", result)
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                new ResponseDTO<>(500, e.getMessage(), "Lỗi hệ thống", null)
+            );
+        }
+    }
+
+    /**
+     * Check if shop name is available (real-time validation)
+     * GET /api/seller/registration/check-name?name=xxx&excludeMyShop=true
+     * Returns { available: true/false, message: "..." }
+     * 
+     * @param excludeMyShop - If true, excludes current user's shop from duplicate check (for editing)
+     */
+    @Operation(
+        summary = "Check shop name availability",
+        description = "Real-time validation to check if shop name is already taken by ACTIVE or PENDING shops. " +
+                      "Set excludeMyShop=true when editing rejected application to allow keeping original name.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @GetMapping("/seller/registration/check-name")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ResponseDTO<Map<String, Object>>> checkShopName(
+            @RequestParam String name,
+            @RequestParam(required = false, defaultValue = "false") boolean excludeMyShop) {
+        try {
+            if (name == null || name.trim().isEmpty()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("available", false);
+                result.put("message", "Tên shop không được để trống");
+                return ResponseEntity.ok(
+                    new ResponseDTO<>(200, null, "Kiểm tra thành công", result)
+                );
+            }
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User user = userService.resolveCurrentUser(authentication);
+
+            boolean isAvailable;
+            if (excludeMyShop) {
+                // Exclude user's own shop (for editing rejected application)
+                isAvailable = sellerRegistrationService.isShopNameAvailableForUser(name.trim(), user.getId());
+            } else {
+                // Check for all shops (new registration)
+                isAvailable = sellerRegistrationService.isShopNameAvailable(name.trim());
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("available", isAvailable);
+            result.put("message", isAvailable 
+                ? "Tên shop khả dụng" 
+                : "Tên shop đã tồn tại, vui lòng chọn tên khác");
+
+            return ResponseEntity.ok(
+                new ResponseDTO<>(200, null, "Kiểm tra thành công", result)
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                new ResponseDTO<>(500, e.getMessage(), "Lỗi hệ thống", null)
+            );
+        }
+    }
+
+    /**
+     * Check if CCCD number is available (real-time validation)
+     * GET /api/seller/registration/check-cccd?cccd=xxx&excludeMyShop=true
+     * Returns { available: true/false, message: "..." }
+     * 
+     * @param excludeMyShop - If true, excludes current user's shop from duplicate check (for editing)
+     */
+    @Operation(
+        summary = "Check CCCD availability",
+        description = "Real-time validation to check if CCCD is already used by ACTIVE or PENDING shops. " +
+                      "Set excludeMyShop=true when editing rejected application to allow keeping original CCCD.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @GetMapping("/seller/registration/check-cccd")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ResponseDTO<Map<String, Object>>> checkCCCD(
+            @RequestParam String cccd,
+            @RequestParam(required = false, defaultValue = "false") boolean excludeMyShop) {
+        try {
+            if (cccd == null || cccd.trim().isEmpty()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("available", false);
+                result.put("message", "Số CMND/CCCD không được để trống");
+                return ResponseEntity.ok(
+                    new ResponseDTO<>(200, null, "Kiểm tra thành công", result)
+                );
+            }
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User user = userService.resolveCurrentUser(authentication);
+
+            boolean isAvailable;
+            if (excludeMyShop) {
+                // Exclude user's own shop (for editing rejected application)
+                isAvailable = sellerRegistrationService.isCCCDAvailableForUser(cccd.trim(), user.getId());
+            } else {
+                // Check for all shops (new registration)
+                isAvailable = sellerRegistrationService.isCCCDAvailable(cccd.trim());
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("available", isAvailable);
+            result.put("message", isAvailable 
+                ? "CCCD khả dụng" 
+                : "Số CMND/CCCD này đã được sử dụng để đăng ký shop khác. Mỗi CCCD chỉ được đăng ký một shop.");
 
             return ResponseEntity.ok(
                 new ResponseDTO<>(200, null, "Kiểm tra thành công", result)

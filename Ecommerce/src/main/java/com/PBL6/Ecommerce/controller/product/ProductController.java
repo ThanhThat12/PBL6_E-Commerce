@@ -29,8 +29,6 @@ import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.service.ProductService;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
@@ -204,6 +202,28 @@ public class ProductController {
         return ResponseDTO.success(products, "Lấy tất cả sản phẩm theo danh mục thành công");
     }
     
+    /**
+     * Lấy sản phẩm đánh giá cao (top-rated products)
+     * GET /api/products/top-rated?page=0&size=8
+     * Sắp xếp theo rating và số lượng reviews
+     */
+    @Operation(
+        summary = "Get top-rated products for homepage",
+        description = "Get products with highest ratings and review counts"
+    )
+    @GetMapping("/top-rated")
+    public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getTopRatedProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size) {
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<ProductDTO> products = productService.getTopRatedProducts(pageable);
+            return ResponseDTO.success(products, "Lấy sản phẩm đánh giá cao thành công");
+        } catch (Exception e) {
+            return ResponseDTO.error(400, "GET_TOP_RATED_ERROR", e.getMessage());
+        }
+    }
+
 
     // Cập nhật sản phẩm - Admin hoặc seller sở hữu sản phẩm
     @PutMapping("/{id}")

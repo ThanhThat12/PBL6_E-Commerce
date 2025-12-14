@@ -17,17 +17,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.entity.user.Address;
-import com.PBL6.Ecommerce.domain.entity.product.Category;
-import com.PBL6.Ecommerce.domain.entity.product.Product;
-import com.PBL6.Ecommerce.domain.entity.product.ProductAttribute;
-import com.PBL6.Ecommerce.domain.entity.product.ProductImage;
-import com.PBL6.Ecommerce.domain.entity.product.ProductPrimaryAttribute;
-import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
-import com.PBL6.Ecommerce.domain.entity.product.ProductVariantValue;
-import com.PBL6.Ecommerce.domain.entity.user.Role;
-import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.AttributeDTO;
 import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
@@ -36,6 +25,17 @@ import com.PBL6.Ecommerce.domain.dto.ProductImageDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductUpdateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantValueDTO;
+import com.PBL6.Ecommerce.domain.entity.product.Category;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductAttribute;
+import com.PBL6.Ecommerce.domain.entity.product.ProductImage;
+import com.PBL6.Ecommerce.domain.entity.product.ProductPrimaryAttribute;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariantValue;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.exception.DuplicateSKUException;
 import com.PBL6.Ecommerce.exception.InvalidProductDataException;
 import com.PBL6.Ecommerce.exception.ProductNotFoundException;
@@ -1135,6 +1135,27 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
         } catch (Exception e) {
             log.error("❌ Error during bulk rating sync: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * Lấy sản phẩm đánh giá cao (top-rated) cho homepage
+     * Ưu tiên: reviewCount DESC, rating DESC
+     * Filter: rating >= 4.0, reviewCount > 0
+     */
+    @Transactional(readOnly = true)
+    public Page<ProductDTO> getTopRatedProducts(Pageable pageable) {
+        Page<Product> products = productRepository.findTopRatedProducts(pageable);
+        return products.map(this::convertToProductDTO);
+    }
+
+    /**
+     * Lấy sản phẩm bán chạy (best-selling) cho homepage
+     * Sort: soldCount DESC
+     */
+    @Transactional(readOnly = true)
+    public Page<ProductDTO> getBestSellingProducts(Pageable pageable) {
+        Page<Product> products = productRepository.findBestSellingProducts(pageable);
+        return products.map(this::convertToProductDTO);
     }
 
     

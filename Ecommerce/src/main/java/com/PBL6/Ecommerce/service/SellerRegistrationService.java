@@ -12,17 +12,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.constant.TypeAddress;
-import com.PBL6.Ecommerce.domain.entity.user.Address;
-import com.PBL6.Ecommerce.domain.entity.user.Role;
-import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.domain.entity.shop.Shop.ShopStatus;
-import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.AdminApprovalDTO;
 import com.PBL6.Ecommerce.domain.dto.AdminRejectionDTO;
 import com.PBL6.Ecommerce.domain.dto.PendingApplicationDTO;
 import com.PBL6.Ecommerce.domain.dto.RegistrationStatusDTO;
 import com.PBL6.Ecommerce.domain.dto.SellerRegistrationRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.SellerRegistrationResponseDTO;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop.ShopStatus;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
@@ -559,6 +559,42 @@ public class SellerRegistrationService {
         
         List<ShopStatus> blockingStatuses = Arrays.asList(ShopStatus.ACTIVE, ShopStatus.PENDING);
         return !shopRepository.findByOwnerAndStatusIn(user, blockingStatuses).isPresent();
+    }
+
+    /**
+     * Check if shop name is available (not used by ACTIVE or PENDING shops)
+     * Used for real-time validation during registration
+     */
+    public boolean isShopNameAvailable(String shopName) {
+        List<ShopStatus> activeOrPendingStatuses = Arrays.asList(ShopStatus.ACTIVE, ShopStatus.PENDING);
+        return !shopRepository.existsByNameAndStatusIn(shopName.trim(), activeOrPendingStatuses);
+    }
+
+    /**
+     * Check if shop name is available for a specific user (excludes their own shop)
+     * Used when editing rejected application - user can keep their original shop name
+     */
+    public boolean isShopNameAvailableForUser(String shopName, Long userId) {
+        List<ShopStatus> activeOrPendingStatuses = Arrays.asList(ShopStatus.ACTIVE, ShopStatus.PENDING);
+        return !shopRepository.existsByNameAndStatusInExcludingUser(shopName.trim(), activeOrPendingStatuses, userId);
+    }
+
+    /**
+     * Check if CCCD is available (not used by ACTIVE or PENDING shops)
+     * Used for real-time validation during registration
+     */
+    public boolean isCCCDAvailable(String cccd) {
+        List<ShopStatus> activeOrPendingStatuses = Arrays.asList(ShopStatus.ACTIVE, ShopStatus.PENDING);
+        return !shopRepository.existsByIdCardNumberAndStatusIn(cccd.trim(), activeOrPendingStatuses);
+    }
+
+    /**
+     * Check if CCCD is available for a specific user (excludes their own shop)
+     * Used when editing rejected application - user can keep their original CCCD
+     */
+    public boolean isCCCDAvailableForUser(String cccd, Long userId) {
+        List<ShopStatus> activeOrPendingStatuses = Arrays.asList(ShopStatus.ACTIVE, ShopStatus.PENDING);
+        return !shopRepository.existsByIdCardNumberAndStatusInExcludingUser(cccd.trim(), activeOrPendingStatuses, userId);
     }
 
     /**
