@@ -222,4 +222,18 @@ public class AdminOrderService {
         
         return dto;
     }
+
+    /**
+     * Search orders by keyword (ID, customer name, phone, date, address)
+     * @param keyword Search keyword
+     * @param page Page number (0-indexed)
+     * @param size Page size
+     * @return Page of AdminOrderDTO
+     */
+    public Page<AdminOrderDTO> searchOrders(String keyword, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Order> orders = orderRepository.searchOrders(keyword, pageable);
+        
+        return orders.map(this::convertToDTO);
+    }
 }

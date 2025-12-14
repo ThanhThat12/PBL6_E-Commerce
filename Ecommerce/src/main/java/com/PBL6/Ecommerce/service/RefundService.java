@@ -41,6 +41,12 @@ public class RefundService {
     
     @Autowired
     private MoMoPaymentService momoPaymentService;
+    
+    @Autowired
+    private com.PBL6.Ecommerce.repository.ProductVariantRepository productVariantRepository;
+    
+    @Autowired
+    private com.PBL6.Ecommerce.repository.ProductRepository productRepository;
 
     public RefundService(RefundRepository refundRepository,
                         RefundItemRepository refundItemRepository,
@@ -251,6 +257,9 @@ public class RefundService {
         refund.setReason(refund.getReason() + "\n[Kết quả kiểm tra]: Hàng đã nhận và kiểm tra OK");
         refundRepository.save(refund);
         
+        // ✅ Restore stock khi seller confirm đã nhận hàng trả
+        restoreStockForRefund(refund);
+        
         // Tự động xử lý hoàn tiền
         processRefund(refund);
         
@@ -448,5 +457,80 @@ public class RefundService {
         }
         
         return dto;
+    }
+    
+    /**
+     * Helper method: Restore stock khi refund được confirm
+     * @param refund Refund object
+     */
+    @Transactional
+    public void restoreStockForRefund(Refund refund) {
+        logger.info("🔄 [RESTORE_STOCK] Restoring stock for refund #{}", refund.getId());
+        
+        if (refund.getRefundItems() != null && !refund.getRefundItems().isEmpty()) {
+            // Có refund items cụ thể → restore từng item
+            for (com.PBL6.Ecommerce.domain.entity.order.RefundItem refundItem : refund.getRefundItems()) {
+                OrderItem orderItem = refundItem.getOrderItem();
+                if (orderItem == null || orderItem.getVariant() == null) {
+                    logger.warn("⚠️ OrderItem or Variant not found for RefundItem #{}", refundItem.getId());
+                    continue;
+                }
+                
+                com.PBL6.Ecommerce.domain.entity.product.ProductVariant variant = orderItem.getVariant();
+                Integer refundQuantity = refundItem.getQuantity();
+                
+                // Restore stock
+                Integer currentStock = variant.getStock() != null ? variant.getStock() : 0;
+                Integer newStock = currentStock + refundQuantity;
+                variant.setStock(newStock);
+                productVariantRepository.save(variant);
+                logger.info("📈 [STOCK_RESTORED] Variant #{}: {} → {} (+{})", 
+                    variant.getId(), currentStock, newStock, refundQuantity);
+                
+                // Decrease sold_count
+                com.PBL6.Ecommerce.domain.entity.product.Product product = variant.getProduct();
+                if (product != null) {
+                    Integer currentSoldCount = product.getSoldCount() != null ? product.getSoldCount() : 0;
+                    Integer newSoldCount = Math.max(0, currentSoldCount - refundQuantity);
+                    product.setSoldCount(newSoldCount);
+                    productRepository.save(product);
+                    logger.info("📉 [SOLD_COUNT_DECREASED] Product #{}: {} → {} (-{})", 
+                        product.getId(), currentSoldCount, newSoldCount, refundQuantity);
+                }
+            }
+        } else {
+            // Không có refund items cụ thể → restore toàn bộ order
+            Order order = refund.getOrder();
+            if (order != null && order.getOrderItems() != null) {
+                for (OrderItem item : order.getOrderItems()) {
+                    com.PBL6.Ecommerce.domain.entity.product.ProductVariant variant = item.getVariant();
+                    if (variant == null) {
+                        logger.warn("⚠️ Variant not found for OrderItem #{}", item.getId());
+                        continue;
+                    }
+                    
+                    // Restore stock
+                    Integer currentStock = variant.getStock() != null ? variant.getStock() : 0;
+                    Integer newStock = currentStock + item.getQuantity();
+                    variant.setStock(newStock);
+                    productVariantRepository.save(variant);
+                    logger.info("📈 [STOCK_RESTORED] Variant #{}: {} → {} (+{})", 
+                        variant.getId(), currentStock, newStock, item.getQuantity());
+                    
+                    // Decrease sold_count
+                    com.PBL6.Ecommerce.domain.entity.product.Product product = variant.getProduct();
+                    if (product != null) {
+                        Integer currentSoldCount = product.getSoldCount() != null ? product.getSoldCount() : 0;
+                        Integer newSoldCount = Math.max(0, currentSoldCount - item.getQuantity());
+                        product.setSoldCount(newSoldCount);
+                        productRepository.save(product);
+                        logger.info("📉 [SOLD_COUNT_DECREASED] Product #{}: {} → {} (-{})", 
+                            product.getId(), currentSoldCount, newSoldCount, item.getQuantity());
+                    }
+                }
+            }
+        }
+        
+        logger.info("✅ [RESTORE_STOCK] Stock restored successfully for refund #{}", refund.getId());
     }
 }
