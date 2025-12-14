@@ -7,7 +7,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import com.PBL6.Ecommerce.domain.dto.*;
 import com.PBL6.Ecommerce.domain.entity.user.Address;
 import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.domain.entity.order.Shipment;
 import com.PBL6.Ecommerce.domain.entity.order.Order;
 import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
 import com.PBL6.Ecommerce.constant.TypeAddress;
@@ -18,10 +17,7 @@ import java.util.*;
 import java.math.BigDecimal;
 import jakarta.validation.Valid;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.PBL6.Ecommerce.domain.entity.user.User;

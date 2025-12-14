@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.dto.OrderDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateOrderStatusDTO;
@@ -27,9 +26,7 @@ import com.PBL6.Ecommerce.domain.entity.shop.Shop;
 import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.service.OrderService;
 import com.PBL6.Ecommerce.service.GhnService;
-import com.PBL6.Ecommerce.domain.*;
 import com.PBL6.Ecommerce.repository.*;
-
 import jakarta.validation.Valid;
 
 

@@ -87,6 +87,8 @@ public class SecurityConfig {
                     "/webjars/**",
                     "/api-docs/**"
                 ).permitAll()
+                // Chatbot public endpoint
+                .requestMatchers(HttpMethod.POST, "/api/chatbot/ask").permitAll()
                 
                 // Checkout endpoints - require authentication except for testing
                 .requestMatchers(HttpMethod.POST, "/api/checkout/available-services").permitAll() // For testing
