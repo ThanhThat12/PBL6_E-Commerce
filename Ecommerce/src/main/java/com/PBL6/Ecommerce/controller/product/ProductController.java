@@ -209,19 +209,66 @@ public class ProductController {
      */
     @Operation(
         summary = "Get top-rated products for homepage",
-        description = "Get products with highest ratings and review counts"
+        description = "Lấy danh sách sản phẩm có đánh giá cao nhất. " +
+                     "Endpoint public, không cần đăng nhập. " +
+                     "Sắp xếp theo rating giảm dần, sau đó theo reviewCount giảm dần. " +
+                     "Chỉ hiển thị sản phẩm đang active, rating >= 4.0."
     )
+    @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Lấy danh sách sản phẩm thành công",
+            content = @io.swagger.v3.oas.annotations.media.Content(
+                mediaType = "application/json",
+                schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = ResponseDTO.class)
+            )
+        )
+    })
     @GetMapping("/top-rated")
     public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getTopRatedProducts(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Số trang (bắt đầu từ 0)", example = "0")
             @RequestParam(defaultValue = "0") int page,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Số sản phẩm mỗi trang", example = "8")
             @RequestParam(defaultValue = "8") int size) {
-        try {
-            Pageable pageable = PageRequest.of(page, size);
-            Page<ProductDTO> products = productService.getTopRatedProducts(pageable);
-            return ResponseDTO.success(products, "Lấy sản phẩm đánh giá cao thành công");
-        } catch (Exception e) {
-            return ResponseDTO.error(400, "GET_TOP_RATED_ERROR", e.getMessage());
-        }
+        Sort sort = Sort.by(Sort.Direction.DESC, "rating").and(Sort.by(Sort.Direction.DESC, "reviewCount"));
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        Page<ProductDTO> products = productService.getTopRatedProducts(pageable);
+        return ResponseDTO.success(products, "Lấy danh sách sản phẩm đánh giá cao thành công");
+    }
+
+    /**
+     * Lấy sản phẩm bán chạy nhất (best-selling products)
+     * GET /api/products/best-selling?page=0&size=8
+     * Sắp xếp theo số lượng bán
+     */
+    @Operation(
+        summary = "Get best-selling products for homepage",
+        description = "Lấy danh sách sản phẩm bán chạy nhất. " +
+                     "Endpoint public, không cần đăng nhập. " +
+                     "Sắp xếp theo soldCount (số lượng đã bán) giảm dần. " +
+                     "Chỉ hiển thị sản phẩm đang active và đã được duyệt."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Lấy danh sách sản phẩm thành công",
+            content = @io.swagger.v3.oas.annotations.media.Content(
+                mediaType = "application/json",
+                schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = ResponseDTO.class)
+            )
+        )
+    })
+    @GetMapping("/best-selling")
+    public ResponseEntity<ResponseDTO<Page<ProductDTO>>> getBestSellingProducts(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Số trang (bắt đầu từ 0)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Số sản phẩm mỗi trang", example = "8")
+            @RequestParam(defaultValue = "8") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        
+        Page<ProductDTO> products = productService.getBestSellingProducts(pageable);
+        return ResponseDTO.success(products, "Lấy danh sách sản phẩm bán chạy thành công");
     }
 
 

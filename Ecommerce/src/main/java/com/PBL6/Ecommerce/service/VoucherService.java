@@ -278,8 +278,16 @@ public class VoucherService {
         dto.setId(voucher.getId());
         dto.setCode(voucher.getCode());
         dto.setDescription(voucher.getDescription());
-        dto.setShopId(voucher.getShop().getId());
-        dto.setShopName(voucher.getShop().getName());
+        
+        // Handle platform vouchers (shop = null)
+        if (voucher.getShop() != null) {
+            dto.setShopId(voucher.getShop().getId());
+            dto.setShopName(voucher.getShop().getName());
+        } else {
+            dto.setShopId(null);
+            dto.setShopName("Platform");
+        }
+        
         dto.setDiscountType(voucher.getDiscountType());
         dto.setDiscountValue(voucher.getDiscountValue());
         dto.setMinOrderValue(voucher.getMinOrderValue());

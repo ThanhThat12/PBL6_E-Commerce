@@ -123,6 +123,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/product-attributes").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/product-attributes/*").permitAll()
 
+                // Voucher endpoints - platform vouchers are public
+                .requestMatchers(HttpMethod.GET, "/api/vouchers/platform").permitAll()
+
                 // Review endpoints
                 .requestMatchers(HttpMethod.GET, "/api/products/*/reviews").permitAll() // Public: view product reviews
                 .requestMatchers(HttpMethod.GET, "/api/products/*/rating-summary").permitAll() // Public: rating summary

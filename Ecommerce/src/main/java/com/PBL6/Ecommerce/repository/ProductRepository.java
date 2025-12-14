@@ -181,18 +181,18 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     /**
      * Lấy sản phẩm đánh giá cao cho homepage
-     * Ưu tiên: reviewCount DESC, rating DESC
-     * Filter: rating >= 4.0, reviewCount > 0, isActive = true, approved = true
+     * Ưu tiên: rating DESC, reviewCount DESC
+     * Filter: rating >= 4.0, reviewCount > 0, isActive = true
      */
     @Query("SELECT p FROM Product p WHERE p.isActive = true " +
             "AND p.rating >= 4.0 AND p.reviewCount > 0 " +
-            "ORDER BY p.reviewCount DESC, p.rating DESC")
+            "ORDER BY p.rating DESC, p.reviewCount DESC")
     Page<Product> findTopRatedProducts(Pageable pageable);
 
     /**
      * Lấy sản phẩm bán chạy cho homepage
      * Sort: soldCount DESC
-     * Filter: isActive = true, approved = true, soldCount > 0
+     * Filter: isActive = true, soldCount > 0
      */
     @Query("SELECT p FROM Product p WHERE p.isActive = true " +
             "AND p.soldCount > 0 " +
