@@ -24,6 +24,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Find unpaid MoMo orders older than a given time (e.g., 5 minutes)
     @Query("SELECT o FROM Order o WHERE o.method = 'MOMO' AND o.paymentStatus = 'UNPAID' AND o.createdAt < :cutoff")
     List<Order> findUnpaidMomoOrdersBefore(@Param("cutoff") java.time.LocalDateTime cutoff);
+    
+    // ADMIN Find completed orders ready for seller payment (after waiting period)
+    @Query("SELECT o FROM Order o WHERE o.status = 'COMPLETED' " +
+           "AND o.updatedAt < :cutoffTime " +
+           "AND NOT EXISTS (" +
+           "  SELECT wt FROM WalletTransaction wt " +
+           "  WHERE wt.relatedOrder = o " +
+           "  AND wt.type = 'PAYMENT_TO_SELLER'" +
+           ")")
+    List<Order> findCompletedOrdersReadyForPayment(@Param("cutoffTime") java.util.Date cutoffTime);
 
     // Lấy tất cả đơn hàng theo shop
     List<Order> findByShop(Shop shop);
@@ -340,4 +350,20 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      */
     @Query("SELECT MAX(o.createdAt) FROM Order o WHERE o.user.id = :buyerId")
     LocalDateTime getLastOrderDateByBuyerId(@Param("buyerId") Long buyerId);
+    
+    /**
+     * ADMIN - Search orders by multiple criteria
+     * Search by: order ID, customer name, phone, date (DD/MM/YYYY), address
+     */
+    @Query(value = "SELECT * FROM orders o " +
+           "WHERE (" +
+           "  CAST(o.id AS CHAR) LIKE CONCAT('%', :keyword, '%') " +
+           "  OR LOWER(o.receiver_name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "  OR o.receiver_phone LIKE CONCAT('%', :keyword, '%') " +
+           "  OR DATE_FORMAT(o.created_at, '%d/%m/%Y') LIKE CONCAT('%', :keyword, '%') " +
+           "  OR LOWER(o.receiver_address) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           ") " +
+           "ORDER BY o.created_at DESC",
+           nativeQuery = true)
+    Page<Order> searchOrders(@Param("keyword") String keyword, Pageable pageable);
 }

@@ -363,7 +363,7 @@ public class WalletService {
             logger.info("📝 Creating wallet transaction record...");
             WalletTransaction transaction = new WalletTransaction(
                 adminWallet,
-                WalletTransaction.TransactionType.DEPOSIT,
+                WalletTransaction.TransactionType.ORDER_PAYMENT,
                 amount,
                 String.format("Nhận thanh toán từ đơn hàng #%d qua %s", order.getId(), paymentMethod)
             );
@@ -545,6 +545,107 @@ public class WalletService {
         } catch (Exception e) {
             logger.error("Error creating deposit payment: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to create deposit payment: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Chuyển tiền từ tài khoản quản trị viên cho người bán sau khi đơn hàng hoàn tất.
+     * Creates two transactions:
+     * 1. PAYMENT_TO_SELLER: Transfers 90% to seller
+     * 2. PLATFORM_FEE: Records 10% platform fee (tracking only, no balance change)
+     * 
+     * @param sellerId The seller's user ID
+     * @param totalAmount Total order amount
+     * @param order The completed order
+     */
+    @Transactional
+    public void transferFromAdminToSeller(Long sellerId, BigDecimal totalAmount, Order order) {
+        try {
+            logger.info("🔄 [WalletService] Starting transfer from admin to seller - " +
+                       "Order #{}, Seller ID: {}, Amount: {}", 
+                       order.getId(), sellerId, totalAmount);
+            
+            // Get admin wallet (user_id = 1)
+            Wallet adminWallet = getByUserId(1L);
+            logger.info("💰 [Admin Wallet] Current balance: {}", adminWallet.getBalance());
+            
+            // Get seller wallet
+            Wallet sellerWallet = getByUserId(sellerId);
+            logger.info("💰 [Seller Wallet] Current balance: {}", sellerWallet.getBalance());
+            
+            // Calculate amounts (90% to seller, 10% platform fee)
+            BigDecimal sellerAmount = totalAmount.multiply(new BigDecimal("0.90"));
+            BigDecimal platformFee = totalAmount.multiply(new BigDecimal("0.10"));
+            
+            logger.info("💵 [Transfer] Seller amount (90%): {}, Platform fee (10%): {}", 
+                       sellerAmount, platformFee);
+            
+            // Check admin wallet has enough balance
+            if (adminWallet.getBalance().compareTo(sellerAmount) < 0) {
+                throw new RuntimeException(
+                    String.format("Admin wallet insufficient balance. Required: %s, Available: %s",
+                                sellerAmount, adminWallet.getBalance())
+                );
+            }
+            
+            // 1. Create PAYMENT_TO_SELLER transaction (decreases admin balance, increases seller balance)
+            // Withdraw from admin wallet
+            adminWallet.setBalance(adminWallet.getBalance().subtract(sellerAmount));
+            walletRepository.save(adminWallet);
+            
+            WalletTransaction adminPaymentTransaction = new WalletTransaction();
+            adminPaymentTransaction.setWallet(adminWallet);
+            adminPaymentTransaction.setAmount(sellerAmount.negate()); // Negative for withdrawal
+            adminPaymentTransaction.setType(WalletTransaction.TransactionType.PAYMENT_TO_SELLER);
+            adminPaymentTransaction.setDescription(
+                String.format("Chuyển tiền cho seller #%d - đơn hàng #%d (đã trừ 10%% phí dịch vụ)", 
+                             sellerId, order.getId())
+            );
+            adminPaymentTransaction.setRelatedOrder(order);
+            walletTransactionRepository.save(adminPaymentTransaction);
+            
+            logger.info("✅ [Admin Transaction] PAYMENT_TO_SELLER created - Amount: {}, New balance: {}",
+                       sellerAmount.negate(), adminWallet.getBalance());
+            
+            // Deposit to seller wallet
+            sellerWallet.setBalance(sellerWallet.getBalance().add(sellerAmount));
+            walletRepository.save(sellerWallet);
+            
+            WalletTransaction sellerDepositTransaction = new WalletTransaction();
+            sellerDepositTransaction.setWallet(sellerWallet);
+            sellerDepositTransaction.setAmount(sellerAmount); // Positive for deposit
+            sellerDepositTransaction.setType(WalletTransaction.TransactionType.PAYMENT_TO_SELLER);
+            sellerDepositTransaction.setDescription(
+                String.format("Nhận tiền từ đơn hàng #%d (90%% sau khi trừ phí nền tảng)", 
+                             order.getId())
+            );
+            sellerDepositTransaction.setRelatedOrder(order);
+            walletTransactionRepository.save(sellerDepositTransaction);
+            
+            logger.info("✅ [Seller Transaction] PAYMENT_TO_SELLER created - Amount: {}, New balance: {}",
+                       sellerAmount, sellerWallet.getBalance());
+            
+            // 2. Create PLATFORM_FEE transaction (tracking only, no balance change)
+            WalletTransaction platformFeeTransaction = new WalletTransaction();
+            platformFeeTransaction.setWallet(adminWallet);
+            platformFeeTransaction.setAmount(platformFee); // Positive to track fee earned
+            platformFeeTransaction.setType(WalletTransaction.TransactionType.PLATFORM_FEE);
+            platformFeeTransaction.setDescription(
+                String.format("Phí nền tảng từ đơn hàng #%d (10%%)", order.getId())
+            );
+            platformFeeTransaction.setRelatedOrder(order);
+            walletTransactionRepository.save(platformFeeTransaction);
+            
+            logger.info("✅ [Platform Fee] Transaction created - Amount: {}", platformFee);
+            
+            logger.info("🎉 [Transfer Complete] Order #{} - Seller received: {}, Platform fee: {}, " +
+                       "Admin balance: {}, Seller balance: {}",
+                       order.getId(), sellerAmount, platformFee, 
+                       adminWallet.getBalance(), sellerWallet.getBalance());
+            
+        } catch (Exception e) {
+            logger.error("❌ [Transfer Failed] Order #{}: {}", order.getId(), e.getMessage(), e);
+            throw new RuntimeException("Failed to transfer funds to seller: " + e.getMessage(), e);
         }
     }
 
