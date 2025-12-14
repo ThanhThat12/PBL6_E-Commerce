@@ -1,6 +1,5 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.*;
 import com.PBL6.Ecommerce.domain.dto.search.FacetedSearchDTO;
 import com.PBL6.Ecommerce.domain.dto.search.FacetedSearchDTO.*;
 import com.PBL6.Ecommerce.domain.dto.search.SearchSuggestionDTO;
