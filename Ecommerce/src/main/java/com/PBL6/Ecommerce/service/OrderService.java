@@ -159,6 +159,10 @@ public class OrderService {
 
     @Transactional
     public Order createOrder(CreateOrderRequestDTO req) {
+        // ⚠️ TEST BUILD TIME
+        System.err.println("\n╔════════════════════════════════════════╗");
+        System.err.println("║ CODE MỚI - BUILD: 2025-12-14 15:16   ║");
+        System.err.println("╚════════════════════════════════════════╝\n");
         logger.info("[ORDER] >>> createOrder called with req: {}", req);
     // Nếu thiếu thông tin địa chỉ nhận hàng, truy vấn từ Address
     logger.info("[ORDER] Before snapshot: receiverName={}, receiverPhone={}, receiverAddress={}, province={}, district={}, ward={}, addressId={}",
@@ -205,13 +209,33 @@ public class OrderService {
     List<OrderItem> items = new ArrayList<>();
 
     for (var it : req.getItems()) {
+        System.out.println("🔄 Processing item: variantId=" + it.getVariantId() + ", quantity=" + it.getQuantity());
         ProductVariant v = variantMap.get(it.getVariantId());
         if (v == null) throw new IllegalArgumentException("Variant not found: " + it.getVariantId());
         if (v.getStock() == null || v.getStock() < it.getQuantity()) {
             throw new IllegalStateException("Insufficient stock for variant " + v.getId());
         }
+        
+        // Decrease stock
+        Integer oldStock = v.getStock();
         v.setStock(v.getStock() - it.getQuantity());
-        productVariantRepository.save(v);
+        ProductVariant savedVariant = productVariantRepository.save(v);
+        System.out.println("📉 [STOCK] Variant #" + v.getId() + ": " + oldStock + " -> " + savedVariant.getStock());
+        logger.info("📉 [STOCK] Variant #{}: {} → {} (decreased by {})", 
+            v.getId(), oldStock, savedVariant.getStock(), it.getQuantity());
+
+        // Update product sold_count
+        com.PBL6.Ecommerce.domain.Product product = v.getProduct();
+        if (product != null) {
+            Integer currentSoldCount = product.getSoldCount() != null ? product.getSoldCount() : 0;
+            product.setSoldCount(currentSoldCount + it.getQuantity());
+            productRepository.save(product);
+            System.out.println("📈 [SOLD_COUNT] Product #" + product.getId() + ": " + currentSoldCount + " -> " + product.getSoldCount());
+            logger.info("📈 [SOLD_COUNT] Product #{}: {} → {} (increased by {})", 
+                product.getId(), currentSoldCount, product.getSoldCount(), it.getQuantity());
+        } else {
+            logger.warn("⚠️ <kaka> Product not found for variant #{}", v.getId());
+        }
 
         BigDecimal unitPrice = v.getPrice() == null ? BigDecimal.ZERO : v.getPrice();
         BigDecimal line = unitPrice.multiply(BigDecimal.valueOf(it.getQuantity()));
@@ -1175,6 +1199,29 @@ public class OrderService {
         // Dùng đúng enum inner class của entity
         if (order.getStatus() != Order.OrderStatus.PENDING) {
             throw new RuntimeException("Order cannot be cancelled in current status");
+        }
+
+        // ========== HOÀN LẠI STOCK CHO CÁC SẢN PHẨM ==========
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        for (OrderItem item : orderItems) {
+            ProductVariant variant = item.getVariant();
+            if (variant != null) {
+                Integer oldStock = variant.getStock() != null ? variant.getStock() : 0;
+                variant.setStock(oldStock + item.getQuantity());
+                ProductVariant savedVariant = productVariantRepository.save(variant);
+                logger.info("📈 [STOCK RESTORE] Variant #{}: {} → {} (restored by {})", 
+                    variant.getId(), oldStock, savedVariant.getStock(), item.getQuantity());
+                
+                // Giảm sold_count của product khi hủy đơn
+                com.PBL6.Ecommerce.domain.Product product = variant.getProduct();
+                if (product != null && product.getSoldCount() != null && product.getSoldCount() > 0) {
+                    Integer oldSoldCount = product.getSoldCount();
+                    product.setSoldCount(Math.max(0, oldSoldCount - item.getQuantity()));
+                    productRepository.save(product);
+                    logger.info("📉 [SOLD_COUNT RESTORE] Product #{}: {} → {} (decreased by {})", 
+                        product.getId(), oldSoldCount, product.getSoldCount(), item.getQuantity());
+                }
+            }
         }
 
         // Nếu COD thì chỉ hủy đơn, không hoàn tiền

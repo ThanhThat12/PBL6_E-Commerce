@@ -43,6 +43,7 @@ public class CheckoutController {
     private final com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository;
     private final com.PBL6.Ecommerce.service.WalletService walletService;
     private final com.PBL6.Ecommerce.service.NotificationService notificationService;
+    private final com.PBL6.Ecommerce.service.OrderService orderService;
 
     public CheckoutController(GhnService ghnService, 
                             AddressRepository addressRepository,
@@ -54,7 +55,8 @@ public class CheckoutController {
                             com.PBL6.Ecommerce.repository.OrderRepository orderRepository,
                             com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository,
                             com.PBL6.Ecommerce.service.WalletService walletService,
-                            com.PBL6.Ecommerce.service.NotificationService notificationService) {
+                            com.PBL6.Ecommerce.service.NotificationService notificationService,
+                            com.PBL6.Ecommerce.service.OrderService orderService) {
         this.ghnService = ghnService;
         this.addressRepository = addressRepository;
         this.shopRepository = shopRepository;
@@ -66,6 +68,7 @@ public class CheckoutController {
         this.orderItemRepository = orderItemRepository;
         this.walletService = walletService;
         this.notificationService = notificationService;
+        this.orderService = orderService;
     }
 
     /**
@@ -423,54 +426,47 @@ public class CheckoutController {
             // Tính tổng cuối cùng
             BigDecimal totalAmount = subtotal.add(shippingFee);
 
-            // ========== TẠO ORDER (chưa tạo shipment) ==========
-            Order order = new Order();
-            order.setUser(user);
-            order.setShop(shop);
-            order.setTotalAmount(totalAmount);
-            order.setMethod(req.getPaymentMethod());
-            order.setStatus(Order.OrderStatus.PENDING);
-            order.setPaymentStatus(Order.PaymentStatus.UNPAID);
+            // ========== TẠO ORDER QUA OrderService (ĐẢM BẢO TRỪ STOCK VÀ CỘNG SOLD_COUNT) ==========
+            com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO orderRequest = new com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO();
+            orderRequest.setUserId(user.getId());
+            // Note: CreateOrderRequestDTO không có setShopId() - OrderService sẽ tự lấy shop từ variant
             
-            // ✅ SET ĐỊA CHỈ NHẬN HÀNG TỪ BUYER ADDRESS
-            order.setReceiverName(buyerAddress.getContactName());
-            order.setReceiverPhone(buyerAddress.getContactPhone());
-            order.setReceiverAddress(buyerAddress.getFullAddress());
-            order.setProvinceId(buyerAddress.getProvinceId());
-            order.setDistrictId(buyerAddress.getDistrictId());
-            order.setWardCode(buyerAddress.getWardCode());
-            
-            // ✅ SET SHIPPING FEE
-            order.setShippingFee(shippingFee);
-            
-            // Lưu thông tin GHN service đã chọn vào notes (JSON format)
-            Map<String, Object> ghnInfo = new HashMap<>();
-            ghnInfo.put("serviceId", req.getServiceId());
-            ghnInfo.put("serviceTypeId", req.getServiceTypeId());
-            ghnInfo.put("addressId", req.getAddressId());
-            ghnInfo.put("note", req.getNote());
-            
-            try {
-                // notes field removed from Order, update logic if needed
-            } catch (Exception e) {
-                // notes field removed from Order, update logic if needed
-            }
-            
-            order = orderRepository.save(order);
-
-            // ========== TẠO ORDER ITEMS ==========
+            // Set items từ cart
+            List<com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO.Item> orderItems = new ArrayList<>();
             for (var cartItem : cartItems) {
-                var variant = cartItem.getProductVariant();
-                
-                OrderItem orderItem = new OrderItem();
-                orderItem.setOrder(order);
-                orderItem.setVariant(variant);
-                orderItem.setProductId(variant.getProduct().getId()); // ✅ Set product_id
-                orderItem.setVariantName(variant.getSku() != null ? variant.getSku() : variant.getProduct().getName()); // ✅ Set variant_name
-                orderItem.setQuantity(cartItem.getQuantity());
-                orderItem.setPrice(variant.getPrice());
-                orderItemRepository.save(orderItem);
+                com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO.Item item = 
+                    new com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO.Item();
+                item.setVariantId(cartItem.getProductVariant().getId());
+                item.setQuantity(cartItem.getQuantity());
+                // Note: Item không có setPrice() - OrderService sẽ lấy price từ variant
+                orderItems.add(item);
             }
+            orderRequest.setItems(orderItems);
+            
+            // Set địa chỉ giao hàng
+            orderRequest.setReceiverName(buyerAddress.getContactName());
+            orderRequest.setReceiverPhone(buyerAddress.getContactPhone());
+            orderRequest.setReceiverAddress(buyerAddress.getFullAddress());
+            orderRequest.setProvinceId(buyerAddress.getProvinceId());
+            orderRequest.setDistrictId(buyerAddress.getDistrictId());
+            orderRequest.setWardCode(buyerAddress.getWardCode());
+            
+            // Set GHN info
+            orderRequest.setToDistrictId(String.valueOf(buyerAddress.getDistrictId()));
+            orderRequest.setToWardCode(buyerAddress.getWardCode());
+            orderRequest.setServiceId(req.getServiceId());
+            orderRequest.setServiceTypeId(req.getServiceTypeId());
+            orderRequest.setWeightGrams(totalWeight);
+            
+            // Set payment & shipping
+            orderRequest.setMethod(req.getPaymentMethod());
+            orderRequest.setShippingFee(shippingFee);
+            orderRequest.setVoucherDiscount(BigDecimal.ZERO);
+            orderRequest.setCodAmount("COD".equalsIgnoreCase(req.getPaymentMethod()) ? totalAmount : BigDecimal.ZERO);
+            // Note: CreateOrderRequestDTO không có setNotes() - có thể bỏ qua hoặc thêm field vào DTO
+            
+            // ✅ GỌI OrderService.createOrder() - LOGIC TRỪ STOCK VÀ CỘNG SOLD_COUNT SẼ CHẠY Ở ĐÂY
+            Order order = orderService.createOrder(orderRequest);
 
             // ========== XÓA CART ITEMS ==========
             // Logic:
