@@ -106,4 +106,24 @@ public class AdminOrderController {
         return ResponseDTO.success(orders, "Lấy danh sách đơn hàng theo trạng thái thành công");
     }
 
+    /**
+     * API tìm kiếm đơn hàng (Admin only)
+     * GET /api/admin/orders/search?keyword=123&page=0&size=10
+     * Search by: order ID, customer name, phone, date (DD/MM/YYYY), address
+     * @param keyword - Từ khóa tìm kiếm
+     * @param page - Số trang (0-indexed)
+     * @param size - Số items mỗi trang
+     * @return Page<AdminOrderDTO>
+     */
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Page<AdminOrderDTO>>> searchOrders(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        Page<AdminOrderDTO> orders = adminOrderService.searchOrders(keyword, page, size);
+        return ResponseDTO.success(orders, "Tìm kiếm đơn hàng thành công");
+    }
+
 }

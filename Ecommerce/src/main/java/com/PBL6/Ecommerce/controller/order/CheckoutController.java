@@ -39,6 +39,7 @@ public class CheckoutController {
     private final com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository;
     private final com.PBL6.Ecommerce.service.WalletService walletService;
     private final com.PBL6.Ecommerce.service.NotificationService notificationService;
+    private final com.PBL6.Ecommerce.service.OrderService orderService;
 
     public CheckoutController(GhnService ghnService, 
                             AddressRepository addressRepository,
@@ -50,7 +51,8 @@ public class CheckoutController {
                             com.PBL6.Ecommerce.repository.OrderRepository orderRepository,
                             com.PBL6.Ecommerce.repository.OrderItemRepository orderItemRepository,
                             com.PBL6.Ecommerce.service.WalletService walletService,
-                            com.PBL6.Ecommerce.service.NotificationService notificationService) {
+                            com.PBL6.Ecommerce.service.NotificationService notificationService,
+                            com.PBL6.Ecommerce.service.OrderService orderService) {
         this.ghnService = ghnService;
         this.addressRepository = addressRepository;
         this.shopRepository = shopRepository;
@@ -62,6 +64,7 @@ public class CheckoutController {
         this.orderItemRepository = orderItemRepository;
         this.walletService = walletService;
         this.notificationService = notificationService;
+        this.orderService = orderService;
     }
 
     /**
@@ -419,54 +422,51 @@ public class CheckoutController {
             // Tính tổng cuối cùng
             BigDecimal totalAmount = subtotal.add(shippingFee);
 
-            // ========== TẠO ORDER (chưa tạo shipment) ==========
-            Order order = new Order();
-            order.setUser(user);
-            order.setShop(shop);
-            order.setTotalAmount(totalAmount);
-            order.setMethod(req.getPaymentMethod());
-            order.setStatus(Order.OrderStatus.PENDING);
-            order.setPaymentStatus(Order.PaymentStatus.UNPAID);
+            // ========== TẠO ORDER QUA OrderService (ĐẢM BẢO TRỪ STOCK VÀ CỘNG SOLD_COUNT) ==========
+            CreateOrderRequestDTO orderRequest = new CreateOrderRequestDTO();
+            orderRequest.setUserId(user.getId());
             
-            // ✅ SET ĐỊA CHỈ NHẬN HÀNG TỪ BUYER ADDRESS
-            order.setReceiverName(buyerAddress.getContactName());
-            order.setReceiverPhone(buyerAddress.getContactPhone());
-            order.setReceiverAddress(buyerAddress.getFullAddress());
-            order.setProvinceId(buyerAddress.getProvinceId());
-            order.setDistrictId(buyerAddress.getDistrictId());
-            order.setWardCode(buyerAddress.getWardCode());
-            
-            // ✅ SET SHIPPING FEE
-            order.setShippingFee(shippingFee);
-            
-            // Lưu thông tin GHN service đã chọn vào notes (JSON format)
-            Map<String, Object> ghnInfo = new HashMap<>();
-            ghnInfo.put("serviceId", req.getServiceId());
-            ghnInfo.put("serviceTypeId", req.getServiceTypeId());
-            ghnInfo.put("addressId", req.getAddressId());
-            ghnInfo.put("note", req.getNote());
-            
-            try {
-                // notes field removed from Order, update logic if needed
-            } catch (Exception e) {
-                // notes field removed from Order, update logic if needed
-            }
-            
-            order = orderRepository.save(order);
-
-            // ========== TẠO ORDER ITEMS ==========
+            // Build items list từ cart
+            List<CreateOrderRequestDTO.Item> orderItems = new ArrayList<>();
             for (var cartItem : cartItems) {
-                var variant = cartItem.getProductVariant();
-                
-                OrderItem orderItem = new OrderItem();
-                orderItem.setOrder(order);
-                orderItem.setVariant(variant);
-                orderItem.setProductId(variant.getProduct().getId()); // ✅ Set product_id
-                orderItem.setVariantName(variant.getSku() != null ? variant.getSku() : variant.getProduct().getName()); // ✅ Set variant_name
-                orderItem.setQuantity(cartItem.getQuantity());
-                orderItem.setPrice(variant.getPrice());
-                orderItemRepository.save(orderItem);
+                CreateOrderRequestDTO.Item item = new CreateOrderRequestDTO.Item();
+                item.setVariantId(cartItem.getProductVariant().getId());
+                item.setQuantity(cartItem.getQuantity());
+                orderItems.add(item);
             }
+            orderRequest.setItems(orderItems);
+            
+            // Set địa chỉ giao hàng từ buyer address
+            orderRequest.setReceiverName(buyerAddress.getContactName());
+            orderRequest.setReceiverPhone(buyerAddress.getContactPhone());
+            orderRequest.setReceiverAddress(buyerAddress.getFullAddress());
+            orderRequest.setProvinceId(buyerAddress.getProvinceId());
+            orderRequest.setDistrictId(buyerAddress.getDistrictId());
+            orderRequest.setWardCode(buyerAddress.getWardCode());
+            
+            // Set GHN info (for shipment creation later)
+            orderRequest.setToDistrictId(String.valueOf(buyerAddress.getDistrictId()));
+            orderRequest.setToWardCode(buyerAddress.getWardCode());
+            orderRequest.setServiceId(req.getServiceId());
+            orderRequest.setServiceTypeId(req.getServiceTypeId());
+            orderRequest.setWeightGrams(totalWeight);
+            
+            // Set payment method và shipping fee
+            orderRequest.setMethod(req.getPaymentMethod());
+            orderRequest.setShippingFee(shippingFee);
+            orderRequest.setVoucherDiscount(BigDecimal.ZERO);
+            
+            // COD amount (only for COD orders)
+            if ("COD".equalsIgnoreCase(req.getPaymentMethod())) {
+                orderRequest.setCodAmount(totalAmount);
+            } else {
+                orderRequest.setCodAmount(BigDecimal.ZERO);
+            }
+            
+            // ✅ GỌI OrderService.createOrder() - TRỪ STOCK VÀ CỘNG SOLD_COUNT TỰ ĐỘNG
+            Order order = orderService.createOrder(orderRequest);
+            
+            System.out.println("✅ Order created via OrderService #" + order.getId() + " - Stock deducted, sold_count incremented");
 
             // ========== XÓA CART ITEMS ==========
             // Logic:
@@ -479,14 +479,21 @@ public class CheckoutController {
                 System.out.println("⏳ Cart kept for online payment order #" + order.getId() + " - will be cleared after payment success");
             }
 
-            // ========== GỬI THÔNG BÁO CHO SELLER ==========
+            // ========== GỬI THÔNG BÁO CHO SELLER VÀ ADMIN ==========
             try {
                 Long sellerId = shop.getOwner().getId();
                 String sellerMessage = "Bạn có đơn hàng mới #" + order.getId() + " từ " + user.getUsername();
                 notificationService.sendSellerNotification(sellerId, "NEW_ORDER", sellerMessage, order.getId());
                 System.out.println("✅ Sent notification to seller #" + sellerId + " for order #" + order.getId());
+                
+                // Gửi thông báo cho admin
+                String shopName = shop.getName() != null ? shop.getName() : "Shop #" + shop.getId();
+                String customerName = user.getUsername() != null ? user.getUsername() : "Khách hàng #" + user.getId();
+                String adminMessage = "Có đơn hàng #" + order.getId() + " của shop " + shopName + " từ khách hàng " + customerName;
+                notificationService.sendAdminNotification("NEW_ORDER", adminMessage, order.getId());
+                System.out.println("✅ Sent notification to admin for order #" + order.getId());
             } catch (Exception e) {
-                System.err.println("⚠️ Failed to send seller notification: " + e.getMessage());
+                System.err.println("⚠️ Failed to send notifications: " + e.getMessage());
                 // Continue - notification failure should not block order creation
             }
 
