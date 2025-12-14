@@ -1,7 +1,6 @@
 package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.constant.ConversationType;
-import com.PBL6.Ecommerce.domain.*;
 import com.PBL6.Ecommerce.domain.dto.chat.*;
 import com.PBL6.Ecommerce.domain.entity.chat.Conversation;
 import com.PBL6.Ecommerce.domain.entity.chat.ConversationMember;
