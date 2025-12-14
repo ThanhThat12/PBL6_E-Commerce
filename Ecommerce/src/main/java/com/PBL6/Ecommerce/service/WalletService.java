@@ -361,7 +361,7 @@ public class WalletService {
             logger.info("📝 Creating wallet transaction record...");
             WalletTransaction transaction = new WalletTransaction(
                 adminWallet,
-                WalletTransaction.TransactionType.DEPOSIT,
+                WalletTransaction.TransactionType.ORDER_PAYMENT,
                 amount,
                 String.format("Nhận thanh toán từ đơn hàng #%d qua %s", order.getId(), paymentMethod)
             );
