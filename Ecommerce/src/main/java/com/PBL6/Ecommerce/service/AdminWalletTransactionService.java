@@ -1,6 +1,7 @@
 package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.domain.dto.admin.AdminWalletTransactionDTO;
+import com.PBL6.Ecommerce.domain.dto.admin.RecentInvoiceDTO;
 import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.entity.user.Role;
 import com.PBL6.Ecommerce.domain.entity.payment.Wallet;
@@ -20,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -37,21 +40,14 @@ public class AdminWalletTransactionService {
     private UserRepository userRepository;
     
     /**
-     * Get admin wallet transactions with filter and pagination
+     * Get admin wallet transactions with pagination (simple version)
      * @param page Page number (0-based)
      * @param size Items per page
-     * @param period Filter period: TODAY, WEEKLY, MONTHLY
-     * @param type Transaction type filter (optional)
      * @return Paginated transactions
      */
-    public Page<AdminWalletTransactionDTO> getAdminTransactions(
-            int page, 
-            int size, 
-            String period, 
-            String type) {
+    public Page<AdminWalletTransactionDTO> getAdminTransactions(int page, int size) {
         
-        logger.info("Getting admin transactions - page: {}, size: {}, period: {}, type: {}", 
-                   page, size, period, type);
+        logger.info("Getting admin transactions - page: {}, size: {}", page, size);
         
         try {
             // Get admin user and wallet
@@ -61,47 +57,14 @@ public class AdminWalletTransactionService {
                     .orElseThrow(() -> new UserNotFoundException("Admin user not found"));
             Wallet adminWallet = walletService.getOrCreateWallet(admin);
             
-            // Calculate date range based on period
-            LocalDateTime startDate = calculateStartDate(period);
-            LocalDateTime endDate = LocalDateTime.now();
-            
-            logger.info("Date range: {} to {}", startDate, endDate);
-            
             // Build pageable - Sort by ID descending (newest first)
             Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
             
-            Page<WalletTransaction> transactions;
-            
-            // Apply filters
-            if (type != null && !type.isEmpty() && !type.equalsIgnoreCase("ALL")) {
-                // Filter by type AND date range
-                WalletTransaction.TransactionType transactionType = 
-                    WalletTransaction.TransactionType.valueOf(type.toUpperCase());
+            // Get all transactions for admin wallet
+            Page<WalletTransaction> transactions = walletTransactionRepository
+                .findByWalletId(adminWallet.getId(), pageable);
                 
-                transactions = walletTransactionRepository
-                    .findByWalletIdAndTypeAndCreatedAtBetween(
-                        adminWallet.getId(), 
-                        transactionType,
-                        startDate,
-                        endDate,
-                        pageable
-                    );
-                
-                logger.info("Filtered by type: {} - Found {} transactions", 
-                           type, transactions.getTotalElements());
-            } else {
-                // Filter by date range only
-                transactions = walletTransactionRepository
-                    .findByWalletIdAndCreatedAtBetween(
-                        adminWallet.getId(), 
-                        startDate,
-                        endDate,
-                        pageable
-                    );
-                
-                logger.info("Filtered by date only - Found {} transactions", 
-                           transactions.getTotalElements());
-            }
+            logger.info("Found {} transactions", transactions.getTotalElements());
             
             // Convert to DTO
             Page<AdminWalletTransactionDTO> dtos = transactions.map(this::convertToDTO);
@@ -118,27 +81,6 @@ public class AdminWalletTransactionService {
     }
     
     /**
-     * Calculate start date based on period filter
-     */
-    private LocalDateTime calculateStartDate(String period) {
-        if (period == null || period.isEmpty()) {
-            // Default: last 30 days
-            return LocalDateTime.now().minusDays(30);
-        }
-        
-        switch (period.toUpperCase()) {
-            case "TODAY":
-                return LocalDateTime.now().with(LocalTime.MIN);
-            case "WEEKLY":
-                return LocalDateTime.now().minusWeeks(1);
-            case "MONTHLY":
-                return LocalDateTime.now().minusMonths(1);
-            default:
-                return LocalDateTime.now().minusDays(30);
-        }
-    }
-    
-    /**
      * Convert WalletTransaction entity to DTO
      */
     private AdminWalletTransactionDTO convertToDTO(WalletTransaction transaction) {
@@ -150,6 +92,47 @@ public class AdminWalletTransactionService {
             transaction.getRelatedOrder() != null ? transaction.getRelatedOrder().getId() : null,
             transaction.getCreatedAt()
         );
+    }
+    
+    /**
+     * Search admin wallet transactions
+     * @param keyword Search keyword (id, description, orderId, date)
+     * @param page Page number (0-based)
+     * @param size Items per page
+     * @return Paginated search results
+     */
+    public Page<AdminWalletTransactionDTO> searchAdminTransactions(String keyword, int page, int size) {
+        logger.info("Searching admin transactions - keyword: {}, page: {}, size: {}", keyword, page, size);
+        
+        try {
+            // Get admin user and wallet
+            User admin = userRepository.findByRole(Role.ADMIN)
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new UserNotFoundException("Admin user not found"));
+            Wallet adminWallet = walletService.getOrCreateWallet(admin);
+            
+            // Build pageable - Sort by ID descending
+            Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+            
+            // Search transactions
+            Page<WalletTransaction> transactions = walletTransactionRepository
+                .searchTransactions(adminWallet.getId(), keyword, pageable);
+                
+            logger.info("Found {} transactions matching keyword: {}", transactions.getTotalElements(), keyword);
+            
+            // Convert to DTO
+            Page<AdminWalletTransactionDTO> dtos = transactions.map(this::convertToDTO);
+            
+            logger.info("Successfully searched {} transactions (page {}/{})", 
+                       dtos.getNumberOfElements(), page + 1, dtos.getTotalPages());
+            
+            return dtos;
+            
+        } catch (Exception e) {
+            logger.error("Error searching admin transactions: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to search admin transactions: " + e.getMessage());
+        }
     }
     
     /**
@@ -183,5 +166,73 @@ public class AdminWalletTransactionService {
             logger.error("❌ Error getting admin balance: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to get admin balance: " + e.getMessage());
         }
+    }
+    
+    /**
+     * Get recent invoices (ORDER_PAYMENT transactions)
+     * @param limit Number of recent invoices to return (default: 5)
+     * @return List of RecentInvoiceDTO
+     */
+    public List<RecentInvoiceDTO> getRecentInvoices(int limit) {
+        logger.info("Getting recent invoices - limit: {}", limit);
+        
+        try {
+            // Get admin user and wallet
+            User admin = userRepository.findByRole(Role.ADMIN)
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new UserNotFoundException("Admin user not found"));
+            Wallet adminWallet = walletService.getOrCreateWallet(admin);
+            
+            // Get recent ORDER_PAYMENT transactions
+            Pageable pageable = PageRequest.of(0, limit, Sort.by("id").descending());
+            Page<WalletTransaction> transactions = walletTransactionRepository
+                .findByWalletIdAndType(
+                    adminWallet.getId(), 
+                    WalletTransaction.TransactionType.ORDER_PAYMENT,
+                    pageable
+                );
+            
+            // Convert to DTO
+            List<RecentInvoiceDTO> invoices = transactions.getContent().stream()
+                .map(this::convertToInvoiceDTO)
+                .collect(Collectors.toList());
+            
+            logger.info("✅ Retrieved {} recent invoices", invoices.size());
+            
+            return invoices;
+            
+        } catch (Exception e) {
+            logger.error("❌ Error getting recent invoices: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to get recent invoices: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Convert WalletTransaction to RecentInvoiceDTO
+     */
+    private RecentInvoiceDTO convertToInvoiceDTO(WalletTransaction transaction) {
+        String name = "Unknown";
+        String avatar = null;
+        
+        // For ORDER_PAYMENT, show buyer information (who paid)
+        if (transaction.getRelatedOrder() != null) {
+            var order = transaction.getRelatedOrder();
+            
+            // Get buyer name and avatar
+            if (order.getUser() != null) {
+                name = order.getUser().getUsername();
+                avatar = order.getUser().getAvatarUrl();
+            }
+        }
+        
+        return new RecentInvoiceDTO(
+            transaction.getId(),
+            name,
+            avatar,
+            transaction.getAmount(),
+            transaction.getCreatedAt(),
+            transaction.getRelatedOrder() != null ? transaction.getRelatedOrder().getId() : null
+        );
     }
 }

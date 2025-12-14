@@ -91,7 +91,27 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     
     // ===== ADMIN WALLET TRANSACTION APIs =====
     
-    // Filter by wallet + date range with pagination
+    // Get all transactions by wallet ID with pagination (no date filter)
+    @Query("SELECT wt FROM WalletTransaction wt " +
+           "WHERE wt.wallet.id = :walletId " +
+           "ORDER BY wt.id DESC")
+    org.springframework.data.domain.Page<WalletTransaction> findByWalletId(
+        @Param("walletId") Long walletId,
+        org.springframework.data.domain.Pageable pageable
+    );
+    
+    // Get transactions by wallet ID and type with pagination (no date filter)
+    @Query("SELECT wt FROM WalletTransaction wt " +
+           "WHERE wt.wallet.id = :walletId " +
+           "AND wt.type = :type " +
+           "ORDER BY wt.id DESC")
+    org.springframework.data.domain.Page<WalletTransaction> findByWalletIdAndType(
+        @Param("walletId") Long walletId,
+        @Param("type") TransactionType type,
+        org.springframework.data.domain.Pageable pageable
+    );
+    
+    // Filter by wallet + date range with pagination (DEPRECATED)
     @Query("SELECT wt FROM WalletTransaction wt " +
            "WHERE wt.wallet.id = :walletId " +
            "AND wt.createdAt BETWEEN :startDate AND :endDate " +
@@ -103,7 +123,7 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
         org.springframework.data.domain.Pageable pageable
     );
     
-    // Filter by wallet + type + date range with pagination
+    // Filter by wallet + type + date range with pagination (DEPRECATED)
     @Query("SELECT wt FROM WalletTransaction wt " +
            "WHERE wt.wallet.id = :walletId " +
            "AND wt.type = :type " +
@@ -114,6 +134,23 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
         @Param("type") TransactionType type,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate,
+        org.springframework.data.domain.Pageable pageable
+    );
+    
+    // Search transactions by multiple criteria (using native query for better string matching)
+    @Query(value = "SELECT * FROM wallet_transactions wt " +
+           "WHERE wt.wallet_id = :walletId " +
+           "AND (" +
+           "  CAST(wt.id AS CHAR) LIKE CONCAT('%', :keyword, '%') " +
+           "  OR LOWER(wt.description) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "  OR CAST(wt.related_order_id AS CHAR) LIKE CONCAT('%', :keyword, '%') " +
+           "  OR DATE_FORMAT(wt.created_at, '%Y-%m-%d') LIKE CONCAT('%', :keyword, '%') " +
+           ") " +
+           "ORDER BY wt.id DESC",
+           nativeQuery = true)
+    org.springframework.data.domain.Page<WalletTransaction> searchTransactions(
+        @Param("walletId") Long walletId,
+        @Param("keyword") String keyword,
         org.springframework.data.domain.Pageable pageable
     );
 }
