@@ -483,14 +483,21 @@ public class CheckoutController {
                 System.out.println("⏳ Cart kept for online payment order #" + order.getId() + " - will be cleared after payment success");
             }
 
-            // ========== GỬI THÔNG BÁO CHO SELLER ==========
+            // ========== GỬI THÔNG BÁO CHO SELLER VÀ ADMIN ==========
             try {
                 Long sellerId = shop.getOwner().getId();
                 String sellerMessage = "Bạn có đơn hàng mới #" + order.getId() + " từ " + user.getUsername();
                 notificationService.sendSellerNotification(sellerId, "NEW_ORDER", sellerMessage, order.getId());
                 System.out.println("✅ Sent notification to seller #" + sellerId + " for order #" + order.getId());
+                
+                // Gửi thông báo cho admin
+                String shopName = shop.getName() != null ? shop.getName() : "Shop #" + shop.getId();
+                String customerName = user.getUsername() != null ? user.getUsername() : "Khách hàng #" + user.getId();
+                String adminMessage = "Có đơn hàng #" + order.getId() + " của shop " + shopName + " từ khách hàng " + customerName;
+                notificationService.sendAdminNotification("NEW_ORDER", adminMessage, order.getId());
+                System.out.println("✅ Sent notification to admin for order #" + order.getId());
             } catch (Exception e) {
-                System.err.println("⚠️ Failed to send seller notification: " + e.getMessage());
+                System.err.println("⚠️ Failed to send notifications: " + e.getMessage());
                 // Continue - notification failure should not block order creation
             }
 

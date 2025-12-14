@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -41,4 +42,11 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      * Xóa tất cả notification theo userId
      */
     void deleteByUserId(Long userId);
+    
+    /**
+     * Xóa các notification đã đọc và cũ hơn thời gian cutoff
+     */
+    @Modifying
+    @Query("DELETE FROM Notification n WHERE n.isRead = true AND n.createdAt < :cutoffTime")
+    int deleteByIsReadTrueAndCreatedAtBefore(@Param("cutoffTime") LocalDateTime cutoffTime);
 }

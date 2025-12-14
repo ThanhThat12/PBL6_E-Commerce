@@ -7,10 +7,12 @@ import lombok.RequiredArgsConstructor;
 import com.PBL6.Ecommerce.domain.entity.order.Order;
 import com.PBL6.Ecommerce.domain.entity.notification.Notification;
 import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
 import com.PBL6.Ecommerce.repository.NotificationRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -87,6 +89,55 @@ public class NotificationService {
             messagingTemplate.convertAndSend(destination, notificationData);
         }
         System.out.println("📤 Message: " + message);
+    }
+    
+    /**
+     * Gửi notification cho admin (lưu DB + gửi WebSocket)
+     */
+    @Transactional
+    public void sendAdminNotification(String type, String message, Long orderId) {
+        try {
+            // Tìm admin user (chỉ có 1 admin trong hệ thống)
+            List<User> admins = userRepository.findByRole(Role.ADMIN);
+            
+            if (admins.isEmpty()) {
+                System.out.println("⚠️ No admin user found");
+                return;
+            }
+            
+            User admin = admins.get(0); // Lấy admin đầu tiên
+            System.out.println("📤 Sending notification to admin: " + admin.getId());
+            
+            // 1. Lưu vào database
+            Notification notification = new Notification();
+            notification.setUser(admin);
+            notification.setType(type);
+            notification.setMessage(message);
+            notification.setOrderId(orderId);
+            notification.setIsRead(false);
+            notification.setCreatedAt(LocalDateTime.now());
+            
+            Notification savedNotification = notificationRepository.save(notification);
+            System.out.println("💾 Saved admin notification to DB (ID: " + savedNotification.getId() + ")");
+            
+            // 2. Gửi realtime qua WebSocket
+            String destination = "/topic/admin/" + admin.getId();
+            
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("id", savedNotification.getId());
+            notificationData.put("type", savedNotification.getType());
+            notificationData.put("message", savedNotification.getMessage());
+            notificationData.put("orderId", savedNotification.getOrderId());
+            notificationData.put("read", savedNotification.getIsRead());
+            notificationData.put("createdAt", savedNotification.getCreatedAt());
+            
+            messagingTemplate.convertAndSend(destination, notificationData);
+            System.out.println("📤 Sent ADMIN notification to: " + destination);
+            System.out.println("📤 Message: " + message);
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send admin notification: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
     
     /**
