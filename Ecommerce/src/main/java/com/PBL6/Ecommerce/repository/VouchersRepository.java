@@ -18,53 +18,55 @@ import java.util.Optional;
 
 @Repository
 public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
-
+    
     /**
      * Xóa tất cả vouchers của một shop
      */
     @Modifying
     @Query("DELETE FROM Vouchers v WHERE v.shop.id = :shopId")
     void deleteByShopId(@Param("shopId") Long shopId);
-
+    
     /**
      * Kiểm tra voucher code đã tồn tại chưa
      */
     // boolean existsByCode(String code);
-
+    
     /**
      * Tìm voucher theo code
      */
     // Optional<Vouchers> findByCode(String code);
-
-    /**
-     * ADMIN
-     * Lấy danh sách vouchers với thông tin cơ bản
+    
+    /** ADMIN
+     * Lấy danh sách vouchers với thông tin cơ bản 
      * Sắp xếp theo ID tăng dần
      */
     @Query("SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO(" +
-            "v.id, " +
-            "v.code, " +
-            "CAST(v.discountType AS string), " +
-            "v.discountValue, " +
-            "v.minOrderValue, " +
-            "v.usageLimit, " +
-            "v.usedCount, " +
-            "CAST(v.status AS string)) " +
-            "FROM Vouchers v " +
-            "ORDER BY v.id ASC")
+           "v.id, " +
+           "v.code, " +
+           "CAST(v.discountType AS string), " +
+           "v.discountValue, " +
+           "v.minOrderValue, " +
+           "v.usageLimit, " +
+           "v.usedCount, " +
+           "CAST(v.status AS string)) " +
+           "FROM Vouchers v " +
+           "ORDER BY v.id ASC")
     Page<com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO> findAllVouchersForAdmin(Pageable pageable);
+    
+    
+    
 
 
     // Tìm voucher theo code
     Optional<Vouchers> findByCode(String code);
-
+    
     // Lấy tất cả voucher của shop
     List<Vouchers> findByShopId(Long shopId);
-
+    
     // Lấy voucher đang active của shop
-    @Query("SELECT v FROM Vouchers v WHERE v.shop.id = :shopId AND v.status = 'ACTIVE' AND v.endDate > :currentDate")
-    List<Vouchers> findActiveVouchersByShop(@Param("shopId") Long shopId, @Param("currentDate") LocalDateTime currentDate);
-
+        @Query("SELECT v FROM Vouchers v WHERE v.shop.id = :shopId AND v.status = 'ACTIVE' AND v.endDate > :currentDate")
+        List<Vouchers> findActiveVouchersByShop(@Param("shopId") Long shopId, @Param("currentDate") LocalDateTime currentDate);
+    
     // Kiểm tra voucher code đã tồn tại
     boolean existsByCode(String code);
 
@@ -88,16 +90,4 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
      */
     @Query("SELECT COALESCE(SUM(v.usedCount), 0) FROM Vouchers v")
     Long sumUsedVouchers();
-
-    /**
-     * Lấy platform vouchers (shop = null) đang active với discount cao nhất
-     * Ưu tiên PERCENTAGE rồi mới đến FIXED_AMOUNT
-     * Sort: discountType DESC (PERCENTAGE > FIXED_AMOUNT), discountValue DESC
-     */
-    @Query("SELECT v FROM Vouchers v WHERE v.shop IS NULL " +
-            "AND v.status = com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.Status.ACTIVE " +
-            "AND v.startDate <= :now AND v.endDate >= :now " +
-            "ORDER BY CASE WHEN v.discountType = com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.DiscountType.PERCENTAGE THEN 0 ELSE 1 END, " +
-            "v.discountValue DESC")
-    Page<Vouchers> findTopPlatformVouchers(@Param("now") LocalDateTime now, Pageable pageable);
 }

@@ -6,7 +6,6 @@ public class UserInfoDTO {
     private String username;
     private String role;
     private String fullName;
-    private Long shopId;  // Added for frontend to check shop ownership
 
     
     public UserInfoDTO(Long id, String email, String username, String role) {
@@ -22,15 +21,6 @@ public class UserInfoDTO {
         this.username = username;
         this.role = role;
         this.fullName = fullName;
-    }
-    
-    public UserInfoDTO(Long id, String email, String username, String role, String fullName, Long shopId) {
-        this.id = id;
-        this.email = email;
-        this.username = username;
-        this.role = role;
-        this.fullName = fullName;
-        this.shopId = shopId;
     }
     public Long getId() {
         return id;
@@ -61,11 +51,5 @@ public class UserInfoDTO {
     }
     public void setFullName(String fullName) {
         this.fullName = fullName;
-    }
-    public Long getShopId() {
-        return shopId;
-    }
-    public void setShopId(Long shopId) {
-        this.shopId = shopId;
     }
 }

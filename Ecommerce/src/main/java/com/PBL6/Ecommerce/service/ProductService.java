@@ -17,6 +17,17 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.product.Category;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductAttribute;
+import com.PBL6.Ecommerce.domain.entity.product.ProductImage;
+import com.PBL6.Ecommerce.domain.entity.product.ProductPrimaryAttribute;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariantValue;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.AttributeDTO;
 import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
@@ -25,17 +36,6 @@ import com.PBL6.Ecommerce.domain.dto.ProductImageDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductUpdateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantValueDTO;
-import com.PBL6.Ecommerce.domain.entity.product.Category;
-import com.PBL6.Ecommerce.domain.entity.product.Product;
-import com.PBL6.Ecommerce.domain.entity.product.ProductAttribute;
-import com.PBL6.Ecommerce.domain.entity.product.ProductImage;
-import com.PBL6.Ecommerce.domain.entity.product.ProductPrimaryAttribute;
-import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
-import com.PBL6.Ecommerce.domain.entity.product.ProductVariantValue;
-import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.domain.entity.user.Address;
-import com.PBL6.Ecommerce.domain.entity.user.Role;
-import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.exception.DuplicateSKUException;
 import com.PBL6.Ecommerce.exception.InvalidProductDataException;
 import com.PBL6.Ecommerce.exception.ProductNotFoundException;
@@ -92,9 +92,6 @@ public class ProductService {
     @Autowired
     private com.PBL6.Ecommerce.repository.ProductPrimaryAttributeRepository productPrimaryAttributeRepository;
 
-    @Autowired
-    private com.PBL6.Ecommerce.repository.ProductReviewRepository productReviewRepository;
-
     // Lấy tất cả sản phẩm
     @Transactional(readOnly = true)
     public List<ProductDTO> getAllProducts() {
@@ -105,13 +102,10 @@ public class ProductService {
     }
 
     // Lấy sản phẩm theo ID
-    @Transactional
+    @Transactional(readOnly = true)
 public ProductDTO getProductById(Long id) {
     Product product = productRepository.findById(id)
         .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
-    
-    // Sync rating from reviews if not yet synced or outdated
-    syncProductRatingIfNeeded(product);
     
     // Convert to DTO and set additional fields
     ProductDTO dto = convertToProductDTO(product);
@@ -620,16 +614,9 @@ private void validateProductOwnership(Product product, Authentication authentica
         // Set product condition with default if null
         dto.setProductCondition(product.getProductCondition() != null ? product.getProductCondition() : "NEW");
         
-        // Calculate real-time rating from reviews instead of using cached DB value
-        Double averageRating = productReviewRepository.getAverageRatingByProductId(product.getId());
-        long actualReviewCount = productReviewRepository.countByProductId(product.getId());
-        
-        if (averageRating != null && averageRating > 0) {
-            dto.setRating(BigDecimal.valueOf(averageRating).setScale(2, java.math.RoundingMode.HALF_UP));
-        } else {
-            dto.setRating(BigDecimal.ZERO);
-        }
-        dto.setReviewCount((int) actualReviewCount);
+        // Set rating and counts with defaults
+        dto.setRating(product.getRating() != null ? product.getRating() : BigDecimal.ZERO);
+        dto.setReviewCount(product.getReviewCount() != null ? product.getReviewCount() : 0);
         dto.setSoldCount(product.getSoldCount() != null ? product.getSoldCount() : 0);
         
         // Set timestamps
@@ -1020,141 +1007,6 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
         System.out.println("🔍 DEBUG - Found " + products.getTotalElements() + " approved products");
 
         // Convert sang ProductSimpleDTO
-        return products.map(this::convertToProductDTO);
-    }
-
-    /**
-     * Sync product rating if DB value doesn't match actual reviews
-     */
-    @Transactional
-    private void syncProductRatingIfNeeded(Product product) {
-        try {
-            // Get actual rating from reviews
-            Double averageRating = productReviewRepository.getAverageRatingByProductId(product.getId());
-            long actualReviewCount = productReviewRepository.countByProductId(product.getId());
-            
-            BigDecimal currentRating = product.getRating() != null ? product.getRating() : BigDecimal.ZERO;
-            int currentReviewCount = product.getReviewCount() != null ? product.getReviewCount() : 0;
-            
-            // Calculate expected rating
-            BigDecimal expectedRating = (averageRating != null && averageRating > 0) 
-                ? BigDecimal.valueOf(averageRating).setScale(2, java.math.RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-            
-            // Check if sync needed (rating mismatch or review count mismatch)
-            boolean needsSync = !currentRating.equals(expectedRating) || currentReviewCount != actualReviewCount;
-            
-            if (needsSync) {
-                product.setRating(expectedRating);
-                product.setReviewCount((int) actualReviewCount);
-                product.setUpdatedAt(java.time.LocalDateTime.now());
-                productRepository.save(product);
-                
-                log.info("🔄 Synced product {} rating: {} → {} (reviews: {} → {})", 
-                    product.getId(), currentRating, expectedRating, currentReviewCount, actualReviewCount);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to sync rating for product {}: {}", product.getId(), e.getMessage());
-        }
-    }
-
-    /**
-     * Update product rating and review count based on actual reviews
-     * Called automatically when reviews are created/updated/deleted
-     */
-    @Transactional
-    public void updateProductRating(Long productId) {
-        try {
-            Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ProductNotFoundException("Product not found: " + productId));
-            
-            // Get actual average rating from reviews
-            Double averageRating = productReviewRepository.getAverageRatingByProductId(productId);
-            long reviewCount = productReviewRepository.countByProductId(productId);
-            
-            // Update product with real data
-            if (averageRating != null && averageRating > 0) {
-                product.setRating(BigDecimal.valueOf(averageRating).setScale(2, java.math.RoundingMode.HALF_UP));
-            } else {
-                product.setRating(BigDecimal.ZERO);
-            }
-            
-            product.setReviewCount((int) reviewCount);
-            product.setUpdatedAt(java.time.LocalDateTime.now());
-            
-            productRepository.save(product);
-            
-            log.info("Updated product {} rating to {} (from {} reviews)", 
-                productId, product.getRating(), reviewCount);
-            
-        } catch (Exception e) {
-            log.error("Error updating product rating for product {}", productId, e);
-            // Don't throw exception to avoid breaking review operations
-        }
-    }
-    
-    /**
-     * Sync all products ratings on application startup
-     * This ensures existing data in DB is accurate
-     */
-    @org.springframework.context.event.EventListener(org.springframework.context.event.ContextRefreshedEvent.class)
-    @Transactional
-    public void syncAllProductRatingsOnStartup() {
-        try {
-            log.info("🚀 Starting bulk product rating sync...");
-            
-            List<Product> allProducts = productRepository.findAll();
-            int syncedCount = 0;
-            
-            for (Product product : allProducts) {
-                Double averageRating = productReviewRepository.getAverageRatingByProductId(product.getId());
-                long reviewCount = productReviewRepository.countByProductId(product.getId());
-                
-                BigDecimal expectedRating = (averageRating != null && averageRating > 0)
-                    ? BigDecimal.valueOf(averageRating).setScale(2, java.math.RoundingMode.HALF_UP)
-                    : BigDecimal.ZERO;
-                
-                BigDecimal currentRating = product.getRating() != null ? product.getRating() : BigDecimal.ZERO;
-                int currentReviewCount = product.getReviewCount() != null ? product.getReviewCount() : 0;
-                
-                // Update if mismatch
-                if (!currentRating.equals(expectedRating) || currentReviewCount != reviewCount) {
-                    product.setRating(expectedRating);
-                    product.setReviewCount((int) reviewCount);
-                    product.setUpdatedAt(java.time.LocalDateTime.now());
-                    productRepository.save(product);
-                    syncedCount++;
-                    
-                    log.debug("✅ Synced product {}: rating {} → {}, reviews {} → {}", 
-                        product.getId(), currentRating, expectedRating, currentReviewCount, reviewCount);
-                }
-            }
-            
-            log.info("✅ Completed rating sync: {}/{} products updated", syncedCount, allProducts.size());
-            
-        } catch (Exception e) {
-            log.error("❌ Error during bulk rating sync: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Lấy sản phẩm đánh giá cao (top-rated) cho homepage
-     * Ưu tiên: reviewCount DESC, rating DESC
-     * Filter: rating >= 4.0, reviewCount > 0
-     */
-    @Transactional(readOnly = true)
-    public Page<ProductDTO> getTopRatedProducts(Pageable pageable) {
-        Page<Product> products = productRepository.findTopRatedProducts(pageable);
-        return products.map(this::convertToProductDTO);
-    }
-
-    /**
-     * Lấy sản phẩm bán chạy (best-selling) cho homepage
-     * Sort: soldCount DESC
-     */
-    @Transactional(readOnly = true)
-    public Page<ProductDTO> getBestSellingProducts(Pageable pageable) {
-        Page<Product> products = productRepository.findBestSellingProducts(pageable);
         return products.map(this::convertToProductDTO);
     }
 

@@ -12,7 +12,6 @@ import com.PBL6.Ecommerce.domain.entity.order.Order;
 import com.PBL6.Ecommerce.domain.entity.order.Shipment;
 import com.PBL6.Ecommerce.domain.entity.shop.Shop;
 import com.PBL6.Ecommerce.domain.entity.user.User;
-import com.PBL6.Ecommerce.constant.TypeAddress;
 import com.PBL6.Ecommerce.service.GhnService;
 import com.PBL6.Ecommerce.repository.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

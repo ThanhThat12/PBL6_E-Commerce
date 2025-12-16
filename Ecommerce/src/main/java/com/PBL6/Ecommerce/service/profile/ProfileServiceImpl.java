@@ -8,15 +8,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.PBL6.Ecommerce.domain.entity.user.User;
-import com.PBL6.Ecommerce.domain.dto.request.ChangePasswordRequest;
 import com.PBL6.Ecommerce.domain.dto.profile.ProfileDTO;
+import com.PBL6.Ecommerce.domain.dto.request.ChangePasswordRequest;
 import com.PBL6.Ecommerce.domain.dto.request.UpdateProfileRequest;
-import com.PBL6.Ecommerce.domain.dto.image.cloudinary.CloudinaryUploadResult;
 import com.PBL6.Ecommerce.exception.BadRequestException;
 import com.PBL6.Ecommerce.exception.NotFoundException;
 import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.service.CloudinaryClient;
-import com.PBL6.Ecommerce.util.CloudinaryUtil;
+import com.PBL6.Ecommerce.service.CloudinaryService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,8 +28,7 @@ public class ProfileServiceImpl implements ProfileService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final CloudinaryClient cloudinaryClient;
-    private final CloudinaryUtil cloudinaryUtil;
+    private final CloudinaryService cloudinaryService;
 
     @Override
     @Transactional(readOnly = true)
@@ -62,29 +59,10 @@ public class ProfileServiceImpl implements ProfileService {
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new NotFoundException("User không tồn tại"));
 
-        // Delete old avatar if exists
-        if (user.getAvatarPublicId() != null && !user.getAvatarPublicId().isEmpty()) {
-            try {
-                cloudinaryClient.deleteImage(user.getAvatarPublicId());
-            } catch (Exception e) {
-                // Log but continue if delete fails
-                throw new BadRequestException("Không thể xóa ảnh cũ: " + e.getMessage());
-            }
-        }
-
         // Upload to Cloudinary
-        String folder = cloudinaryUtil.getFolderPath("avatars");
-        String publicId = String.format("user_%d_avatar_%d", user.getId(), System.currentTimeMillis());
+        String avatarUrl = cloudinaryService.uploadAvatar(file, user.getId());
         
-        CloudinaryUploadResult result;
-        try {
-            result = cloudinaryClient.uploadImage(file, folder, publicId);
-        } catch (Exception e) {
-            throw new BadRequestException("Không thể tải ảnh lên: " + e.getMessage());
-        }
-
-        user.setAvatarUrl(result.getSecureUrl());
-        user.setAvatarPublicId(result.getPublicId());
+        user.setAvatarUrl(avatarUrl);
         user.setUpdatedAt(LocalDateTime.now());
 
         User saved = userRepository.save(user);
@@ -128,8 +106,6 @@ public class ProfileServiceImpl implements ProfileService {
             .fullName(user.getFullName())
             .phoneNumber(user.getPhoneNumber())
             .avatarUrl(user.getAvatarUrl())
-            .activated(user.isActivated())
-            .role(user.getRole() != null ? user.getRole().name() : null)
             .createdAt(user.getCreatedAt())
             .updatedAt(user.getUpdatedAt())
             .build();

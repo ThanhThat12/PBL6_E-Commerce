@@ -143,9 +143,6 @@ public CorsConfigurationSource corsConfigurationSource() {
                 .requestMatchers(HttpMethod.GET, "/api/product-attributes").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/product-attributes/*").permitAll()
 
-                // Voucher endpoints - platform vouchers are public
-                .requestMatchers(HttpMethod.GET, "/api/vouchers/platform").permitAll()
-
                 // Review endpoints
                 .requestMatchers(HttpMethod.GET, "/api/products/*/reviews").permitAll() // Public: view product reviews
                 .requestMatchers(HttpMethod.GET, "/api/products/*/rating-summary").permitAll() // Public: rating summary
@@ -174,9 +171,8 @@ public CorsConfigurationSource corsConfigurationSource() {
 
                 // Seller Registration (Buyer upgrade to Seller - Shopee style with Admin approval)
                 .requestMatchers(HttpMethod.POST, "/api/seller/register").hasRole("BUYER")
-                .requestMatchers(HttpMethod.GET, "/api/seller/registration/status").hasAnyRole("BUYER")
-                .requestMatchers(HttpMethod.DELETE, "/api/seller/registration").hasAnyRole("BUYER") // Allow SELLER to cancel REJECTED application
-                .requestMatchers(HttpMethod.PUT, "/api/seller/registration").hasRole("BUYER")
+                .requestMatchers(HttpMethod.GET, "/api/seller/registration/status").hasAnyRole("BUYER", "SELLER")
+                .requestMatchers(HttpMethod.DELETE, "/api/seller/registration").hasRole("BUYER")
                 .requestMatchers(HttpMethod.GET, "/api/seller/registration/can-submit").hasRole("BUYER")
 
                 // Admin - Seller Registration Management

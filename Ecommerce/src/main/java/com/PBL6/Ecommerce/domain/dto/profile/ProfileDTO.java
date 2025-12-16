@@ -22,8 +22,6 @@ public class ProfileDTO {
     private String fullName;
     private String phoneNumber;
     private String avatarUrl;
-    private Boolean activated;
-    private String role;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

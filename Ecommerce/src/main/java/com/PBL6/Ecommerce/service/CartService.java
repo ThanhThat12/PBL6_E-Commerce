@@ -63,15 +63,6 @@ public class CartService {
         if (quantity <= 0) throw new IllegalArgumentException("Quantity must be > 0");
         ProductVariant variant = productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new ProductNotFoundException("Product variant not found with ID: " + variantId));
-        
-        // Prevent shop owner from buying their own products
-        Product product = variant.getProduct();
-        if (product.getShop() != null && product.getShop().getOwner() != null) {
-            if (product.getShop().getOwner().getId().equals(user.getId())) {
-                throw new IllegalArgumentException("Bạn không thể mua sản phẩm của chính shop bạn");
-            }
-        }
-        
         if (!Boolean.TRUE.equals(variant.getProduct().getIsActive())) {
             throw new IllegalStateException("Product is not active");
         }

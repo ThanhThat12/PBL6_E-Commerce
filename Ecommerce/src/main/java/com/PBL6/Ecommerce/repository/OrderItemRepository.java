@@ -39,15 +39,6 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
     Long getTotalSoldByProductId(@Param("productId") Long productId);
     
     /**
-     * Calculate total sold count for a product from COMPLETED orders
-     * Used by scheduler to sync Product.soldCount
-     */
-    @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi " +
-           "JOIN oi.order o " +
-           "WHERE oi.variant.product.id = :productId AND o.status = 'COMPLETED'")
-    Long calculateTotalSoldByProductId(@Param("productId") Long productId);
-    
-    /**
      * ADMIN Tính tổng số lượng đã bán của một variant cụ thể (COMPLETED orders)
      * @param variantId - ID của product variant
      * @return Tổng số lượng đã bán

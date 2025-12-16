@@ -278,16 +278,8 @@ public class VoucherService {
         dto.setId(voucher.getId());
         dto.setCode(voucher.getCode());
         dto.setDescription(voucher.getDescription());
-        
-        // Handle platform vouchers (shop = null)
-        if (voucher.getShop() != null) {
-            dto.setShopId(voucher.getShop().getId());
-            dto.setShopName(voucher.getShop().getName());
-        } else {
-            dto.setShopId(null);
-            dto.setShopName("Platform");
-        }
-        
+        dto.setShopId(voucher.getShop().getId());
+        dto.setShopName(voucher.getShop().getName());
         dto.setDiscountType(voucher.getDiscountType());
         dto.setDiscountValue(voucher.getDiscountValue());
         dto.setMinOrderValue(voucher.getMinOrderValue());
@@ -512,17 +504,5 @@ public class VoucherService {
         }
         
         return discountAmount;
-    }
-
-    /**
-     * Lấy voucher do sàn phát hành (platform vouchers) cho homepage
-     * Ưu tiên vouchers có discount value cao nhất (PERCENTAGE trước, rồi FIXED_AMOUNT)
-     */
-    @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<VoucherDTO> getPlatformVouchers(org.springframework.data.domain.Pageable pageable) {
-        LocalDateTime now = LocalDateTime.now();
-        org.springframework.data.domain.Page<Vouchers> vouchers = vouchersRepository
-            .findTopPlatformVouchers(now, pageable);
-        return vouchers.map(this::convertToDTO);
     }
 }

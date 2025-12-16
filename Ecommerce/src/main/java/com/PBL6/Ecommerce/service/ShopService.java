@@ -6,12 +6,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.constant.TypeAddress;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
 import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
 import com.PBL6.Ecommerce.domain.dto.MonthlyRevenueDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
@@ -19,10 +21,6 @@ import com.PBL6.Ecommerce.domain.dto.ShopDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopRegistrationDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
-import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.domain.entity.user.Address;
-import com.PBL6.Ecommerce.domain.entity.user.Role;
-import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.OrderRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
@@ -30,10 +28,10 @@ import com.PBL6.Ecommerce.repository.UserRepository;
 
 @Service
 public class ShopService {
-
+    
     @Autowired
     private ShopRepository shopRepository;
-
+    
     @Autowired
     private UserRepository userRepository;
 
@@ -51,14 +49,13 @@ public class ShopService {
 
     /**
      * Lấy thông tin shop của seller
-     *
      * @param username - Username của seller từ JWT token
      * @return ShopDTO - Thông tin shop
      */
     public ShopDTO getSellerShop(String username) {
         // Tìm user theo username
         User user = userRepository.findOneByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         // Kiểm tra role SELLER
         if (user.getRole() != Role.SELLER) {
@@ -67,15 +64,14 @@ public class ShopService {
 
         // Tìm shop của seller
         Shop shop = shopRepository.findByOwner(user)
-                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+            .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
 
         return convertToDTO(shop);
     }
 
     /**
      * Cập nhật thông tin shop
-     *
-     * @param username      - Username của seller từ JWT token
+     * @param username - Username của seller từ JWT token
      * @param updateShopDTO - Dữ liệu cập nhật
      * @return ShopDetailDTO - Thông tin shop đầy đủ sau khi cập nhật
      */
@@ -83,7 +79,7 @@ public class ShopService {
     public ShopDetailDTO updateSellerShop(String username, UpdateShopDTO updateShopDTO) {
         // Tìm user theo username
         User user = userRepository.findOneByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         // Kiểm tra role SELLER
         if (user.getRole() != Role.SELLER) {
@@ -92,7 +88,7 @@ public class ShopService {
 
         // Tìm shop của seller
         Shop shop = shopRepository.findByOwner(user)
-                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+            .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
 
         // ========== Basic Info ==========
         if (updateShopDTO.getName() != null && !updateShopDTO.getName().trim().isEmpty()) {
@@ -133,25 +129,25 @@ public class ShopService {
         if (updateShopDTO.getPickupAddressId() != null) {
             // Option 1: Use existing address ID
             Address addr = addressRepository.findByIdAndUserId(updateShopDTO.getPickupAddressId(), user.getId())
-                    .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
+                .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
             // Ensure type = STORE
             addr.setTypeAddress(TypeAddress.STORE);
             addressRepository.save(addr);
-        } else if (updateShopDTO.getFullAddress() != null || updateShopDTO.getProvinceId() != null ||
-                updateShopDTO.getDistrictId() != null || updateShopDTO.getWardCode() != null) {
+        } else if (updateShopDTO.getFullAddress() != null || updateShopDTO.getProvinceId() != null || 
+                   updateShopDTO.getDistrictId() != null || updateShopDTO.getWardCode() != null) {
             // Option 2: Create or update store address with full details
             // Update if ANY address field is provided (not just fullAddress)
             Address storeAddr = addressRepository
-                    .findFirstByUserIdAndTypeAddress(user.getId(), TypeAddress.STORE)
-                    .orElse(null);
-
+                .findFirstByUserIdAndTypeAddress(user.getId(), TypeAddress.STORE)
+                .orElse(null);
+            
             if (storeAddr == null) {
                 // Create new address
                 storeAddr = new Address();
                 storeAddr.setUser(user);
                 storeAddr.setTypeAddress(TypeAddress.STORE);
             }
-
+            
             // Update address fields - allow empty string to clear field
             if (updateShopDTO.getFullAddress() != null) {
                 storeAddr.setFullAddress(updateShopDTO.getFullAddress().trim());
@@ -180,7 +176,7 @@ public class ShopService {
             if (updateShopDTO.getContactName() != null) {
                 storeAddr.setContactName(updateShopDTO.getContactName());
             }
-
+            
             addressRepository.save(storeAddr);
         }
 
@@ -217,33 +213,33 @@ public class ShopService {
         }
 
         return ShopDTO.builder()
-                // Basic info
-                .id(shop.getId())
-                .name(shop.getName())
-                .description(shop.getDescription())
-                .status(shop.getStatus() != null ? shop.getStatus().name() : null)
-                .createdAt(shop.getCreatedAt())
-
-                // Branding
-                .logoUrl(shop.getLogoUrl())
-                .bannerUrl(shop.getBannerUrl())
-
-                // Address (text only, no IDs)
-                .address(storeAddress != null ? storeAddress.getFullAddress() : null)
-                .provinceName(storeAddress != null ? storeAddress.getProvinceName() : null)
-                .districtName(storeAddress != null ? storeAddress.getDistrictName() : null)
-                .wardName(storeAddress != null ? storeAddress.getWardName() : null)
-
-                // Rating
-                .rating(shop.getRating())
-                .reviewCount(shop.getReviewCount())
-
-                // Contact (public)
-                .shopPhone(shop.getShopPhone())
-                .shopEmail(shop.getShopEmail())
-                .build();
+            // Basic info
+            .id(shop.getId())
+            .name(shop.getName())
+            .description(shop.getDescription())
+            .status(shop.getStatus() != null ? shop.getStatus().name() : null)
+            .createdAt(shop.getCreatedAt())
+            
+            // Branding
+            .logoUrl(shop.getLogoUrl())
+            .bannerUrl(shop.getBannerUrl())
+            
+            // Address (text only, no IDs)
+            .address(storeAddress != null ? storeAddress.getFullAddress() : null)
+            .provinceName(storeAddress != null ? storeAddress.getProvinceName() : null)
+            .districtName(storeAddress != null ? storeAddress.getDistrictName() : null)
+            .wardName(storeAddress != null ? storeAddress.getWardName() : null)
+            
+            // Rating
+            .rating(shop.getRating())
+            .reviewCount(shop.getReviewCount())
+            
+            // Contact (public)
+            .shopPhone(shop.getShopPhone())
+            .shopEmail(shop.getShopEmail())
+            .build();
     }
-
+    
     // Public helper to convert Shop -> ShopDTO for controllers
     public ShopDTO toDTO(Shop shop) {
         return convertToDTO(shop);
@@ -252,14 +248,14 @@ public class ShopService {
     /**
      * Get full shop details for seller dashboard
      * Includes: address, GHN, KYC status, rating, owner info
-     *
+     * 
      * @param username - Username of seller from JWT
      * @return ShopDetailDTO with all information
      */
     public ShopDetailDTO getSellerShopDetail(String username) {
         // Find user by username
         User user = userRepository.findOneByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         // Check SELLER role
         if (user.getRole() != Role.SELLER) {
@@ -268,7 +264,7 @@ public class ShopService {
 
         // Find seller's shop
         Shop shop = shopRepository.findByOwner(user)
-                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+            .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
 
         return convertToDetailDTO(shop);
     }
@@ -278,7 +274,7 @@ public class ShopService {
      */
     public ShopDetailDTO convertToDetailDTO(Shop shop) {
         User owner = shop.getOwner();
-
+        
         // Get store address
         Address storeAddress = null;
         if (owner != null) {
@@ -287,47 +283,47 @@ public class ShopService {
         }
 
         ShopDetailDTO dto = ShopDetailDTO.builder()
-                // Basic info
-                .shopId(shop.getId())
-                .name(shop.getName())
-                .description(shop.getDescription())
-                .status(shop.getStatus() != null ? shop.getStatus().name() : null)
-                .createdAt(shop.getCreatedAt())
-
-                // Contact
-                .shopPhone(shop.getShopPhone())
-                .shopEmail(shop.getShopEmail())
-
-                // Branding
-                .logoUrl(shop.getLogoUrl())
-                .logoPublicId(shop.getLogoPublicId())
-                .bannerUrl(shop.getBannerUrl())
-                .bannerPublicId(shop.getBannerPublicId())
-
-                // GHN (token managed in application.properties, only shop_id stored in DB)
-                .ghnShopId(shop.getGhnShopId())
-                .ghnToken(null) // Token không còn lưu trong DB
-                .ghnConfigured(shop.getGhnShopId() != null && !shop.getGhnShopId().isEmpty())
-
-                // KYC (masked for security)
-                .maskedIdCardNumber(ShopDetailDTO.maskIdCardNumber(shop.getIdCardNumber()))
-                .idCardName(shop.getIdCardName())
-                .kycVerified(shop.getStatus() == Shop.ShopStatus.ACTIVE)
-
-                // Payment
-                .acceptCod(shop.getAcceptCod())
-                .codFeePercentage(shop.getCodFeePercentage())
-
-                // Rating
-                .rating(shop.getRating())
-                .reviewCount(shop.getReviewCount())
-
-                // Review tracking
-                .submittedAt(shop.getSubmittedAt())
-                .reviewedAt(shop.getReviewedAt())
-                .reviewedBy(shop.getReviewedBy())
-                .rejectionReason(shop.getRejectionReason())
-                .build();
+            // Basic info
+            .shopId(shop.getId())
+            .name(shop.getName())
+            .description(shop.getDescription())
+            .status(shop.getStatus() != null ? shop.getStatus().name() : null)
+            .createdAt(shop.getCreatedAt())
+            
+            // Contact
+            .shopPhone(shop.getShopPhone())
+            .shopEmail(shop.getShopEmail())
+            
+            // Branding
+            .logoUrl(shop.getLogoUrl())
+            .logoPublicId(shop.getLogoPublicId())
+            .bannerUrl(shop.getBannerUrl())
+            .bannerPublicId(shop.getBannerPublicId())
+            
+            // GHN (token managed in application.properties, only shop_id stored in DB)
+            .ghnShopId(shop.getGhnShopId())
+            .ghnToken(null) // Token không còn lưu trong DB
+            .ghnConfigured(shop.getGhnShopId() != null && !shop.getGhnShopId().isEmpty())
+            
+            // KYC (masked for security)
+            .maskedIdCardNumber(ShopDetailDTO.maskIdCardNumber(shop.getIdCardNumber()))
+            .idCardName(shop.getIdCardName())
+            .kycVerified(shop.getStatus() == Shop.ShopStatus.ACTIVE)
+            
+            // Payment
+            .acceptCod(shop.getAcceptCod())
+            .codFeePercentage(shop.getCodFeePercentage())
+            
+            // Rating
+            .rating(shop.getRating())
+            .reviewCount(shop.getReviewCount())
+            
+            // Review tracking
+            .submittedAt(shop.getSubmittedAt())
+            .reviewedAt(shop.getReviewedAt())
+            .reviewedBy(shop.getReviewedBy())
+            .rejectionReason(shop.getRejectionReason())
+            .build();
 
         // Address info
         if (storeAddress != null) {
@@ -365,15 +361,14 @@ public class ShopService {
 
     /**
      * Lấy thống kê thu nhập của shop
-     *
      * @param username - Username của seller từ JWT token
-     * @param year     - Năm cần thống kê (null = năm hiện tại)
+     * @param year - Năm cần thống kê (null = năm hiện tại)
      * @return ShopAnalyticsDTO - Thống kê thu nhập
      */
     public ShopAnalyticsDTO getShopAnalytics(String username, Integer year) {
         // Tìm user theo username
         User user = userRepository.findOneByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         // Kiểm tra role SELLER
         if (user.getRole() != Role.SELLER) {
@@ -382,7 +377,7 @@ public class ShopService {
 
         // Tìm shop của seller
         Shop shop = shopRepository.findByOwner(user)
-                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+            .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
 
         Long shopId = shop.getId();
 
@@ -394,7 +389,7 @@ public class ShopService {
 
         // Lấy doanh thu theo tháng
         List<MonthlyRevenueDTO> monthlyRevenue = new ArrayList<>();
-
+        
         if (year == null) {
             year = LocalDateTime.now().getYear();
         }
@@ -417,9 +412,9 @@ public class ShopService {
         for (int month = 1; month <= 12; month++) {
             final int currentMonth = month;
             MonthlyRevenueDTO monthData = monthlyRevenue.stream()
-                    .filter(m -> m.getMonth() == currentMonth)
-                    .findFirst()
-                    .orElse(new MonthlyRevenueDTO(year, currentMonth, BigDecimal.ZERO, 0L));
+                .filter(m -> m.getMonth() == currentMonth)
+                .findFirst()
+                .orElse(new MonthlyRevenueDTO(year, currentMonth, BigDecimal.ZERO, 0L));
             fullYearData.add(monthData);
         }
 
@@ -431,17 +426,17 @@ public class ShopService {
     //     // Tìm user theo ID
     //     User user = userRepository.findById(userId)
     //         .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
-
+        
     //     // Kiểm tra xem user đã có shop chưa
     //     if (shopRepository.existsByOwner(user)) {
     //         throw new RuntimeException("Người dùng đã có shop");
     //     }
-
+        
     //     // Kiểm tra tên shop đã tồn tại chưa
     //     if (shopRepository.existsByName(shopRegistrationDTO.getName())) {
     //         throw new RuntimeException("Tên shop đã tồn tại");
     //     }
-
+        
     //     // Tạo shop mới
     //     Shop shop = new Shop();
     //     shop.setOwner(user);
@@ -461,20 +456,20 @@ public class ShopService {
     //     shop.setDescription(shopRegistrationDTO.getDescription());
     //     shop.setStatus(Shop.ShopStatus.ACTIVE);
     //     shop.setCreatedAt(LocalDateTime.now());
-
+        
     //     return shopRepository.save(shop);
     // }
-
+    
     public Shop getShopByUserId(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
-
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+        
         return shopRepository.findByOwner(user).orElse(null);
     }
 
     public Shop getShopByIdAndOwner(Long shopId, User user) {
         Shop shop = shopRepository.findById(shopId)
-                .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
+            .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
         if (shop.getOwner() == null || !shop.getOwner().getId().equals(user.getId())) {
             throw new RuntimeException("Bạn không có quyền trên shop này");
         }
@@ -488,31 +483,29 @@ public class ShopService {
     public Shop getShopById(Long shopId) {
         return shopRepository.findById(shopId).orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
     }
-
+    
     public boolean hasShop(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
-
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+        
         return shopRepository.existsByOwner(user);
     }
-
+    
     /**
      * Check if phone number already registered by another seller
      * Uses User entity to check phone uniqueness among SELLER role users
-     *
      * @param phone - Phone number to check
      * @return true if phone exists for another seller, false otherwise
      */
     public boolean existsByPhone(String phone) {
         // Check if any SELLER user has this phone number
         List<User> sellersWithPhone = userRepository.findByPhoneNumberAndRole(phone, Role.SELLER);
-        return !sellersWithPhone.isEmpty();
+        return !sellersWithPhone.isEmpty(); 
     }
-
+    
     /**
      * Create shop from seller registration (Shopee-style upgrade)
-     *
-     * @param user            - User upgrading to seller
+     * @param user - User upgrading to seller
      * @param registrationDTO - Shop registration data
      * @return Created shop
      */
@@ -572,45 +565,33 @@ public class ShopService {
 
     /**
      * Cập nhật GHN credentials cho shop
-     *
      * @param shopId - ID của shop
      * @param userId - ID của user (để verify ownership)
-     * @param dto    - GHN credentials
+     * @param dto - GHN credentials
      * @return Shop đã cập nhật
      */
     @Transactional
     public Shop updateGhnCredentials(Long shopId, Long userId, GhnCredentialsDTO dto) {
         Shop shop = shopRepository.findById(shopId)
-                .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
-
+            .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
+        
         // Kiểm tra quyền sở hữu
         if (!shop.getOwner().getId().equals(userId)) {
             throw new RuntimeException("Bạn không có quyền cập nhật shop này");
         }
-
+        
         // Validate GHN token format nếu cần
         if (dto.getGhnToken() == null || dto.getGhnToken().trim().isEmpty()) {
             throw new RuntimeException("GHN Token không được để trống");
         }
-
+        
         if (dto.getGhnShopId() == null || dto.getGhnShopId().trim().isEmpty()) {
             throw new RuntimeException("GHN Shop ID không được để trống");
         }
-
+        
         shop.setGhnToken(dto.getGhnToken());
         shop.setGhnShopId(dto.getGhnShopId());
-
+        
         return shopRepository.save(shop);
-    }
-
-    /**
-     * Lấy shop nổi bật (featured shops) cho homepage
-     * Criteria: ACTIVE status, sorted by rating and review count
-     */
-    @Transactional(readOnly = true)
-    public Page<ShopDTO> getFeaturedShops(Pageable pageable) {
-        Page<Shop> shops = shopRepository
-                .findByStatus(com.PBL6.Ecommerce.domain.entity.shop.Shop.ShopStatus.ACTIVE, pageable);
-        return shops.map(this::convertToDTO);
     }
 }
