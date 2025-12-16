@@ -121,20 +121,20 @@
 //                                                 order.getId(), sellerAmount);
 //             notificationService.sendSellerNotification(sellerId, "PAYMENT_RECEIVED", sellerMessage, order.getId());
             
-            // Gửi thông báo cho admin về commission
-            String customerName = order.getUser().getUsername() != null ? order.getUser().getUsername() : "Khách hàng #" + order.getUser().getId();
-            String adminMessage = String.format("Bạn đã nhận được %.0f VNĐ của đơn hàng #%d từ khách hàng %s", 
-                                               adminCommission, order.getId(), customerName);
-            notificationService.sendAdminNotification("PAYMENT_RECEIVED", adminMessage, order.getId());
+            // // Gửi thông báo cho admin về commission
+            // String customerName = order.getUser().getUsername() != null ? order.getUser().getUsername() : "Khách hàng #" + order.getUser().getId();
+            // String adminMessage = String.format("Bạn đã nhận được %.0f VNĐ của đơn hàng #%d từ khách hàng %s", 
+            //                                    adminCommission, order.getId(), customerName);
+            // notificationService.sendAdminNotification("PAYMENT_RECEIVED", adminMessage, order.getId());
             
-            // Gửi thông báo cho admin về việc chuyển tiền cho seller
-            String shopName = order.getShop().getName() != null ? order.getShop().getName() : "Shop #" + order.getShop().getId();
-            String sellerPayoutMessage = String.format("Đã chuyển %.0f VNĐ về ví của shop %s cho đơn hàng #%d", 
-                                                       sellerAmount, shopName, order.getId());
-            notificationService.sendAdminNotification("SELLER_PAYOUT", sellerPayoutMessage, order.getId());
+            // // Gửi thông báo cho admin về việc chuyển tiền cho seller
+            // String shopName = order.getShop().getName() != null ? order.getShop().getName() : "Shop #" + order.getShop().getId();
+            // String sellerPayoutMessage = String.format("Đã chuyển %.0f VNĐ về ví của shop %s cho đơn hàng #%d", 
+            //                                            sellerAmount, shopName, order.getId());
+            // notificationService.sendAdminNotification("SELLER_PAYOUT", sellerPayoutMessage, order.getId());
             
-            logger.info("✅ Successfully paid out {} to seller #{} for order #{} (Admin kept {} as commission)", 
-                       sellerAmount, sellerId, order.getId(), adminCommission);
+            // logger.info("✅ Successfully paid out {} to seller #{} for order #{} (Admin kept {} as commission)", 
+            //            sellerAmount, sellerId, order.getId(), adminCommission);
             
 //         } catch (Exception e) {
 //             logger.error("❌ Failed to transfer funds to seller for order {}: {}", 
