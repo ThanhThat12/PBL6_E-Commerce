@@ -14,7 +14,7 @@ public class WebConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                        .allowedOrigins("http://localhost:3000", "https://localhost:3000", "https://ecommerce-alpha-gilt-53.vercel.app")
+                        .allowedOrigins("http://localhost:3000", "https://localhost:3000", "https://sportyzone-beta.vercel.app/")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                         .allowedHeaders("*")
                         .exposedHeaders("Authorization", "Content-Type")
