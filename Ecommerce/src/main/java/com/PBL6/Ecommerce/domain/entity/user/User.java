@@ -79,6 +79,7 @@ public class User {
 public void setActivated(boolean activated) {
     this.activated = activated;
 }
+
 public void setUsername(String username) {
     this.username = username;
 }
