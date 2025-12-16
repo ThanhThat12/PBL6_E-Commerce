@@ -235,6 +235,51 @@ public class NotificationService {
         broadcastNotification(type, message);
     }
     
+    // ===== SHOP REGISTRATION NOTIFICATIONS =====
+    
+    /**
+     * Send notification when shop registration is approved
+     * @param userId - Shop owner user ID
+     * @param shopName - Shop name
+     */
+    public void sendShopApprovedNotification(Long userId, String shopName) {
+        String destination = "/topic/orderws/" + userId;
+        
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "SHOP_APPROVED");
+        notification.put("message", "🎉 Chúc mừng! Đơn đăng ký shop \"" + shopName + "\" đã được phê duyệt. Bạn đã trở thành người bán.");
+        notification.put("timestamp", LocalDateTime.now());
+        notification.put("userType", "BUYER");
+        notification.put("shopName", shopName);
+        
+        messagingTemplate.convertAndSend(destination, notification);
+        System.out.println("📤 Sent SHOP_APPROVED notification to: " + destination);
+        System.out.println("📤 Shop: " + shopName);
+    }
+    
+    /**
+     * Send notification when shop registration is rejected
+     * @param userId - Shop owner user ID
+     * @param shopName - Shop name
+     * @param rejectionReason - Reason for rejection
+     */
+    public void sendShopRejectedNotification(Long userId, String shopName, String rejectionReason) {
+        String destination = "/topic/orderws/" + userId;
+        
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "SHOP_REJECTED");
+        notification.put("message", "❌ Đơn đăng ký shop \"" + shopName + "\" bị từ chối. Lý do: " + rejectionReason);
+        notification.put("timestamp", LocalDateTime.now());
+        notification.put("userType", "BUYER");
+        notification.put("shopName", shopName);
+        notification.put("rejectionReason", rejectionReason);
+        
+        messagingTemplate.convertAndSend(destination, notification);
+        System.out.println("📤 Sent SHOP_REJECTED notification to: " + destination);
+        System.out.println("📤 Shop: " + shopName);
+        System.out.println("📤 Reason: " + rejectionReason);
+    }
+    
     // ===== NEW METHODS =====
     
     // Gửi cho cả buyer và seller - SỬ DỤNG FIELD NAMES ĐÚNG
