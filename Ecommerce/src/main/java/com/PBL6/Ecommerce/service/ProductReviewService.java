@@ -67,6 +67,9 @@ public class ProductReviewService {
     @Autowired
     private ReviewReportRepository reviewReportRepository;
 
+    @Autowired
+    private ProductService productService;
+
     /**
      * 1. Tạo đánh giá sản phẩm (POST /api/reviews)
      */
@@ -157,6 +160,9 @@ public class ProductReviewService {
             
             review = productReviewRepository.save(review);
             
+            // Update product rating based on all reviews
+            productService.updateProductRating(review.getProduct().getId());
+            
             log.info("Updated review {} by user {} (edit count: {})", reviewId, user.getUsername(), review.getEditCount());
             
             return convertToDTO(review);
@@ -225,7 +231,11 @@ public class ProductReviewService {
             User user = getCurrentUser(authentication);
             
             // 3. Delete review (Admin only)
+            Long productId = review.getProduct().getId();
             productReviewRepository.delete(review);
+            
+            // Update product rating after deletion
+            productService.updateProductRating(productId);
             
             log.info("Admin {} deleted review {}", user.getUsername(), reviewId);
             
@@ -603,6 +613,9 @@ public class ProductReviewService {
                 review.setEditCount(0);
 
                 review = productReviewRepository.save(review);
+
+                // Update product rating based on all reviews
+                productService.updateProductRating(productId);
 
                 log.info("Created review {} for product {} by user {} via product-detail endpoint", review.getId(), productId, user.getUsername());
 

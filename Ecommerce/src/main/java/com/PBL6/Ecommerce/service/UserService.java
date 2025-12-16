@@ -415,14 +415,6 @@ public class UserService {
 
         User user = resolveCurrentUser(authentication);
 
-        // Check if username is being changed and already exists
-        if (dto.getUsername() != null && !dto.getUsername().equals(user.getUsername())) {
-            if (userRepository.findOneByUsername(dto.getUsername()).isPresent()) {
-                throw new RuntimeException("Username already exists");
-            }
-            user.setUsername(dto.getUsername());
-        }
-
         // Check if email is being changed and already exists
         if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {
             if (userRepository.findOneByEmail(dto.getEmail()).isPresent()) {
@@ -1593,7 +1585,7 @@ public class UserService {
         log.debug("Deleting all product reviews for user ID: {}", userId);
         
         // Tìm tất cả reviews của user
-        List<ProductReview> reviews = 
+        List<ProductReview> reviews =
             productReviewRepository.findAll().stream()
                 .filter(review -> review.getUser().getId().equals(userId))
                 .collect(Collectors.toList());
