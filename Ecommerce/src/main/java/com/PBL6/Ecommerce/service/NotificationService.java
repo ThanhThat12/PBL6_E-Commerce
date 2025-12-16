@@ -2,49 +2,195 @@ package com.PBL6.Ecommerce.service;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.notification.Notification;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.repository.NotificationRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Service for sending real-time notifications via WebSocket
+ * Now also persists notifications to database for history
  */
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
     
     private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
     
-    // Gửi cho buyer
+    /**
+     * Gửi notification cho buyer (lưu DB + gửi WebSocket)
+     */
+    @Transactional
     public void sendOrderNotification(Long userId, String type, String message) {
+        sendOrderNotification(userId, type, message, null);
+    }
+    
+    /**
+     * Gửi notification cho buyer với orderId (lưu DB + gửi WebSocket)
+     */
+    @Transactional
+    public void sendOrderNotification(Long userId, String type, String message, Long orderId) {
+        // 1. Lưu vào database
+        Notification savedNotification = null;
+        try {
+            User user = userRepository.findById(userId).orElse(null);
+            if (user != null) {
+                Notification notification = new Notification();
+                notification.setUser(user);
+                notification.setType(type);
+                notification.setMessage(message);
+                notification.setOrderId(orderId);
+                notification.setIsRead(false);
+                notification.setCreatedAt(LocalDateTime.now());
+                
+                savedNotification = notificationRepository.save(notification);
+                System.out.println("💾 Saved notification to DB for user: " + userId + " (ID: " + savedNotification.getId() + ")");
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Failed to save notification to DB: " + e.getMessage());
+            // Continue to send via WebSocket even if DB save fails
+        }
+        
+        // 2. Gửi realtime qua WebSocket với notification object từ DB (có id)
         String destination = "/topic/orderws/" + userId;
         
-        Map<String, Object> notification = new HashMap<>();
-        notification.put("type", type);
-        notification.put("message", message);
-        notification.put("timestamp", LocalDateTime.now());
-        notification.put("userType", "BUYER");
-        
-        messagingTemplate.convertAndSend(destination, notification);
-        System.out.println("📤 Sent BUYER notification to: " + destination);
+        if (savedNotification != null) {
+            // ✅ Gửi notification object từ DB (có id, createdAt, read status)
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("id", savedNotification.getId());
+            notificationData.put("type", savedNotification.getType());
+            notificationData.put("message", savedNotification.getMessage());
+            notificationData.put("orderId", savedNotification.getOrderId());
+            notificationData.put("read", savedNotification.getIsRead());
+            notificationData.put("createdAt", savedNotification.getCreatedAt());
+            
+            messagingTemplate.convertAndSend(destination, notificationData);
+            System.out.println("📤 Sent BUYER notification to: " + destination + " (ID: " + savedNotification.getId() + ")");
+        } else {
+            // Fallback nếu không save được vào DB
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("type", type);
+            notificationData.put("message", message);
+            notificationData.put("timestamp", LocalDateTime.now());
+            notificationData.put("userType", "BUYER");
+            if (orderId != null) {
+                notificationData.put("orderId", orderId);
+            }
+            messagingTemplate.convertAndSend(destination, notificationData);
+        }
         System.out.println("📤 Message: " + message);
     }
     
-    // Gửi cho seller
+    /**
+     * Gửi notification cho admin (lưu DB + gửi WebSocket)
+     */
+    @Transactional
+    public void sendAdminNotification(String type, String message, Long orderId) {
+        try {
+            // Tìm admin user (chỉ có 1 admin trong hệ thống)
+            List<User> admins = userRepository.findByRole(Role.ADMIN);
+            
+            if (admins.isEmpty()) {
+                System.out.println("⚠️ No admin user found");
+                return;
+            }
+            
+            User admin = admins.get(0); // Lấy admin đầu tiên
+            System.out.println("📤 Sending notification to admin: " + admin.getId());
+            
+            // 1. Lưu vào database
+            Notification notification = new Notification();
+            notification.setUser(admin);
+            notification.setType(type);
+            notification.setMessage(message);
+            notification.setOrderId(orderId);
+            notification.setIsRead(false);
+            notification.setCreatedAt(LocalDateTime.now());
+            
+            Notification savedNotification = notificationRepository.save(notification);
+            System.out.println("💾 Saved admin notification to DB (ID: " + savedNotification.getId() + ")");
+            
+            // 2. Gửi realtime qua WebSocket
+            String destination = "/topic/admin/" + admin.getId();
+            
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("id", savedNotification.getId());
+            notificationData.put("type", savedNotification.getType());
+            notificationData.put("message", savedNotification.getMessage());
+            notificationData.put("orderId", savedNotification.getOrderId());
+            notificationData.put("read", savedNotification.getIsRead());
+            notificationData.put("createdAt", savedNotification.getCreatedAt());
+            
+            messagingTemplate.convertAndSend(destination, notificationData);
+            System.out.println("📤 Sent ADMIN notification to: " + destination);
+            System.out.println("📤 Message: " + message);
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send admin notification: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Gửi notification cho seller (lưu DB + gửi WebSocket)
+     */
+    @Transactional
     public void sendSellerNotification(Long sellerId, String type, String message, Long orderId) {
+        // 1. Lưu vào database
+        Notification savedNotification = null;
+        try {
+            User seller = userRepository.findById(sellerId).orElse(null);
+            if (seller != null) {
+                Notification notification = new Notification();
+                notification.setUser(seller);
+                notification.setType(type);
+                notification.setMessage(message);
+                notification.setOrderId(orderId);
+                notification.setIsRead(false);
+                notification.setCreatedAt(LocalDateTime.now());
+                
+                savedNotification = notificationRepository.save(notification);
+                System.out.println("💾 Saved notification to DB for seller: " + sellerId + " (ID: " + savedNotification.getId() + ")");
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Failed to save notification to DB: " + e.getMessage());
+            // Continue to send via WebSocket even if DB save fails
+        }
+        
+        // 2. Gửi realtime qua WebSocket với notification object từ DB (có id)
         String destination = "/topic/sellerws/" + sellerId;
         
-        Map<String, Object> notification = new HashMap<>();
-        notification.put("type", type);
-        notification.put("message", message);
-        notification.put("timestamp", LocalDateTime.now());
-        notification.put("userType", "SELLER");
-        notification.put("orderId", orderId);
-        
-        messagingTemplate.convertAndSend(destination, notification);
-        System.out.println("📤 Sent SELLER notification to: " + destination);
+        if (savedNotification != null) {
+            // ✅ Gửi notification object từ DB (có id, createdAt, read status)
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("id", savedNotification.getId());
+            notificationData.put("type", savedNotification.getType());
+            notificationData.put("message", savedNotification.getMessage());
+            notificationData.put("orderId", savedNotification.getOrderId());
+            notificationData.put("read", savedNotification.getIsRead());
+            notificationData.put("createdAt", savedNotification.getCreatedAt());
+            
+            messagingTemplate.convertAndSend(destination, notificationData);
+            System.out.println("📤 Sent SELLER notification to: " + destination + " (ID: " + savedNotification.getId() + ")");
+        } else {
+            // Fallback nếu không save được vào DB
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("type", type);
+            notificationData.put("message", message);
+            notificationData.put("timestamp", LocalDateTime.now());
+            notificationData.put("userType", "SELLER");
+            notificationData.put("orderId", orderId);
+            messagingTemplate.convertAndSend(destination, notificationData);
+        }
         System.out.println("📤 Message: " + message);
     }
     

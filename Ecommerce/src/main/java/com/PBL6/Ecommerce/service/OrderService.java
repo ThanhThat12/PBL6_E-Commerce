@@ -161,7 +161,6 @@ public class OrderService {
 
     @Transactional
     public Order createOrder(CreateOrderRequestDTO req) {
-        logger.info("[ORDER] >>> createOrder called with req: {}", req);
     // Nếu thiếu thông tin địa chỉ nhận hàng, truy vấn từ Address
     logger.info("[ORDER] Before snapshot: receiverName={}, receiverPhone={}, receiverAddress={}, province={}, district={}, ward={}, addressId={}",
         req.getReceiverName(), req.getReceiverPhone(), req.getReceiverAddress(), req.getProvince(), req.getDistrict(), req.getWard(), req.getAddressId());
@@ -207,13 +206,33 @@ public class OrderService {
     List<OrderItem> items = new ArrayList<>();
 
     for (var it : req.getItems()) {
+        System.out.println("🔄 Processing item: variantId=" + it.getVariantId() + ", quantity=" + it.getQuantity());
         ProductVariant v = variantMap.get(it.getVariantId());
         if (v == null) throw new IllegalArgumentException("Variant not found: " + it.getVariantId());
         if (v.getStock() == null || v.getStock() < it.getQuantity()) {
             throw new IllegalStateException("Insufficient stock for variant " + v.getId());
         }
+        
+        // Decrease stock
+        Integer oldStock = v.getStock();
         v.setStock(v.getStock() - it.getQuantity());
-        productVariantRepository.save(v);
+        ProductVariant savedVariant = productVariantRepository.save(v);
+        System.out.println("📉 [STOCK] Variant #" + v.getId() + ": " + oldStock + " -> " + savedVariant.getStock());
+        logger.info("📉 [STOCK] Variant #{}: {} → {} (decreased by {})", 
+            v.getId(), oldStock, savedVariant.getStock(), it.getQuantity());
+
+        // Update product sold_count
+        Product product = v.getProduct();
+        if (product != null) {
+            Integer currentSoldCount = product.getSoldCount() != null ? product.getSoldCount() : 0;
+            product.setSoldCount(currentSoldCount + it.getQuantity());
+            productRepository.save(product);
+            System.out.println("📈 [SOLD_COUNT] Product #" + product.getId() + ": " + currentSoldCount + " -> " + product.getSoldCount());
+            logger.info("📈 [SOLD_COUNT] Product #{}: {} → {} (increased by {})", 
+                product.getId(), currentSoldCount, product.getSoldCount(), it.getQuantity());
+        } else {
+            logger.warn("⚠️ <kaka> Product not found for variant #{}", v.getId());
+        }
 
         BigDecimal unitPrice = v.getPrice() == null ? BigDecimal.ZERO : v.getPrice();
         BigDecimal line = unitPrice.multiply(BigDecimal.valueOf(it.getQuantity()));
@@ -952,6 +971,11 @@ public class OrderService {
         // Cập nhật status
         order.setStatus(orderStatus);
         
+        // ✅ Restore stock khi seller hủy đơn
+        if (orderStatus == Order.OrderStatus.CANCELLED) {
+            restoreStockForOrder(order);
+        }
+        
         // Tự động tạo GHN shipment khi seller confirm (PENDING → PROCESSING)
         if (currentStatus == Order.OrderStatus.PENDING && orderStatus == Order.OrderStatus.PROCESSING) {
             try {
@@ -1170,6 +1194,10 @@ public class OrderService {
         if ("COD".equalsIgnoreCase(order.getMethod())) {
             order.setStatus(Order.OrderStatus.CANCELLED);
             orderRepository.save(order);
+            
+            // ✅ Restore stock khi hủy đơn
+            restoreStockForOrder(order);
+            
             return;
         }
 
@@ -1211,12 +1239,19 @@ public class OrderService {
             // Cập nhật trạng thái đơn hàng
             order.setStatus(Order.OrderStatus.CANCELLED);
             orderRepository.save(order);
+            
+            // ✅ Restore stock khi hủy đơn
+            restoreStockForOrder(order);
+            
             return;
         }
 
         // Trường hợp khác (chưa thanh toán), chỉ hủy đơn
         order.setStatus(Order.OrderStatus.CANCELLED);
         orderRepository.save(order);
+        
+        // ✅ Restore stock khi hủy đơn
+        restoreStockForOrder(order);
     }
 
     /**
@@ -1735,6 +1770,44 @@ public class OrderService {
             payload.get("weight"), codAmount, insuranceValue, serviceId);
         
         return payload;
+    }
+
+    /**
+     * Helper method: Restore stock và giảm sold_count khi hủy đơn hoặc refund
+     * @param order Order cần restore stock
+     */
+    @Transactional
+    public void restoreStockForOrder(Order order) {
+        logger.info("🔄 [RESTORE_STOCK] Restoring stock for order #{}", order.getId());
+        
+        for (OrderItem item : order.getOrderItems()) {
+            ProductVariant variant = item.getVariant();
+            if (variant == null) {
+                logger.warn("⚠️ Variant not found for OrderItem #{}", item.getId());
+                continue;
+            }
+            
+            // Restore stock
+            Integer currentStock = variant.getStock() != null ? variant.getStock() : 0;
+            Integer newStock = currentStock + item.getQuantity();
+            variant.setStock(newStock);
+            productVariantRepository.save(variant);
+            logger.info("📈 [STOCK_RESTORED] Variant #{}: {} → {} (+{})", 
+                variant.getId(), currentStock, newStock, item.getQuantity());
+            
+            // Decrease sold_count
+            Product product = variant.getProduct();
+            if (product != null) {
+                Integer currentSoldCount = product.getSoldCount() != null ? product.getSoldCount() : 0;
+                Integer newSoldCount = Math.max(0, currentSoldCount - item.getQuantity());
+                product.setSoldCount(newSoldCount);
+                productRepository.save(product);
+                logger.info("📉 [SOLD_COUNT_DECREASED] Product #{}: {} → {} (-{})", 
+                    product.getId(), currentSoldCount, newSoldCount, item.getQuantity());
+            }
+        }
+        
+        logger.info("✅ [RESTORE_STOCK] Stock restored successfully for order #{}", order.getId());
     }
 }
 

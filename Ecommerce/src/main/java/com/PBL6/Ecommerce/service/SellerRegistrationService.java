@@ -26,6 +26,7 @@ import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.service.NotificationService;
 
 /**
  * Service for handling Seller Registration workflow
@@ -38,6 +39,7 @@ public class SellerRegistrationService {
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
     private final GhnService ghnService;
+    private final NotificationService notificationService;
 
     @Value("${ghn.token}")
     private String ghnToken;
@@ -45,11 +47,13 @@ public class SellerRegistrationService {
     public SellerRegistrationService(ShopRepository shopRepository, 
                                      UserRepository userRepository,
                                      AddressRepository addressRepository,
-                                     GhnService ghnService) {
+                                     GhnService ghnService,
+                                     NotificationService notificationService) {
         this.shopRepository = shopRepository;
         this.userRepository = userRepository;
         this.addressRepository = addressRepository;
         this.ghnService = ghnService;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -127,6 +131,18 @@ public class SellerRegistrationService {
 
         // Handle address
         handleAddress(user, request, savedShop);
+
+        // ========== GỬI THÔNG BÁO CHO ADMIN ==========
+        try {
+            String userName = user.getUsername() != null ? user.getUsername() : "User #" + user.getId();
+            String adminMessage = String.format("Có đơn đăng ký seller mới từ %s - Shop: %s", 
+                                               userName, savedShop.getName());
+            notificationService.sendAdminNotification("SELLER_REGISTRATION", adminMessage, null);
+            System.out.println("✅ Sent seller registration notification to admin");
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to send admin notification: " + e.getMessage());
+            // Continue - notification failure should not block registration
+        }
 
         return SellerRegistrationResponseDTO.success(
             "Đăng ký bán hàng thành công! Đơn của bạn đang chờ xét duyệt.",

@@ -4,7 +4,7 @@ package com.PBL6.Ecommerce.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
-
+import org.springframework.security.config.Customizer;
 import java.nio.charset.StandardCharsets;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -28,13 +28,18 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 
+import org.springframework.web.filter.ForwardedHeaderFilter;
+
 
 @Configuration
 public class SecurityConfig {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-
+    @Bean
+    public ForwardedHeaderFilter forwardedHeaderFilter() {
+        return new ForwardedHeaderFilter();
+    }
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         // converter để lấy claim "roles" và thêm prefix "ROLE_"
@@ -47,7 +52,7 @@ public class SecurityConfig {
 
         http
             // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .cors(cors -> cors.and())
+            .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
@@ -87,6 +92,8 @@ public class SecurityConfig {
                     "/webjars/**",
                     "/api-docs/**"
                 ).permitAll()
+                // Chatbot public endpoint
+                .requestMatchers(HttpMethod.POST, "/api/chatbot/ask").permitAll()
                 
                 // Checkout endpoints - require authentication except for testing
                 .requestMatchers(HttpMethod.POST, "/api/checkout/available-services").permitAll() // For testing
