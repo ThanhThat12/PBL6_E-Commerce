@@ -44,19 +44,27 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
-            // Extract JWT token from headers
-            // Clients should send token in "Authorization" header as "Bearer <token>"
-            String authHeader = accessor.getFirstNativeHeader("Authorization");
+            String token = null;
+            
+            // Try to extract token from session attributes (set during HTTP handshake)
+            if (accessor.getSessionAttributes() != null) {
+                token = (String) accessor.getSessionAttributes().get("token");
+            }
+            
+            // Fallback: Try Authorization header (for backwards compatibility)
+            if (token == null) {
+                String authHeader = accessor.getFirstNativeHeader("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    token = authHeader.substring(7);
+                }
+            }
 
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                log.warn("WebSocket connection rejected: Missing or invalid Authorization header");
-                throw new IllegalArgumentException("Missing or invalid Authorization header");
+            if (token == null) {
+                log.warn("WebSocket connection rejected: Missing JWT token");
+                throw new IllegalArgumentException("Missing JWT token");
             }
 
             try {
-                // Extract token (remove "Bearer " prefix)
-                String token = authHeader.substring(7);
-
                 // Decode and validate JWT token
                 Jwt jwt = jwtDecoder.decode(token);
 
@@ -68,10 +76,10 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 accessor.getSessionAttributes().put("userId", userId);
                 accessor.getSessionAttributes().put("username", jwt.getSubject());
 
-                log.info("WebSocket connection authenticated for user ID: {}", userId);
+                log.info("✅ WebSocket connection authenticated for user ID: {}", userId);
 
             } catch (Exception e) {
-                log.error("WebSocket authentication failed: {}", e.getMessage());
+                log.error("❌ WebSocket authentication failed: {}", e.getMessage());
                 throw new IllegalArgumentException("Invalid JWT token: " + e.getMessage());
             }
         }
