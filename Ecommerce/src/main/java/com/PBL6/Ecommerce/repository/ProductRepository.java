@@ -1,7 +1,8 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.entity.product.Product;
-import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import java.math.BigDecimal;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,8 +12,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.util.List;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
@@ -176,5 +177,48 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     //ADMIN Search products by name
     @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))")
     Page<Product> findByNameContaining(@Param("name") String name, Pageable pageable);
+
+    /**
+     * PUBLIC Find best-selling products (active, ordered by soldCount DESC)
+     */
+    @Query("SELECT p FROM Product p WHERE p.isActive = true ORDER BY p.soldCount DESC, p.rating DESC")
+    Page<Product> findBestSellingProducts(Pageable pageable);
+
+    /**
+     * PUBLIC Find top-rated products (active, rating > 0, ordered by rating DESC)
+     */
+    @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.rating > 0 " +
+           "ORDER BY p.rating DESC, p.reviewCount DESC, p.soldCount DESC")
+    Page<Product> findTopRatedProducts(Pageable pageable);
+
+    /**
+     * PUBLIC Find top-rated products with minimum rating filter
+     */
+    @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.rating >= :minRating " +
+           "ORDER BY p.rating DESC, p.reviewCount DESC, p.soldCount DESC")
+    Page<Product> findTopRatedProductsWithMinRating(@Param("minRating") BigDecimal minRating, Pageable pageable);
+    
+    /**
+     * Update sold_count for a product based on completed order items
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE Product p SET p.soldCount = " +
+           "(SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi " +
+           "JOIN oi.order o " +
+           "WHERE oi.variant.product.id = p.id AND o.status = 'COMPLETED') " +
+           "WHERE p.id = :productId")
+    void updateSoldCount(@Param("productId") Long productId);
+    
+    /**
+     * Update sold_count for all products based on completed order items
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE Product p SET p.soldCount = " +
+           "(SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi " +
+           "JOIN oi.order o " +
+           "WHERE oi.variant.product.id = p.id AND o.status = 'COMPLETED')")
+    void updateAllSoldCounts();
     
 }

@@ -6,10 +6,10 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.entity.user.Address;
 import com.PBL6.Ecommerce.constant.TypeAddress;
-import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.AddressRequestDTO;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.exception.AddressNotFoundException;
 import com.PBL6.Ecommerce.exception.UnauthorizedAddressAccessException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
@@ -86,9 +86,13 @@ public class AddressService {
         
         resolveNamesIfNeeded(req);
 
+        // Primary logic ONLY for HOME addresses
+        // STORE addresses don't have primary concept (only 1 store address per user)
         if (req.primaryAddress) {
-            addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
-                    .ifPresent(prev -> {
+            // Unset all other HOME addresses' primary flag
+            addressRepository.findByUserId(userId).stream()
+                    .filter(addr -> addr.getTypeAddress() == TypeAddress.HOME && addr.isPrimaryAddress())
+                    .forEach(prev -> {
                         prev.setPrimaryAddress(false);
                         addressRepository.save(prev);
                     });
@@ -193,13 +197,16 @@ public class AddressService {
             throw new UnauthorizedAddressAccessException(addressId);
         }
 
-        if (req.primaryAddress && !a.isPrimaryAddress()) {
-            addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
-                    .ifPresent(prev -> {
-                        if (!prev.getId().equals(a.getId())) {
-                            prev.setPrimaryAddress(false);
-                            addressRepository.save(prev);
-                        }
+        // Primary logic ONLY for HOME addresses
+        if (req.primaryAddress && !a.isPrimaryAddress() && a.getTypeAddress() == TypeAddress.HOME) {
+            // Unset all other HOME addresses' primary flag
+            addressRepository.findByUserId(userId).stream()
+                    .filter(addr -> addr.getTypeAddress() == TypeAddress.HOME 
+                                 && addr.isPrimaryAddress() 
+                                 && !addr.getId().equals(a.getId()))
+                    .forEach(prev -> {
+                        prev.setPrimaryAddress(false);
+                        addressRepository.save(prev);
                     });
         }
         
@@ -222,8 +229,22 @@ public class AddressService {
         // Resolve and update location names if IDs changed
         resolveAndSetLocationNames(a);
         
-    if (req.contactName != null) a.setContactName(req.contactName);
-    if (req.contactPhone != null) a.setContactPhone(req.contactPhone);
+        if (req.contactName != null) a.setContactName(req.contactName);
+        if (req.contactPhone != null) a.setContactPhone(req.contactPhone);
+        
+        // Handle primary address logic for HOME addresses only
+        if (req.primaryAddress && !a.isPrimaryAddress() && a.getTypeAddress() == TypeAddress.HOME) {
+            // Unset all other HOME addresses' primary flag
+            addressRepository.findByUserId(userId).stream()
+                    .filter(addr -> addr.getTypeAddress() == TypeAddress.HOME 
+                                 && addr.isPrimaryAddress() 
+                                 && !addr.getId().equals(addressId))
+                    .forEach(prev -> {
+                        prev.setPrimaryAddress(false);
+                        addressRepository.save(prev);
+                    });
+        }
+        
         a.setPrimaryAddress(req.primaryAddress);
         return addressRepository.save(a);
     }
@@ -235,6 +256,16 @@ public class AddressService {
         
         if (!a.getUser().getId().equals(userId)) {
             throw new UnauthorizedAddressAccessException(addressId);
+        }
+        
+        // Cannot delete primary address
+        if (a.isPrimaryAddress()) {
+            throw new IllegalArgumentException("Không thể xóa địa chỉ mặc định. Vui lòng đặt địa chỉ khác làm mặc định trước.");
+        }
+        
+        // Cannot delete STORE address (only update allowed)
+        if (a.getTypeAddress() == TypeAddress.STORE) {
+            throw new IllegalArgumentException("Không thể xóa địa chỉ cửa hàng. Chỉ có thể cập nhật địa chỉ này.");
         }
         
         addressRepository.delete(a);
@@ -249,12 +280,20 @@ public class AddressService {
             throw new UnauthorizedAddressAccessException(addressId);
         }
 
-        addressRepository.findFirstByUserIdAndTypeAddress(userId, TypeAddress.HOME)
-                .ifPresent(prev -> {
-                    if (!prev.getId().equals(a.getId())) {
-                        prev.setPrimaryAddress(false);
-                        addressRepository.save(prev);
-                    }
+        // Primary concept ONLY applies to HOME addresses
+        // STORE addresses cannot be marked as primary (only 1 store per user)
+        if (a.getTypeAddress() != TypeAddress.HOME) {
+            throw new IllegalArgumentException("Chỉ có địa chỉ HOME mới có thể được đặt làm mặc định. Địa chỉ STORE không cần đánh dấu mặc định.");
+        }
+
+        // Unset all other HOME addresses' primary flag
+        addressRepository.findByUserId(userId).stream()
+                .filter(addr -> addr.getTypeAddress() == TypeAddress.HOME 
+                             && addr.isPrimaryAddress() 
+                             && !addr.getId().equals(a.getId()))
+                .forEach(prev -> {
+                    prev.setPrimaryAddress(false);
+                    addressRepository.save(prev);
                 });
         
         a.setPrimaryAddress(true);

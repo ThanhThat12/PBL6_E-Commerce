@@ -73,6 +73,7 @@ public class CheckoutController {
      */
     @PostMapping("/available-services")
     // @PreAuthorize("isAuthenticated()") // TODO: Re-enable after testing
+    @Transactional(readOnly = true)
     public ResponseEntity<ResponseDTO<List<Map<String,Object>>>> getAvailableServices(
             @Valid @RequestBody CheckoutInitRequestDTO req) {
         System.out.println("========== CHECKOUT AVAILABLE SERVICES REQUEST ==========");
@@ -163,6 +164,7 @@ public class CheckoutController {
      */
     @PostMapping("/calculate-fee")
     // @PreAuthorize("isAuthenticated()") // TODO: Re-enable after testing
+    @Transactional(readOnly = true)
     public ResponseEntity<ResponseDTO<Map<String,Object>>> calculateShippingFee(
             @Valid @RequestBody CheckoutCalculateFeeRequestDTO req) {
         try {
@@ -294,10 +296,11 @@ public class CheckoutController {
     /**
      * Bước 11-13: User xác nhận thanh toán → CHỈ TẠO ORDER (chưa tạo GHN shipment)
      * POST /api/checkout/confirm
+     * 
+     * NOTE: @Transactional removed to avoid nested transaction conflict with OrderService.createOrder()
      */
     @PostMapping("/confirm")
     @PreAuthorize("isAuthenticated()")
-    @Transactional
     public ResponseEntity<ResponseDTO<Map<String,Object>>> confirmCheckout(
         @Valid @RequestBody CheckoutConfirmRequestDTO req,
         @AuthenticationPrincipal Jwt jwt) {
@@ -435,6 +438,9 @@ public class CheckoutController {
                 orderItems.add(item);
             }
             orderRequest.setItems(orderItems);
+            
+            // ✅ Set addressId để OrderService có thể snapshot address info
+            orderRequest.setAddressId(req.getAddressId());
             
             // Set địa chỉ giao hàng từ buyer address
             orderRequest.setReceiverName(buyerAddress.getContactName());
