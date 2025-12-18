@@ -17,17 +17,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.PBL6.Ecommerce.domain.entity.user.Address;
-import com.PBL6.Ecommerce.domain.entity.product.Category;
-import com.PBL6.Ecommerce.domain.entity.product.Product;
-import com.PBL6.Ecommerce.domain.entity.product.ProductAttribute;
-import com.PBL6.Ecommerce.domain.entity.product.ProductImage;
-import com.PBL6.Ecommerce.domain.entity.product.ProductPrimaryAttribute;
-import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
-import com.PBL6.Ecommerce.domain.entity.product.ProductVariantValue;
-import com.PBL6.Ecommerce.domain.entity.user.Role;
-import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.AttributeDTO;
 import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
@@ -36,6 +25,17 @@ import com.PBL6.Ecommerce.domain.dto.ProductImageDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductUpdateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductVariantValueDTO;
+import com.PBL6.Ecommerce.domain.entity.product.Category;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductAttribute;
+import com.PBL6.Ecommerce.domain.entity.product.ProductImage;
+import com.PBL6.Ecommerce.domain.entity.product.ProductPrimaryAttribute;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariantValue;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.exception.DuplicateSKUException;
 import com.PBL6.Ecommerce.exception.InvalidProductDataException;
 import com.PBL6.Ecommerce.exception.ProductNotFoundException;
@@ -88,6 +88,9 @@ public class ProductService {
 
     @Autowired
     private ProductVariantValueRepository productVariantValueRepository;
+
+    @Autowired
+    private com.PBL6.Ecommerce.repository.ProductReviewRepository productReviewRepository;
     
     @Autowired
     private com.PBL6.Ecommerce.repository.ProductPrimaryAttributeRepository productPrimaryAttributeRepository;
@@ -207,7 +210,6 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
 }
 
 // 🆕 Cập nhật sản phẩm
-@Transactional
 public ProductDTO updateProduct(Long productId, ProductUpdateDTO request, Authentication authentication) {
     // Tìm sản phẩm
     Product product = productRepository.findById(productId)
@@ -598,6 +600,14 @@ private void validateProductOwnership(Product product, Authentication authentica
             image.setImageUrl(url);
             return productImageRepository.save(image);
         }).collect(Collectors.toList());
+    }
+    
+    /**
+     * Public method to convert Product entity to ProductDTO
+     * Used by controllers and other services
+     */
+    public ProductDTO convertToDTO(Product product) {
+        return convertToProductDTO(product);
     }
     
     // Convert Product entity to ProductDTO
@@ -1008,6 +1018,40 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
 
         // Convert sang ProductSimpleDTO
         return products.map(this::convertToProductDTO);
+    }
+
+    /**
+     * Update product rating and review count based on actual reviews
+     * Called automatically when reviews are created/updated/deleted
+     */
+    public void updateProductRating(Long productId) {
+        try {
+            Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException("Product not found: " + productId));
+            
+            // Get actual average rating from reviews
+            Double averageRating = productReviewRepository.getAverageRatingByProductId(productId);
+            long reviewCount = productReviewRepository.countByProductId(productId);
+            
+            // Update product with real data
+            if (averageRating != null && averageRating > 0) {
+                product.setRating(BigDecimal.valueOf(averageRating).setScale(2, java.math.RoundingMode.HALF_UP));
+            } else {
+                product.setRating(BigDecimal.ZERO);
+            }
+            
+            product.setReviewCount((int) reviewCount);
+            product.setUpdatedAt(java.time.LocalDateTime.now());
+            
+            productRepository.save(product);
+            
+            log.info("Updated product {} rating to {} (from {} reviews)", 
+                productId, product.getRating(), reviewCount);
+            
+        } catch (Exception e) {
+            log.error("Failed to update product rating for product {}", productId, e);
+            throw new RuntimeException("Failed to update product rating", e);
+        }
     }
 
     

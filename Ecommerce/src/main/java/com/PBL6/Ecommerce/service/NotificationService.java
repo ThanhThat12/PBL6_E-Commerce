@@ -1,19 +1,23 @@
 package com.PBL6.Ecommerce.service;
 
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import lombok.RequiredArgsConstructor;
-import com.PBL6.Ecommerce.domain.entity.order.Order;
-import com.PBL6.Ecommerce.domain.entity.notification.Notification;
-import com.PBL6.Ecommerce.domain.entity.user.User;
-import com.PBL6.Ecommerce.domain.entity.user.Role;
-import com.PBL6.Ecommerce.repository.NotificationRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.PBL6.Ecommerce.domain.entity.notification.Notification;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.repository.NotificationRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * Service for sending real-time notifications via WebSocket and FCM
@@ -31,7 +35,6 @@ public class NotificationService {
     /**
      * Gửi notification cho buyer (lưu DB + gửi WebSocket + FCM)
      */
-    @Transactional
     public void sendOrderNotification(Long userId, String type, String message) {
         sendOrderNotification(userId, type, message, null);
     }
@@ -39,26 +42,16 @@ public class NotificationService {
     /**
      * Gửi notification cho buyer với orderId (lưu DB + gửi WebSocket + FCM)
      */
-    @Transactional
     public void sendOrderNotification(Long userId, String type, String message, Long orderId) {
-        // 1. Lưu vào database
+        // 1. Lưu vào database trong transaction riêng (không affect OrderService transaction)
         Notification savedNotification = null;
         try {
-            User user = userRepository.findById(userId).orElse(null);
-            if (user != null) {
-                Notification notification = new Notification();
-                notification.setUser(user);
-                notification.setType(type);
-                notification.setMessage(message);
-                notification.setOrderId(orderId);
-                notification.setIsRead(false);
-                notification.setCreatedAt(LocalDateTime.now());
-                
-                savedNotification = notificationRepository.save(notification);
-                System.out.println("💾 Saved notification to DB for user: " + userId + " (ID: " + savedNotification.getId() + ")");
+            savedNotification = saveNotificationInNewTransaction(userId, type, sanitizeMessage(message), orderId);
+            if (savedNotification != null) {
+                System.out.println("Saved notification to DB for user: " + userId + " (ID: " + savedNotification.getId() + ")");
             }
         } catch (Exception e) {
-            System.err.println("❌ Failed to save notification to DB: " + e.getMessage());
+            System.err.println("Failed to save notification to DB: " + e.getMessage());
             // Continue to send via WebSocket even if DB save fails
         }
         
@@ -76,7 +69,7 @@ public class NotificationService {
             notificationData.put("createdAt", savedNotification.getCreatedAt());
             
             messagingTemplate.convertAndSend(destination, notificationData);
-            System.out.println("📤 Sent BUYER notification to: " + destination + " (ID: " + savedNotification.getId() + ")");
+            System.out.println("Sent BUYER notification to: " + destination + " (ID: " + savedNotification.getId() + ")");
         } else {
             // Fallback nếu không save được vào DB
             Map<String, Object> notificationData = new HashMap<>();
@@ -105,19 +98,18 @@ public class NotificationService {
     /**
      * Gửi notification cho admin (lưu DB + gửi WebSocket + FCM)
      */
-    @Transactional
     public void sendAdminNotification(String type, String message, Long orderId) {
         try {
             // Tìm admin user (chỉ có 1 admin trong hệ thống)
             List<User> admins = userRepository.findByRole(Role.ADMIN);
             
             if (admins.isEmpty()) {
-                System.out.println("⚠️ No admin user found");
+                System.out.println("No admin user found");
                 return;
             }
             
             User admin = admins.get(0); // Lấy admin đầu tiên
-            System.out.println("📤 Sending notification to admin: " + admin.getId());
+            System.out.println("Sending notification to admin: " + admin.getId());
             
             // 1. Lưu vào database
             Notification notification = new Notification();
@@ -129,7 +121,7 @@ public class NotificationService {
             notification.setCreatedAt(LocalDateTime.now());
             
             Notification savedNotification = notificationRepository.save(notification);
-            System.out.println("💾 Saved admin notification to DB (ID: " + savedNotification.getId() + ")");
+            System.out.println("Saved admin notification to DB (ID: " + savedNotification.getId() + ")");
             
             // 2. Gửi realtime qua WebSocket
             String destination = "/topic/admin/" + admin.getId();
@@ -155,7 +147,7 @@ public class NotificationService {
                 System.err.println("⚠️ Failed to send FCM to admin: " + e.getMessage());
             }
         } catch (Exception e) {
-            System.err.println("❌ Failed to send admin notification: " + e.getMessage());
+            System.err.println("Failed to send admin notification: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -163,7 +155,6 @@ public class NotificationService {
     /**
      * Gửi notification cho seller (lưu DB + gửi WebSocket + FCM)
      */
-    @Transactional
     public void sendSellerNotification(Long sellerId, String type, String message, Long orderId) {
         // 1. Lưu vào database
         Notification savedNotification = null;
@@ -179,10 +170,10 @@ public class NotificationService {
                 notification.setCreatedAt(LocalDateTime.now());
                 
                 savedNotification = notificationRepository.save(notification);
-                System.out.println("💾 Saved notification to DB for seller: " + sellerId + " (ID: " + savedNotification.getId() + ")");
+                System.out.println(" Saved notification to DB for seller: " + sellerId + " (ID: " + savedNotification.getId() + ")");
             }
         } catch (Exception e) {
-            System.err.println("❌ Failed to save notification to DB: " + e.getMessage());
+            System.err.println("Failed to save notification to DB: " + e.getMessage());
             // Continue to send via WebSocket even if DB save fails
         }
         
@@ -200,7 +191,7 @@ public class NotificationService {
             notificationData.put("createdAt", savedNotification.getCreatedAt());
             
             messagingTemplate.convertAndSend(destination, notificationData);
-            System.out.println("📤 Sent SELLER notification to: " + destination + " (ID: " + savedNotification.getId() + ")");
+            System.out.println(" Sent SELLER notification to: " + destination + " (ID: " + savedNotification.getId() + ")");
         } else {
             // Fallback nếu không save được vào DB
             Map<String, Object> notificationData = new HashMap<>();
@@ -286,7 +277,7 @@ public class NotificationService {
                         sendSellerNotification(sellerId, type, sellerMessage, order.getId());
                     }
                 } catch (Exception e) {
-                    System.err.println("❌ Error sending seller notification: " + e.getMessage());
+                    System.err.println(" Error sending seller notification: " + e.getMessage());
                 }
             });
         }
@@ -306,7 +297,7 @@ public class NotificationService {
         notification.put("userType", "BROADCAST");
         
         messagingTemplate.convertAndSend("/topic/broadcast", notification);
-        System.out.println("📢 Broadcast notification: " + message);
+        System.out.println("Broadcast notification: " + message);
     }
     
     // Helper methods
@@ -333,5 +324,42 @@ public class NotificationService {
     // Health check
     public String healthCheck() {
         return "NotificationService is running at " + LocalDateTime.now();
+    }
+    
+    /**
+     * Save notification trong transaction RIÊNG BIỆT (REQUIRES_NEW)
+     * Nếu fail, KHÔNG ảnh hưởng đến OrderService transaction
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Notification saveNotificationInNewTransaction(Long userId, String type, String message, Long orderId) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user != null) {
+            Notification notification = new Notification();
+            notification.setUser(user);
+            notification.setType(type);
+            notification.setMessage(message);
+            notification.setOrderId(orderId);
+            notification.setIsRead(false);
+            notification.setCreatedAt(LocalDateTime.now());
+            return notificationRepository.save(notification);
+        }
+        return null;
+    }
+    
+    /**
+     * Xóa emoji 4-byte UTF-8 không support bởi DB utf8 (3-byte)
+     */
+    private String sanitizeMessage(String message) {
+        if (message == null) return null;
+        // Xóa emoji và replace bằng text
+        return message
+            .replace("✅", "[OK] ")
+            .replace("❌", "[X] ")
+            .replace("🚚", "[SHIPPING] ")
+            .replace("🎉", "[DONE] ")
+            .replace("⚠️", "[!] ")
+            .replace("📦", "[BOX] ")
+            .replace("💰", "[$] ")
+            .replaceAll("[^\\u0000-\\uFFFF]", ""); // Xóa tất cả 4-byte chars còn lại
     }
 }

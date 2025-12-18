@@ -1,70 +1,60 @@
 package com.PBL6.Ecommerce.service;
 
 
-import com.PBL6.Ecommerce.constant.OrderStatus;
-import com.PBL6.Ecommerce.constant.OrderItemStatus;
-import com.PBL6.Ecommerce.constant.PaymentMethod;
-import com.PBL6.Ecommerce.constant.PaymentStatus;
-import com.PBL6.Ecommerce.constant.RefundStatus;
-import com.PBL6.Ecommerce.domain.entity.order.Order;
-import com.PBL6.Ecommerce.domain.entity.order.Refund;
-import com.PBL6.Ecommerce.domain.entity.user.User;
-import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
-import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.repository.OrderRepository;
-import com.PBL6.Ecommerce.repository.RefundRepository;
-import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.Optional;
-import java.util.Date;
-import com.PBL6.Ecommerce.repository.ShopRepository;
-import com.PBL6.Ecommerce.repository.ShipmentRepository;
-import com.PBL6.Ecommerce.domain.entity.order.Shipment;
-import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.constant.OrderItemStatus;
 import com.PBL6.Ecommerce.constant.TypeAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
-import com.PBL6.Ecommerce.domain.entity.product.Product;
-import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
-import com.PBL6.Ecommerce.domain.entity.user.Role;
 import com.PBL6.Ecommerce.domain.dto.CreateOrderRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.ItemReturnRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.MultiShopOrderResult;
 import com.PBL6.Ecommerce.domain.dto.OrderDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.OrderItemDTO;
+import com.PBL6.Ecommerce.domain.entity.cart.Cart;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
+import com.PBL6.Ecommerce.domain.entity.order.Refund;
+import com.PBL6.Ecommerce.domain.entity.order.Shipment;
+import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
+import com.PBL6.Ecommerce.domain.entity.product.ProductVariant;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.exception.InvalidOrderStatusException;
 import com.PBL6.Ecommerce.exception.OrderNotFoundException;
 import com.PBL6.Ecommerce.exception.ShopNotFoundException;
 import com.PBL6.Ecommerce.exception.UnauthorizedOrderAccessException;
 import com.PBL6.Ecommerce.exception.UserNotFoundException;
-import com.PBL6.Ecommerce.repository.OrderItemRepository;
 import com.PBL6.Ecommerce.repository.AddressRepository;
-import com.PBL6.Ecommerce.repository.ProductRepository;
-import com.PBL6.Ecommerce.repository.ProductVariantRepository;
-import java.util.Optional;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import com.PBL6.Ecommerce.repository.CartItemRepository;
 import com.PBL6.Ecommerce.repository.CartRepository;
-import com.PBL6.Ecommerce.domain.entity.cart.Cart;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import com.PBL6.Ecommerce.constant.TypeAddress;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.PBL6.Ecommerce.repository.OrderItemRepository;
+import com.PBL6.Ecommerce.repository.OrderRepository;
+import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
+import com.PBL6.Ecommerce.repository.ProductRepository;
+import com.PBL6.Ecommerce.repository.ProductVariantRepository;
+import com.PBL6.Ecommerce.repository.RefundRepository;
+import com.PBL6.Ecommerce.repository.ShipmentRepository;
+import com.PBL6.Ecommerce.repository.ShopRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
 
 
 @Service
@@ -159,7 +149,6 @@ public class OrderService {
     }
 
 
-    @Transactional
     public Order createOrder(CreateOrderRequestDTO req) {
     // Nếu thiếu thông tin địa chỉ nhận hàng, truy vấn từ Address
     logger.info("[ORDER] Before snapshot: receiverName={}, receiverPhone={}, receiverAddress={}, province={}, district={}, ward={}, addressId={}",
@@ -390,7 +379,6 @@ public class OrderService {
      * Tạo shipment cho order sau khi thanh toán thành công (với online payment)
      * Được gọi từ CheckoutService sau khi xác nhận thanh toán
      */
-    @Transactional
     public void createShipmentAfterPayment(Long orderId) {
         logger.info("Creating shipment after payment for order: {}", orderId);
         
@@ -527,7 +515,6 @@ public class OrderService {
     /**
      * Update order status after successful wallet payment (SPORTYPAY)
      */
-    @Transactional
     public Order updateOrderAfterWalletPayment(Long orderId) {
         Order order = orderRepository.findById(orderId)
             .orElseThrow(() -> new OrderNotFoundException(orderId));
@@ -578,7 +565,6 @@ public class OrderService {
      * Create multiple orders for multi-shop checkout
      * Groups items by shop and creates separate orders
      */
-    @Transactional
     public MultiShopOrderResult createMultiShopOrders(CreateOrderRequestDTO req) {
         // Validate user
         var user = userRepository.findById(req.getUserId())
@@ -1178,7 +1164,6 @@ public class OrderService {
         return orderItemRepository.findTopSellingProductsByShop(shop.getId(), topFive);
     }
      
-    @Transactional
     public void cancelOrderAndRefund(Long orderId, Long userId, String reason) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
@@ -1258,7 +1243,6 @@ public class OrderService {
      * Seller cập nhật trạng thái đơn hàng sang SHIPPING (Đang giao hàng)
      * Shipment record sẽ được tạo từ GHN service
      */
-    @Transactional
     public Order markAsShipping(Long orderId) {
         logger.info("Marking order as shipping: {}", orderId);
         
@@ -1280,7 +1264,6 @@ public class OrderService {
     /**
      * Buyer xác nhận đã nhận hàng → chuyển sang COMPLETED
      */
-    @Transactional
     public Order confirmReceived(Long orderId, Long userId) {
         logger.info("Buyer {} confirming received for order: {}", userId, orderId);
         
@@ -1291,6 +1274,7 @@ public class OrderService {
         }
         
         order.setStatus(Order.OrderStatus.COMPLETED);
+        order.setCompletedAt(new Date()); // Set completion timestamp
         order.setUpdatedAt(new Date());
         
         // ========== DEPOSIT VÀO VÍ ADMIN NẾU LÀ COD ==========
@@ -1330,7 +1314,6 @@ public class OrderService {
      * Dựa vào Shipment.created_at để tính thời gian
      * Scheduled task sẽ gọi method này
      */
-    @Transactional
     public void autoCompleteShippingOrders() {
         logger.info("Running auto-complete for shipping orders");
         
@@ -1348,6 +1331,7 @@ public class OrderService {
                 shipment.getCreatedAt().isBefore(oneDayAgo)) {
                 
                 order.setStatus(Order.OrderStatus.COMPLETED);
+                order.setCompletedAt(new Date()); // Set completion timestamp
                 order.setUpdatedAt(new Date());
                 orderRepository.save(order);
                 logger.info("Auto-completed order: {} (shipment created: {})", 
@@ -1363,7 +1347,6 @@ public class OrderService {
     /**
      * Buyer yêu cầu trả hàng cho một sản phẩm cụ thể trong đơn hàng
      */
-    @Transactional
     public Refund requestItemReturn(ItemReturnRequestDTO dto, Long userId) {
         logger.info("Buyer {} requesting return for order item: {}", userId, dto.getOrderItemId());
         
@@ -1440,7 +1423,6 @@ public class OrderService {
      * @param note - Ghi chú
      * @return Order đã được cập nhật
      */
-    @Transactional
     public Order confirmOrderAndCreateShipment(Long orderId, Long sellerId, 
                                                Integer serviceId, Integer serviceTypeId, 
                                                String note) {
@@ -1563,7 +1545,7 @@ public class OrderService {
             notificationService.sendOrderNotification(
                 order.getUser().getId(), 
                 "ORDER_CONFIRMED", 
-                "✅ Đơn hàng #" + order.getId() + " đã được xác nhận và đang chuẩn bị giao"
+                "Đơn hàng #" + order.getId() + " đã được xác nhận và đang chuẩn bị giao"
             );
         } catch (Exception e) {
             logger.warn("Failed to send notification: {}", e.getMessage());
@@ -1734,7 +1716,6 @@ public class OrderService {
      * Helper method: Restore stock và giảm sold_count khi hủy đơn hoặc refund
      * @param order Order cần restore stock
      */
-    @Transactional
     public void restoreStockForOrder(Order order) {
         logger.info("🔄 [RESTORE_STOCK] Restoring stock for order #{}", order.getId());
         

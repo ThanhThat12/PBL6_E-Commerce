@@ -1,20 +1,18 @@
 package com.PBL6.Ecommerce.repository;
 
-import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers;
-import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherDetailDTO;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers;
 
 @Repository
 public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
@@ -90,4 +88,14 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
      */
     @Query("SELECT COALESCE(SUM(v.usedCount), 0) FROM Vouchers v")
     Long sumUsedVouchers();
+
+    /**
+     * PUBLIC Lấy platform vouchers (shop IS NULL) đang active và trong thời gian hiệu lực
+     */
+    @Query("SELECT v FROM Vouchers v WHERE v.shop IS NULL " +
+           "AND v.status = 'ACTIVE' " +
+           "AND v.startDate <= :now " +
+           "AND v.endDate >= :now " +
+           "ORDER BY v.createdAt DESC")
+    Page<Vouchers> findActivePlatformVouchers(@Param("now") LocalDateTime now, Pageable pageable);
 }

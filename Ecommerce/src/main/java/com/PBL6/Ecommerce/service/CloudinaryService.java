@@ -61,6 +61,50 @@ public class CloudinaryService {
     }
     
     /**
+     * Upload shop logo to cloud storage
+     * 
+     * @param file Logo image file
+     * @param shopId Shop ID for naming
+     * @return URL of uploaded image
+     */
+    public String uploadShopLogo(MultipartFile file, Long shopId) {
+        validateImageFile(file);
+        
+        // TODO: Implement actual Cloudinary upload
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        return "https://via.placeholder.com/300?text=ShopLogo_" + shopId + "_" + timestamp;
+    }
+    
+    /**
+     * Upload shop banner to cloud storage
+     * 
+     * @param file Banner image file
+     * @param shopId Shop ID for naming
+     * @return URL of uploaded image
+     */
+    public String uploadShopBanner(MultipartFile file, Long shopId) {
+        validateImageFile(file);
+        
+        // TODO: Implement actual Cloudinary upload
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        return "https://via.placeholder.com/1200x400?text=ShopBanner_" + shopId + "_" + timestamp;
+    }
+    
+    /**
+     * Delete image from cloud storage
+     * 
+     * @param publicId Public ID of the image
+     */
+    public void deleteImage(String publicId) {
+        if (publicId == null || publicId.isEmpty()) {
+            return;
+        }
+        
+        // TODO: Implement actual Cloudinary deletion
+        System.out.println("Deleting image with publicId: " + publicId);
+    }
+    
+    /**
      * Validate image file
      * 
      * @param file File to validate
