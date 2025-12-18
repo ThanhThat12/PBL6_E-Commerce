@@ -34,6 +34,7 @@ public class AdminVoucherController {
     /**
      * API lấy danh sách tất cả vouchers với phân trang (Admin only)
      * GET /api/admin/vouchers?page=0&size=10
+     * Sorted by ID descending (newest first)
      * @param page - Trang hiện tại (bắt đầu từ 0)
      * @param size - Số lượng items trên mỗi trang (mặc định 10)
      * @return ResponseDTO<Page<AdminVoucherListDTO>> - Danh sách vouchers với phân trang
@@ -43,9 +44,59 @@ public class AdminVoucherController {
     public ResponseEntity<ResponseDTO<Page<AdminVoucherListDTO>>> getAllVouchers(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
         Page<AdminVoucherListDTO> vouchers = adminVoucherService.getAllVouchers(pageable);
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Vouchers retrieved successfully", vouchers));
+    }
+
+    /**
+     * API lấy danh sách vouchers theo status với phân trang (Admin only)
+     * GET /api/admin/vouchers/status/{status}?page=0&size=10
+     * Sorted by ID descending (newest first)
+     * @param status - Trạng thái voucher (ACTIVE, UPCOMING, EXPIRED)
+     * @param page - Trang hiện tại (bắt đầu từ 0)
+     * @param size - Số lượng items trên mỗi trang (mặc định 10)
+     * @return ResponseDTO<Page<AdminVoucherListDTO>> - Danh sách vouchers theo status
+     */
+    @GetMapping("/vouchers/status/{status}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Page<AdminVoucherListDTO>>> getVouchersByStatus(
+            @PathVariable String status,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        // Convert string to enum
+        com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.Status voucherStatus;
+        try {
+            voucherStatus = com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.Status.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                new ResponseDTO<>(400, "Invalid status. Valid values: ACTIVE, UPCOMING, EXPIRED", null, null)
+            );
+        }
+        
+        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
+        Page<AdminVoucherListDTO> vouchers = adminVoucherService.getVouchersByStatus(voucherStatus, pageable);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Vouchers retrieved successfully", vouchers));
+    }
+
+    /**
+     * API search vouchers by keyword (Admin only)
+     * GET /api/admin/vouchers/search?keyword=CODE123&page=0&size=10
+     * Search by: code, discount type, discount value, date (DD/MM/YYYY)
+     * @param keyword - Search keyword
+     * @param page - Trang hiện tại (bắt đầu từ 0)
+     * @param size - Số lượng items trên mỗi trang (mặc định 10)
+     * @return ResponseDTO<Page<AdminVoucherListDTO>> - Search results
+     */
+    @GetMapping("/vouchers/search")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Page<AdminVoucherListDTO>>> searchVouchers(
+            @RequestParam String keyword,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
+        Page<AdminVoucherListDTO> vouchers = adminVoucherService.searchVouchers(keyword, pageable);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Search completed successfully", vouchers));
     }
 
     /**

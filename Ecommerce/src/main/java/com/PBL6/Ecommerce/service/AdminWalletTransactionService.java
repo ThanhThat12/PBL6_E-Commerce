@@ -47,22 +47,15 @@ public class AdminWalletTransactionService {
      */
     public Page<AdminWalletTransactionDTO> getAdminTransactions(int page, int size) {
         
-        logger.info("Getting admin transactions - page: {}, size: {}", page, size);
+        logger.info("Getting all wallet transactions - page: {}, size: {}", page, size);
         
         try {
-            // Get admin user and wallet
-            User admin = userRepository.findByRole(Role.ADMIN)
-                    .stream()
-                    .findFirst()
-                    .orElseThrow(() -> new UserNotFoundException("Admin user not found"));
-            Wallet adminWallet = walletService.getOrCreateWallet(admin);
-            
             // Build pageable - Sort by ID descending (newest first)
             Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
             
-            // Get all transactions for admin wallet
+            // Get ALL transactions (không filter theo wallet)
             Page<WalletTransaction> transactions = walletTransactionRepository
-                .findByWalletId(adminWallet.getId(), pageable);
+                .findAllTransactions(pageable);
                 
             logger.info("Found {} transactions", transactions.getTotalElements());
             
@@ -75,8 +68,8 @@ public class AdminWalletTransactionService {
             return dtos;
             
         } catch (Exception e) {
-            logger.error("Error getting admin transactions: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to get admin transactions: " + e.getMessage());
+            logger.error("Error getting all transactions: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to get all transactions: " + e.getMessage());
         }
     }
     
@@ -102,22 +95,15 @@ public class AdminWalletTransactionService {
      * @return Paginated search results
      */
     public Page<AdminWalletTransactionDTO> searchAdminTransactions(String keyword, int page, int size) {
-        logger.info("Searching admin transactions - keyword: {}, page: {}, size: {}", keyword, page, size);
+        logger.info("Searching all wallet transactions - keyword: {}, page: {}, size: {}", keyword, page, size);
         
         try {
-            // Get admin user and wallet
-            User admin = userRepository.findByRole(Role.ADMIN)
-                    .stream()
-                    .findFirst()
-                    .orElseThrow(() -> new UserNotFoundException("Admin user not found"));
-            Wallet adminWallet = walletService.getOrCreateWallet(admin);
-            
             // Build pageable - Sort by ID descending
             Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
             
-            // Search transactions
+            // Search ALL transactions (không filter theo wallet)
             Page<WalletTransaction> transactions = walletTransactionRepository
-                .searchTransactions(adminWallet.getId(), keyword, pageable);
+                .searchAllTransactions(keyword, pageable);
                 
             logger.info("Found {} transactions matching keyword: {}", transactions.getTotalElements(), keyword);
             
@@ -130,8 +116,8 @@ public class AdminWalletTransactionService {
             return dtos;
             
         } catch (Exception e) {
-            logger.error("Error searching admin transactions: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to search admin transactions: " + e.getMessage());
+            logger.error("Error searching all transactions: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to search all transactions: " + e.getMessage());
         }
     }
     

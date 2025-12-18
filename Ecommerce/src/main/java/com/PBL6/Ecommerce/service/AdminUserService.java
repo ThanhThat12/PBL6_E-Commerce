@@ -145,7 +145,8 @@ public class AdminUserService {
                 owner.getEmail(),
                 totalProducts,
                 shop.getStatus() != null ? shop.getStatus().name() : "PENDING",
-                revenue != null ? revenue : 0.0
+                revenue != null ? revenue : 0.0,
+                shop.getLogoUrl()
             );
         });
         

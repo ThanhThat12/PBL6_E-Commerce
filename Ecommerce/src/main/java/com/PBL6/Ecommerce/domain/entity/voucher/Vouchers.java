@@ -23,7 +23,7 @@ public class Vouchers {
 		ALL,
 		SPECIFIC_PRODUCTS,
 		SPECIFIC_USERS,
-		TOP_BUYERS
+		TOP_BUYERS  
 	}
 
     @Id
