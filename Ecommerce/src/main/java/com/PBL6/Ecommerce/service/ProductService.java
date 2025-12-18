@@ -210,7 +210,6 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
 }
 
 // 🆕 Cập nhật sản phẩm
-@Transactional
 public ProductDTO updateProduct(Long productId, ProductUpdateDTO request, Authentication authentication) {
     // Tìm sản phẩm
     Product product = productRepository.findById(productId)
@@ -1025,7 +1024,6 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
      * Update product rating and review count based on actual reviews
      * Called automatically when reviews are created/updated/deleted
      */
-    @Transactional
     public void updateProductRating(Long productId) {
         try {
             Product product = productRepository.findById(productId)
