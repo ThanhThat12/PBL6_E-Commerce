@@ -763,7 +763,7 @@ public class UserService {
                     return new ListSellerUserDTO(
                         user.getId(),
                         shopName,
-                        user.getPhoneNumber(),
+                        shopOpt.map(Shop::getShopPhone).orElse(null),
                         user.getEmail(),
                         totalProducts,
                         status,
@@ -813,7 +813,7 @@ public class UserService {
             return new ListSellerUserDTO(
                 user.getId(),
                 shopName,
-                user.getPhoneNumber(),
+                shopOpt.map(Shop::getShopPhone).orElse(null),
                 user.getEmail(),
                 totalProducts,
                 status,
@@ -1013,7 +1013,7 @@ public class UserService {
                     return new ListSellerUserDTO(
                         user.getId(),
                         shopName,
-                        user.getPhoneNumber(),
+                        shopOpt.map(Shop::getShopPhone).orElse(null),
                         user.getEmail(),
                         totalProducts,
                         shopStatus,
@@ -1071,7 +1071,7 @@ public class UserService {
                     return new ListSellerUserDTO(
                         user.getId(),
                         shopName,
-                        user.getPhoneNumber(),
+                        shopOpt.map(Shop::getShopPhone).orElse(null),
                         user.getEmail(),
                         totalProducts,
                         shopStatus,

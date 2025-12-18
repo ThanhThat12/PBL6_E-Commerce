@@ -141,7 +141,7 @@ public class AdminUserService {
             return new ListSellerUserDTO(
                 owner.getId(),
                 shop.getName(),
-                owner.getPhoneNumber(),
+                shop.getShopPhone(),
                 owner.getEmail(),
                 totalProducts,
                 shop.getStatus() != null ? shop.getStatus().name() : "PENDING",
