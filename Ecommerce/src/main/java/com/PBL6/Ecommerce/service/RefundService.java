@@ -76,7 +76,7 @@ public class RefundService {
         
         // ✅ Validate: Must be within 15 days of completion
         // Use completedAt, fallback to updatedAt, then createdAt
-        java.util.Date referenceDate = order.getCompletedAt();
+        java.util.Date referenceDate = order.getUpdatedAt();
         if (referenceDate == null) {
             referenceDate = order.getUpdatedAt();
         }
@@ -131,7 +131,7 @@ public class RefundService {
         
         // ✅ Validate: Must be within 15 days of completion
         // Use completedAt, fallback to updatedAt, then createdAt
-        java.util.Date referenceDate = order.getCompletedAt();
+        java.util.Date referenceDate = order.getUpdatedAt();
         if (referenceDate == null) {
             referenceDate = order.getUpdatedAt();
         }

@@ -1274,7 +1274,6 @@ public class OrderService {
         }
         
         order.setStatus(Order.OrderStatus.COMPLETED);
-        order.setCompletedAt(new Date()); // Set completion timestamp
         order.setUpdatedAt(new Date());
         
         // ========== DEPOSIT VÀO VÍ ADMIN NẾU LÀ COD ==========
@@ -1331,7 +1330,6 @@ public class OrderService {
                 shipment.getCreatedAt().isBefore(oneDayAgo)) {
                 
                 order.setStatus(Order.OrderStatus.COMPLETED);
-                order.setCompletedAt(new Date()); // Set completion timestamp
                 order.setUpdatedAt(new Date());
                 orderRepository.save(order);
                 logger.info("Auto-completed order: {} (shipment created: {})", 

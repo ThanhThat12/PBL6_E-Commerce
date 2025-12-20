@@ -81,10 +81,6 @@ public class Order {
     @Temporal(TemporalType.TIMESTAMP)
     private Date updatedAt = new Date();
 
-    @Column(name = "completed_at")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date completedAt;
-
     // Shipping information
     @Column(name = "receiver_name")
     private String receiverName;
@@ -218,14 +214,6 @@ public class Order {
 
     public void setUpdatedAt(Date updatedAt) {
         this.updatedAt = updatedAt;
-    }
-
-    public Date getCompletedAt() {
-        return completedAt;
-    }
-
-    public void setCompletedAt(Date completedAt) {
-        this.completedAt = completedAt;
     }
 
     public String getReceiverName() {

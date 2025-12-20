@@ -19,8 +19,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.GhnCredentialsDTO;
 import com.PBL6.Ecommerce.domain.dto.RegistrationStatusDTO;
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
@@ -30,13 +28,14 @@ import com.PBL6.Ecommerce.domain.dto.ShopAnalyticsDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDTO;
 import com.PBL6.Ecommerce.domain.dto.ShopDetailDTO;
 import com.PBL6.Ecommerce.domain.dto.UpdateShopDTO;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.service.GhnService;
 import com.PBL6.Ecommerce.service.SellerRegistrationService;
 import com.PBL6.Ecommerce.service.ShopService;
 import com.PBL6.Ecommerce.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -268,9 +267,11 @@ public class ShopController {
         }
     }
     /**
-     * NEW: Submit seller registration (Buyer applies to become Seller)
+     * Submit NEW seller registration
      * POST /api/seller/register
-     * Creates PENDING shop, requires admin approval
+     * - Creates new PENDING shop
+     * - Requires admin approval
+     * - User must NOT have ACTIVE or PENDING shop
      */
     @PostMapping("/seller/register")
     @PreAuthorize("hasRole('BUYER')")
@@ -279,9 +280,9 @@ public class ShopController {
         try {
             // Get current authenticated user
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User user = userService.resolveCurrentUser(authentication);
+            User user = userService.resolveCurrentUser(authentication);
 
-            // Submit registration (creates PENDING shop)
+            // Submit new registration (creates PENDING shop)
             SellerRegistrationResponseDTO response = sellerRegistrationService.submitRegistration(user, registrationDTO);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -302,6 +303,51 @@ public class ShopController {
 
             return ResponseEntity.status(statusCode).body(
                 new ResponseDTO<>(statusCode, errorMessage, "Đăng ký seller thất bại", null)
+            );
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(new ResponseDTO<>(500, ex.getMessage(), "Lỗi hệ thống", null));
+        }
+    }
+
+    /**
+     * Update REJECTED seller registration
+     * PUT /api/seller/register
+     * - Updates existing REJECTED shop and changes status to PENDING
+     * - User MUST have a REJECTED shop to use this endpoint
+     * - Requires admin approval again
+     */
+    @PutMapping("/seller/register")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ResponseDTO<SellerRegistrationResponseDTO>> updateRejectedRegistration(
+            @Valid @RequestBody SellerRegistrationRequestDTO registrationDTO) {
+        try {
+            // Get current authenticated user
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User user = userService.resolveCurrentUser(authentication);
+
+            // Update REJECTED shop
+            SellerRegistrationResponseDTO response = sellerRegistrationService.updateRejectedApplication(user, registrationDTO);
+
+            return ResponseEntity.ok(
+                new ResponseDTO<>(200, null, response.getMessage(), response)
+            );
+
+        } catch (RuntimeException e) {
+            String errorMessage = e.getMessage();
+            int statusCode;
+
+            if (errorMessage.contains("Chỉ tài khoản BUYER")) {
+                statusCode = 403;
+            } else if (errorMessage.contains("Không tìm thấy đơn đăng ký bị từ chối")) {
+                statusCode = 404;
+            } else if (errorMessage.contains("Tên shop đã tồn tại") || errorMessage.contains("CCCD")) {
+                statusCode = 409;
+            } else {
+                statusCode = 400;
+            }
+
+            return ResponseEntity.status(statusCode).body(
+                new ResponseDTO<>(statusCode, errorMessage, "Cập nhật đơn đăng ký thất bại", null)
             );
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(new ResponseDTO<>(500, ex.getMessage(), "Lỗi hệ thống", null));
