@@ -592,4 +592,67 @@ public class RefundService {
         
         logger.info("✅ [RESTORE_STOCK] Stock restored successfully for refund #{}", refund.getId());
     }
+
+    /**
+     * Tạo refund request cho một sản phẩm cụ thể (từ frontend mới)
+     * @param orderItemId ID của order item
+     * @param userId ID của buyer
+     * @param reason Lý do refund
+     * @param description Mô tả chi tiết
+     * @param quantity Số lượng muốn refund
+     * @param imageUrlsJson JSON string chứa mảng URLs ảnh bằng chứng
+     * @param requestedAmount Số tiền yêu cầu hoàn
+     * @return Refund object đã tạo
+     */
+    @Transactional
+    public Refund createRefundRequestByItem(Long orderItemId, Long userId, String reason, 
+                                           String description, Integer quantity, 
+                                           String imageUrlsJson, BigDecimal requestedAmount) {
+        logger.info("Creating refund request for orderItemId: {}, quantity: {}, amount: {}", 
+            orderItemId, quantity, requestedAmount);
+        
+        // Lấy OrderItem
+        OrderItem orderItem = orderItemRepository.findById(orderItemId)
+            .orElseThrow(() -> new RuntimeException("OrderItem not found: " + orderItemId));
+        
+        // Validate user ownership
+        Order order = orderItem.getOrder();
+        if (!order.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Unauthorized: Order does not belong to user");
+        }
+        
+        // Validate quantity
+        if (quantity > orderItem.getQuantity()) {
+            throw new IllegalArgumentException(
+                "Refund quantity (" + quantity + ") cannot exceed ordered quantity (" + orderItem.getQuantity() + ")");
+        }
+        
+        // Tạo Refund
+        Refund refund = new Refund();
+        refund.setOrder(order);
+        refund.setAmount(requestedAmount);
+        refund.setReason(reason);
+        refund.setImageUrl(imageUrlsJson); // JSON array of image URLs
+        refund.setStatus(Refund.RefundStatus.REQUESTED);
+        refund.setRequiresReturn(false); // Seller sẽ quyết định sau
+        
+        // Tạo RefundItem
+        RefundItem refundItem = new RefundItem();
+        refundItem.setRefund(refund);
+        refundItem.setOrderItem(orderItem);
+        refundItem.setQuantity(quantity);
+        refundItem.setRefundAmount(requestedAmount);
+        
+        refund.addRefundItem(refundItem);
+        
+        // Lưu description vào reason field (kết hợp)
+        String fullReason = reason + "\n" + description;
+        refund.setReason(fullReason);
+        
+        logger.info("Refund request created for item #{}, quantity: {}, amount: {}", 
+            orderItemId, quantity, requestedAmount);
+        
+        return refundRepository.save(refund);
+    }
 }
+
