@@ -61,6 +61,53 @@ public class RefundController {
     }
 
     /**
+     * Buyer gửi yêu cầu hoàn tiền cho một sản phẩm cụ thể (orderItemId)
+     * POST /api/refund/create
+     * Body: { orderItemId, reason, description, quantity, imageUrls[], requestedAmount }
+     */
+    @PostMapping("/create")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ResponseDTO<Refund>> createItemRefund(
+            @RequestBody Map<String, Object> request,
+            Authentication authentication) {
+        try {
+            Jwt jwt = (Jwt) authentication.getPrincipal();
+            Long userId = userService.extractUserIdFromJwt(jwt);
+            
+            // Extract data from request
+            Long orderItemId = Long.valueOf(request.get("orderItemId").toString());
+            String reason = (String) request.get("reason");
+            String description = (String) request.get("description");
+            Integer quantity = Integer.valueOf(request.get("quantity").toString());
+            @SuppressWarnings("unchecked")
+            java.util.List<String> imageUrls = (java.util.List<String>) request.get("imageUrls");
+            Double requestedAmountDouble = Double.valueOf(request.get("requestedAmount").toString());
+            BigDecimal requestedAmount = BigDecimal.valueOf(requestedAmountDouble);
+            
+            // Convert imageUrls list to JSON string
+            String imageUrlsJson = new com.fasterxml.jackson.databind.ObjectMapper()
+                .writeValueAsString(imageUrls);
+            
+            // Create refund request via service
+            Refund refund = refundService.createRefundRequestByItem(
+                orderItemId,
+                userId,
+                reason,
+                description,
+                quantity,
+                imageUrlsJson,
+                requestedAmount
+            );
+            
+            return ResponseDTO.success(refund, "Yêu cầu hoàn tiền đã được gửi. Vui lòng chờ shop xét duyệt.");
+            
+        } catch (Exception e) {
+            return ResponseDTO.error(400, "CREATE_REFUND_FAILED", 
+                "Không thể tạo yêu cầu hoàn tiền: " + e.getMessage());
+        }
+    }
+
+    /**
      * Bước 2: Seller duyệt/từ chối yêu cầu hoàn tiền
      * approve=true → APPROVED_WAITING_RETURN (luôn yêu cầu trả hàng)
      * approve=false → REJECTED
