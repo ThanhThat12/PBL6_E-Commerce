@@ -210,7 +210,15 @@ public ProductDTO createProduct(ProductCreateDTO request, Authentication authent
     return convertToProductDTO(product);
 }
 
-// 🆕 Cập nhật sản phẩm
+/**
+ * 🆕 RESTRICTED UPDATE: Only SKU and Stock
+ * Images are handled separately via ImageUploadService endpoints (not in this method)
+ * Immutable fields after creation: name, description, basePrice, category, productCondition, isActive, shipping dimensions
+ * 
+ * Allowed updates:
+ * 1. Variant SKU - update existing variant SKU
+ * 2. Variant Stock - update existing variant stock
+ */
 public ProductDTO updateProduct(Long productId, ProductUpdateDTO request, Authentication authentication) {
     // Tìm sản phẩm
     Product product = productRepository.findById(productId)
@@ -219,53 +227,57 @@ public ProductDTO updateProduct(Long productId, ProductUpdateDTO request, Authen
     // Validate ownership
     validateProductOwnership(product, authentication);
     
-    // Update only non-null fields
-    if (request.getName() != null) {
-        product.setName(request.getName());
-    }
-    if (request.getDescription() != null) {
-        product.setDescription(request.getDescription());
-    }
-    if (request.getBasePrice() != null) {
-        product.setBasePrice(request.getBasePrice());
-    }
-    if (request.getCategoryId() != null) {
-        Category category = categoryRepository.findById(request.getCategoryId())
-            .orElseThrow(() -> new RuntimeException("Category not found"));
-        product.setCategory(category);
-    }
-    if (request.getProductCondition() != null) {
-        product.setProductCondition(request.getProductCondition());
-    }
-    if (request.getIsActive() != null) {
-        product.setIsActive(request.getIsActive());
+    log.info("Starting restricted update for product ID: {}", productId);
+    
+    // ✅ ALLOWED: Update variant SKU and Stock only
+    if (request.getVariants() != null && !request.getVariants().isEmpty()) {
+        log.info("Updating {} variants (SKU and Stock only)", request.getVariants().size());
+        
+        // Get existing variants from database
+        List<ProductVariant> existingVariants = product.getProductVariants();
+        
+        for (int i = 0; i < request.getVariants().size() && i < existingVariants.size(); i++) {
+            ProductVariantDTO updateDto = request.getVariants().get(i);
+            ProductVariant existingVariant = existingVariants.get(i);
+            
+            // Only update SKU and Stock
+            if (updateDto.getSku() != null && !updateDto.getSku().trim().isEmpty()) {
+                existingVariant.setSku(updateDto.getSku().trim());
+                log.debug("Updated variant {} SKU to: {}", existingVariant.getId(), updateDto.getSku());
+            }
+            
+            if (updateDto.getStock() != null) {
+                existingVariant.setStock(updateDto.getStock());
+                log.debug("Updated variant {} Stock to: {}", existingVariant.getId(), updateDto.getStock());
+            }
+        }
     }
     
-    // Update shipping dimensions
-    if (request.getWeightGrams() != null) product.setWeightGrams(request.getWeightGrams());
-    if (request.getLengthCm() != null) product.setLengthCm(request.getLengthCm());
-    if (request.getWidthCm() != null) product.setWidthCm(request.getWidthCm());
-    if (request.getHeightCm() != null) product.setHeightCm(request.getHeightCm());
+    // ❌ BLOCKED: Images are handled by separate ImageUploadService endpoints
+    // - POST /api/products/{id}/images/main (replaces main image)
+    // - POST /api/products/{id}/images/gallery (replaces all gallery images, max 5)
+    // - POST /api/products/{id}/images/variant (replaces variant image by value)
     
-    // Handle variants if provided
-    if (request.getVariants() != null) {
-        handleProductVariants(product, request.getVariants());
-    }
-    
-    // Handle primary attribute if provided
-    if (request.getPrimaryAttributeId() != null) {
-        System.out.println("🔍 DEBUG - Updating primary attribute ID: " + request.getPrimaryAttributeId());
-        handlePrimaryAttribute(product.getId(), request.getPrimaryAttributeId());
-    }
+    // ❌ BLOCKED: All other fields are immutable
+    // name, description, basePrice, category, productCondition, isActive, shipping dimensions
+    // cannot be modified after product creation
     
     productRepository.save(product);
+    log.info("Product {} update completed successfully", productId);
+    
     return convertToProductDTO(product);
 }
 
-private void validateProductOwnership(Product product, Authentication authentication) {
-    String userEmail = authentication.getName();
-    User user = userRepository.findByEmail(userEmail)
-        .orElseThrow(() -> new RuntimeException("User not found"));
+    private void validateProductOwnership(Product product, Authentication authentication) {
+    if (authentication == null || authentication.getName() == null) {
+        throw new UnauthorizedProductAccessException("Missing authentication");
+    }
+
+    String principal = authentication.getName();
+    // Support both email and username principal to avoid "User not found" when token uses username
+    User user = userRepository.findByEmail(principal)
+        .orElseGet(() -> userRepository.findByUsername(principal)
+            .orElseThrow(() -> new RuntimeException("User not found")));
     
     // Admin can modify any product
     if (user.getRole() == Role.ADMIN) {
@@ -508,12 +520,17 @@ private void validateProductOwnership(Product product, Authentication authentica
     
     // Helper methods
     private User getCurrentUser(Authentication authentication) {
-        String username = authentication.getName();
-        
-        log.debug("Looking for user with username: {}", username);
-        
-        return userRepository.findByUsername(username)
-            .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng với username: " + username));
+        if (authentication == null || authentication.getName() == null) {
+            throw new UserNotFoundException("Không tìm thấy thông tin đăng nhập");
+        }
+
+        String principal = authentication.getName();
+        log.debug("Looking for user with principal: {}", principal);
+
+        // Try email first, then username
+        return userRepository.findByEmail(principal)
+            .orElseGet(() -> userRepository.findByUsername(principal)
+                .orElseThrow(() -> new UserNotFoundException("Không tìm thấy người dùng với định danh: " + principal)));
     }
     
     private boolean isAdmin(Authentication authentication) {
@@ -822,7 +839,9 @@ private void handleProductImagesWithVariantValue(Product product, List<ProductIm
 }
 
 // 🆕 Handle product images (backward compatibility - chỉ URL)
-private void handleProductImages(Product product, List<String> imageUrls) {
+private List<ProductImage> handleProductImages(Product product, List<String> imageUrls) {
+    List<ProductImage> images = new ArrayList<>();
+    
     if (imageUrls != null && !imageUrls.isEmpty()) {
         for (String imageUrl : imageUrls) {
             ProductImage image = new ProductImage();
@@ -830,10 +849,12 @@ private void handleProductImages(Product product, List<String> imageUrls) {
             image.setImageType("GALLERY"); // Default to gallery image
             image.setVariantAttributeValue(null); // No variant attribute for simple images
             image.setUploadedAt(java.time.LocalDateTime.now());
-            image.setProduct(product); // 🔧 THÊM DÒNG NÀY
-            productImageRepository.save(image); // 🔧 THÊM DÒNG NÀY
+            image.setProduct(product);
+            images.add(image);
         }
     }
+    
+    return images;
 }
 
 // 🆕 Handle product variants
@@ -1110,6 +1131,7 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
     public void scheduledRatingUpdate() {
         log.info("Starting scheduled rating update (every 10 minutes)...");
         updateAllProductRatings();
+        
     }
 
     
