@@ -2,20 +2,23 @@ package com.PBL6.Ecommerce.service.profile;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import com.PBL6.Ecommerce.domain.dto.profile.CompleteProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.profile.ProfileDTO;
 import com.PBL6.Ecommerce.domain.dto.request.ChangePasswordRequest;
 import com.PBL6.Ecommerce.domain.dto.request.UpdateProfileRequest;
 
 /**
- * Service interface for Profile Management
+ * Service interface for User Profile Management
  * 
  * Handles:
- * - Get user profile
- * - Update profile information
- * - Upload avatar
- * - Change password
+ * - User profile (get, update, avatar upload, password change)
+ * - Complete profile (user + addresses)
+ * 
+ * Note: Shop profile management is handled by ShopService
  */
 public interface ProfileService {
+    
+    // ============ USER PROFILE ============
     
     /**
      * Get current user's profile
@@ -24,6 +27,14 @@ public interface ProfileService {
      * @return ProfileDTO
      */
     ProfileDTO getMyProfile(String username);
+    
+    /**
+     * Get complete profile including shop and addresses
+     * 
+     * @param username Current user username
+     * @return CompleteProfileDTO with all info
+     */
+    CompleteProfileDTO getCompleteProfile(String username);
     
     /**
      * Update user profile information
@@ -44,6 +55,14 @@ public interface ProfileService {
     ProfileDTO uploadAvatar(String username, MultipartFile file);
     
     /**
+     * Delete user avatar
+     * 
+     * @param username Current user username
+     * @return Updated ProfileDTO
+     */
+    ProfileDTO deleteAvatar(String username);
+    
+    /**
      * Change user password
      * 
      * @param username Current user username
@@ -51,3 +70,4 @@ public interface ProfileService {
      */
     void changePassword(String username, ChangePasswordRequest request);
 }
+

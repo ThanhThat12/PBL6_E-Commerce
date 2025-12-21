@@ -70,15 +70,18 @@ public class GoogleAuthService {
             if (user.getGoogleId() == null || user.getGoogleId().isBlank()) {
                 user.setGoogleId(googleId);
                 if (!user.isActivated()) user.setActivated(true);
+                // Preserve existing username - only set if null
                 if (user.getUsername() == null || user.getUsername().isBlank()) {
                     user.setUsername(email.split("@")[0]);
                 }
+                // NOTE: Existing user data (password, profile, etc.) is preserved
+                // Only googleId is added to enable Google login for this account
                 return userRepository.save(user);
             }
 
             // If linked but with different googleId -> conflict
             if (!user.getGoogleId().equals(googleId)) {
-                throw new RuntimeException("Email already linked with a different Google account");
+                throw new RuntimeException("Email đã được liên kết với tài khoản Google khác");
             }
 
             // linked and matches -> return

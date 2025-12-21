@@ -27,7 +27,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final FcmService fcmService;
-    
+
     /**
      * Gửi notification cho buyer (lưu DB + gửi WebSocket + FCM)
      */
@@ -90,7 +90,7 @@ public class NotificationService {
             messagingTemplate.convertAndSend(destination, notificationData);
         }
         System.out.println("📤 Message: " + message);
-        
+
         // 3. Gửi FCM push notification (mobile)
         try {
             String title = "Thông báo đơn hàng";
@@ -145,7 +145,7 @@ public class NotificationService {
             messagingTemplate.convertAndSend(destination, notificationData);
             System.out.println("📤 Sent ADMIN notification to: " + destination);
             System.out.println("📤 Message: " + message);
-            
+
             // 3. Gửi FCM push notification (mobile)
             try {
                 String title = "Thông báo quản trị";
@@ -212,7 +212,7 @@ public class NotificationService {
             messagingTemplate.convertAndSend(destination, notificationData);
         }
         System.out.println("📤 Message: " + message);
-        
+
         // 3. Gửi FCM push notification (mobile)
         try {
             String title = "Thông báo người bán";

@@ -2,34 +2,29 @@
 package com.PBL6.Ecommerce.config;
 
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import javax.crypto.spec.SecretKeySpec;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
-import org.springframework.http.HttpMethod; // <-- added import
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-
-
-import org.springframework.web.filter.ForwardedHeaderFilter;
+import org.springframework.web.filter.ForwardedHeaderFilter; // <-- added import
 
 
 @Configuration
@@ -86,6 +81,8 @@ public CorsConfigurationSource corsConfigurationSource() {
                     "/api/ghn/master/**",
                     "/api/users/*/addresses",
                     "/api/users/*/addresses/**",
+                    // Public APIs - no authentication required
+                    "/api/public/**",
                     // MoMo Payment callbacks - must be public for MoMo to call
                     "/api/payment/momo/return",
                     "/api/payment/momo/callback",
