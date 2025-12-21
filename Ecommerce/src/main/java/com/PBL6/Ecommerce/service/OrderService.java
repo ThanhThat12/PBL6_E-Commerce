@@ -88,6 +88,8 @@ public class OrderService {
     private MoMoPaymentService momoPaymentService;
     @Autowired
     private ShipmentRepository shipmentRepository;
+    @Autowired
+    private SoldCountUpdateService soldCountUpdateService;
     public OrderService(ProductRepository productRepository,
                         ProductVariantRepository productVariantRepository,
                         OrderRepository orderRepository,
@@ -1295,6 +1297,22 @@ public class OrderService {
         
         Order savedOrder = orderRepository.save(order);
         
+        // ========== CẬP NHẬT SOLD COUNT CHO CÁC SẢN PHẨM ==========
+        try {
+            // Lấy danh sách product IDs từ order items
+            savedOrder.getOrderItems().forEach(orderItem -> {
+                if (orderItem.getVariant() != null && orderItem.getVariant().getProduct() != null) {
+                    Long productId = orderItem.getVariant().getProduct().getId();
+                    soldCountUpdateService.updateSoldCountForProduct(productId);
+                    logger.info("✅ Updated sold count for product #{} after order #{} completed", 
+                               productId, savedOrder.getId());
+                }
+            });
+        } catch (Exception e) {
+            logger.error("⚠️ Failed to update sold count for order {}: {}", savedOrder.getId(), e.getMessage());
+            // Không throw exception, order vẫn hợp lệ
+        }
+        
         // ========== GỬI THÔNG BÁO CHO SELLER ==========
         try {
             Long sellerId = order.getShop().getOwner().getId();
@@ -1331,9 +1349,25 @@ public class OrderService {
                 
                 order.setStatus(Order.OrderStatus.COMPLETED);
                 order.setUpdatedAt(new Date());
-                orderRepository.save(order);
+                Order completedOrder = orderRepository.save(order);
                 logger.info("Auto-completed order: {} (shipment created: {})", 
                     order.getId(), shipment.getCreatedAt());
+                
+                // ========== CẬP NHẬT SOLD COUNT CHO CÁC SẢN PHẨM ==========
+                try {
+                    completedOrder.getOrderItems().forEach(orderItem -> {
+                        if (orderItem.getVariant() != null && orderItem.getVariant().getProduct() != null) {
+                            Long productId = orderItem.getVariant().getProduct().getId();
+                            soldCountUpdateService.updateSoldCountForProduct(productId);
+                            logger.info("✅ [Auto] Updated sold count for product #{} after order #{} auto-completed", 
+                                       productId, completedOrder.getId());
+                        }
+                    });
+                } catch (Exception e) {
+                    logger.error("⚠️ Failed to update sold count for auto-completed order {}: {}", 
+                                completedOrder.getId(), e.getMessage());
+                }
+                
                 completedCount++;
             }
         }

@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -1024,6 +1025,7 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
      * Update product rating and review count based on actual reviews
      * Called automatically when reviews are created/updated/deleted
      */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void updateProductRating(Long productId) {
         try {
             Product product = productRepository.findById(productId)
@@ -1044,14 +1046,70 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
             product.setUpdatedAt(java.time.LocalDateTime.now());
             
             productRepository.save(product);
+            productRepository.flush();
             
-            log.info("Updated product {} rating to {} (from {} reviews)", 
+            log.info("Updated product #{} rating to {} (from {} reviews)", 
                 productId, product.getRating(), reviewCount);
             
         } catch (Exception e) {
             log.error("Failed to update product rating for product {}", productId, e);
-            throw new RuntimeException("Failed to update product rating", e);
+            throw new RuntimeException("Failed to update product rating: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Update rating and review_count for all products
+     * Batch operation for maintenance purposes
+     */
+    @Transactional
+    public void updateAllProductRatings() {
+        try {
+            long startTime = System.currentTimeMillis();
+            List<Product> products = productRepository.findAll();
+            int totalProducts = products.size();
+            int updatedCount = 0;
+            
+            log.info("Starting batch rating update for {} products", totalProducts);
+            
+            for (Product product : products) {
+                try {
+                    Long productId = product.getId();
+                    Double averageRating = productReviewRepository.getAverageRatingByProductId(productId);
+                    long reviewCount = productReviewRepository.countByProductId(productId);
+                    
+                    if (averageRating != null && averageRating > 0) {
+                        product.setRating(BigDecimal.valueOf(averageRating).setScale(2, java.math.RoundingMode.HALF_UP));
+                    } else {
+                        product.setRating(BigDecimal.ZERO);
+                    }
+                    
+                    product.setReviewCount((int) reviewCount);
+                    product.setUpdatedAt(java.time.LocalDateTime.now());
+                    productRepository.save(product);
+                    updatedCount++;
+                } catch (Exception e) {
+                    log.error("Failed to update rating for product {}", product.getId(), e);
+                }
+            }
+            
+            productRepository.flush();
+            long duration = System.currentTimeMillis() - startTime;
+            
+            log.info("Batch rating update completed: {}/{} products updated in {}ms", 
+                updatedCount, totalProducts, duration);
+        } catch (Exception e) {
+            log.error("Failed to update ratings for all products", e);
+        }
+    }
+
+    /**
+     * Scheduled job to update ratings for all products every 10 minutes
+     */
+    @Scheduled(fixedRate = 600000)
+    @Transactional
+    public void scheduledRatingUpdate() {
+        log.info("Starting scheduled rating update (every 10 minutes)...");
+        updateAllProductRatings();
     }
 
     

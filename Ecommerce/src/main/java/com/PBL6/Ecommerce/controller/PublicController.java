@@ -233,6 +233,37 @@ public class PublicController {
         }
     }
 
+    @Operation(
+        summary = "Update rating and review_count for all products",
+        description = "Manually trigger rating update for all products based on actual reviews. Recalculates average rating and review count from product_reviews table."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Successfully updated ratings for all products",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(
+                    name = "Update Rating Response",
+                    value = "{\"status\":200,\"error\":null,\"message\":\"Cập nhật rating cho tất cả sản phẩm thành công\",\"data\":{\"message\":\"All products' ratings updated successfully\"}}"
+                )
+            )
+        )
+    })
+    @PostMapping("/products/update-rating")
+    public ResponseEntity<ResponseDTO<Map<String, String>>> updateRating() {
+        try {
+            productService.updateAllProductRatings();
+            
+            Map<String, String> result = new HashMap<>();
+            result.put("message", "All products' ratings updated successfully");
+            
+            return ResponseDTO.success(result, "Cập nhật rating cho tất cả sản phẩm thành công");
+        } catch (Exception e) {
+            return ResponseDTO.error(500, "UPDATE_RATING_ERROR", "Lỗi khi cập nhật rating: " + e.getMessage());
+        }
+    }
+
     /**
      * Helper method to convert Vouchers entity to VoucherDTO
      */
