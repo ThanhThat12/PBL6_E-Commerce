@@ -362,8 +362,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            "  OR o.receiver_phone LIKE CONCAT('%', :keyword, '%') " +
            "  OR DATE_FORMAT(o.created_at, '%d/%m/%Y') LIKE CONCAT('%', :keyword, '%') " +
            "  OR LOWER(o.receiver_address) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           ") " +
-           "ORDER BY o.created_at DESC",
+           ")",
            nativeQuery = true)
     Page<Order> searchOrders(@Param("keyword") String keyword, Pageable pageable);
 }

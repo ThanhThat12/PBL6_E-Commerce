@@ -62,7 +62,13 @@ public class AdminProductService {
      * @return Page<AdminListProductDTO> - Danh sách sản phẩm với thông tin tổng hợp
      */
     public Page<AdminListProductDTO> getProductsWithPaging(Pageable pageable) {
-        Page<Product> productPage = productRepository.findAllWithCategory(pageable);
+        // Sort by ID descending (newest first)
+        Pageable sortedPageable = PageRequest.of(
+            pageable.getPageNumber(),
+            pageable.getPageSize(),
+            org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")
+        );
+        Page<Product> productPage = productRepository.findAllWithCategory(sortedPageable);
         
         List<AdminListProductDTO> dtoList = productPage.getContent().stream()
             .map(this::convertToAdminListProductDTO)
@@ -72,7 +78,9 @@ public class AdminProductService {
     }
 
     public Page<AdminListProductDTO> searchProducts(String name, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
+        // Sort by ID descending (newest first)
+        Pageable pageable = PageRequest.of(page, size, 
+            org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
         Page<Product> productPage = productRepository.findByNameContaining(name, pageable);
         
         List<AdminListProductDTO> dtoList = productPage.getContent().stream()
@@ -107,7 +115,13 @@ public class AdminProductService {
      * @return Page<AdminListProductDTO> - Danh sách sản phẩm theo category
      */
     public Page<AdminListProductDTO> getProductsByCategory(String categoryName, Pageable pageable) {
-        Page<Product> productPage = productRepository.findByCategoryName(categoryName, pageable);
+        // Sort by ID descending (newest first)
+        Pageable sortedPageable = PageRequest.of(
+            pageable.getPageNumber(),
+            pageable.getPageSize(),
+            org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")
+        );
+        Page<Product> productPage = productRepository.findByCategoryName(categoryName, sortedPageable);
         
         List<AdminListProductDTO> dtoList = productPage.getContent().stream()
             .map(this::convertToAdminListProductDTO)
@@ -124,7 +138,13 @@ public class AdminProductService {
      */
     public Page<AdminListProductDTO> getProductsByStatus(String status, Pageable pageable) {
         Boolean isActive = "Active".equalsIgnoreCase(status);
-        Page<Product> productPage = productRepository.findByIsActive(isActive, pageable);
+        // Sort by ID descending (newest first)
+        Pageable sortedPageable = PageRequest.of(
+            pageable.getPageNumber(),
+            pageable.getPageSize(),
+            org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")
+        );
+        Page<Product> productPage = productRepository.findByIsActive(isActive, sortedPageable);
         
         List<AdminListProductDTO> dtoList = productPage.getContent().stream()
             .map(this::convertToAdminListProductDTO)

@@ -744,11 +744,13 @@ public class UserService {
                     String status = null;
                     int totalProducts = 0;
                     double revenue = 0.0;
+                    String logoUrl = null;
                     
                     if (shopOpt.isPresent()) {
                         Shop shop = shopOpt.get();
                         shopName = shop.getName();
                         status = shop.getStatus() != null ? shop.getStatus().name() : "PENDING";
+                        logoUrl = shop.getLogoUrl();
                         
                         // Đếm tổng sản phẩm của shop
                         totalProducts = (int) productRepository.countByShopId(shop.getId());
@@ -761,11 +763,12 @@ public class UserService {
                     return new ListSellerUserDTO(
                         user.getId(),
                         shopName,
-                        user.getPhoneNumber(),
+                        shopOpt.map(Shop::getShopPhone).orElse(null),
                         user.getEmail(),
                         totalProducts,
                         status,
-                        revenue
+                        revenue,
+                        logoUrl
                     );
                 })
                 .collect(Collectors.toList());
@@ -791,11 +794,13 @@ public class UserService {
             String status = null;
             int totalProducts = 0;
             double revenue = 0.0;
+            String logoUrl = null;
             
             if (shopOpt.isPresent()) {
                 Shop shop = shopOpt.get();
                 shopName = shop.getName();
                 status = shop.getStatus() != null ? shop.getStatus().name() : "PENDING";
+                logoUrl = shop.getLogoUrl();
                 
                 // Đếm tổng sản phẩm của shop
                 totalProducts = (int) productRepository.countByShopId(shop.getId());
@@ -808,11 +813,12 @@ public class UserService {
             return new ListSellerUserDTO(
                 user.getId(),
                 shopName,
-                user.getPhoneNumber(),
+                shopOpt.map(Shop::getShopPhone).orElse(null),
                 user.getEmail(),
                 totalProducts,
                 status,
-                revenue
+                revenue,
+                logoUrl
             );
         });
     }
@@ -988,11 +994,13 @@ public class UserService {
                     String shopStatus = null;
                     int totalProducts = 0;
                     double revenue = 0.0;
+                    String logoUrl = null;
                     
                     if (shopOpt.isPresent()) {
                         Shop shop = shopOpt.get();
                         shopName = shop.getName();
                         shopStatus = shop.getStatus() != null ? shop.getStatus().name() : "PENDING";
+                        logoUrl = shop.getLogoUrl();
                         
                         // Đếm tổng sản phẩm của shop
                         totalProducts = (int) productRepository.countByShopId(shop.getId());
@@ -1005,11 +1013,12 @@ public class UserService {
                     return new ListSellerUserDTO(
                         user.getId(),
                         shopName,
-                        user.getPhoneNumber(),
+                        shopOpt.map(Shop::getShopPhone).orElse(null),
                         user.getEmail(),
                         totalProducts,
                         shopStatus,
-                        revenue
+                        revenue,
+                        logoUrl
                     );
                 })
                 .filter(seller -> {
@@ -1043,11 +1052,13 @@ public class UserService {
                     String shopStatus = null;
                     int totalProducts = 0;
                     double revenue = 0.0;
+                    String logoUrl = null;
                     
                     if (shopOpt.isPresent()) {
                         Shop shop = shopOpt.get();
                         shopName = shop.getName();
                         shopStatus = shop.getStatus() != null ? shop.getStatus().name() : "PENDING";
+                        logoUrl = shop.getLogoUrl();
                         
                         // Đếm tổng sản phẩm của shop
                         totalProducts = (int) productRepository.countByShopId(shop.getId());
@@ -1060,11 +1071,12 @@ public class UserService {
                     return new ListSellerUserDTO(
                         user.getId(),
                         shopName,
-                        user.getPhoneNumber(),
+                        shopOpt.map(Shop::getShopPhone).orElse(null),
                         user.getEmail(),
                         totalProducts,
                         shopStatus,
-                        revenue
+                        revenue,
+                        logoUrl
                     );
                 })
                 .filter(seller -> {

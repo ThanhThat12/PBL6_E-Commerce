@@ -44,7 +44,7 @@ public class AdminVoucherCreateDTO {
     @NotNull(message = "End date is required")
     private LocalDateTime endDate;
 
-    @NotNull(message = "Status is required")
+    // Status is auto-calculated based on dates - not required from client
     private Vouchers.Status status;
 
     @NotNull(message = "Applicable type is required")

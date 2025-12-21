@@ -231,7 +231,7 @@ public class AdminOrderService {
      * @return Page of AdminOrderDTO
      */
     public Page<AdminOrderDTO> searchOrders(String keyword, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         Page<Order> orders = orderRepository.searchOrders(keyword, pageable);
         
         return orders.map(this::convertToDTO);

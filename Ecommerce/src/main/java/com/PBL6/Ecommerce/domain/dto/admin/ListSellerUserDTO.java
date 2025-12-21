@@ -8,9 +8,10 @@ public class ListSellerUserDTO {
     private Integer totalProducts;
     private String status;
     private Double revenue;
+    private String logoUrl;
 
     public ListSellerUserDTO(Long id, String shopName, String phoneNumber, String email,
-                            Integer totalProducts, String status, Double revenue) {
+                            Integer totalProducts, String status, Double revenue, String logoUrl) {
         this.id = id;
         this.shopName = shopName;
         this.phoneNumber = phoneNumber;
@@ -18,6 +19,7 @@ public class ListSellerUserDTO {
         this.totalProducts = totalProducts;
         this.status = status;
         this.revenue = revenue;
+        this.logoUrl = logoUrl;
     }
 
     // Getters and Setters
@@ -41,4 +43,7 @@ public class ListSellerUserDTO {
     
     public Double getRevenue() { return revenue; }
     public void setRevenue(Double revenue) { this.revenue = revenue; }
+    
+    public String getLogoUrl() { return logoUrl; }
+    public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
 }
