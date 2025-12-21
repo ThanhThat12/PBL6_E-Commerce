@@ -12,21 +12,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.constant.TypeAddress;
-import com.PBL6.Ecommerce.domain.entity.user.Address;
-import com.PBL6.Ecommerce.domain.entity.user.Role;
-import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.domain.entity.shop.Shop.ShopStatus;
-import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.AdminApprovalDTO;
 import com.PBL6.Ecommerce.domain.dto.AdminRejectionDTO;
 import com.PBL6.Ecommerce.domain.dto.PendingApplicationDTO;
 import com.PBL6.Ecommerce.domain.dto.RegistrationStatusDTO;
 import com.PBL6.Ecommerce.domain.dto.SellerRegistrationRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.SellerRegistrationResponseDTO;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop;
+import com.PBL6.Ecommerce.domain.entity.shop.Shop.ShopStatus;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.repository.AddressRepository;
 import com.PBL6.Ecommerce.repository.ShopRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
-import com.PBL6.Ecommerce.service.NotificationService;
 
 /**
  * Service for handling Seller Registration workflow
@@ -54,6 +53,17 @@ public class SellerRegistrationService {
         this.addressRepository = addressRepository;
         this.ghnService = ghnService;
         this.notificationService = notificationService;
+    }
+
+    /**
+     * Check if user has a REJECTED shop application
+     * Used by controller to determine whether to create new or update existing
+     * 
+     * @param user - Current logged in user
+     * @return true if user has REJECTED shop, false otherwise
+     */
+    public boolean hasRejectedApplication(User user) {
+        return shopRepository.findByOwnerAndStatus(user, ShopStatus.REJECTED).isPresent();
     }
 
     /**
@@ -178,6 +188,51 @@ public class SellerRegistrationService {
             addr.setPrimaryAddress(Boolean.TRUE.equals(request.getPrimaryAddress()));
             addr.setTypeAddress(TypeAddress.STORE);
             addressRepository.save(addr);
+        }
+    }
+
+    /**
+     * Update existing address for rejected shop (DO NOT create new address)
+     * Ensures 1 shop = 1 address rule
+     */
+    private void updateShopAddress(User user, SellerRegistrationRequestDTO request, Shop shop) {
+        Address addressToUpdate = null;
+
+        // Case 1: Request has addressId - use that specific address
+        if (request.getAddressId() != null) {
+            addressToUpdate = addressRepository.findByIdAndUserId(request.getAddressId(), user.getId())
+                    .orElseThrow(() -> new RuntimeException("Địa chỉ không tồn tại hoặc không thuộc user"));
+            System.out.println("✅ Found address by ID: " + request.getAddressId());
+        } 
+        // Case 2: No addressId provided - find existing STORE address
+        else {
+            List<Address> storeAddresses = addressRepository.findByUserAndTypeAddress(user, TypeAddress.STORE);
+            if (!storeAddresses.isEmpty()) {
+                addressToUpdate = storeAddresses.get(0);
+                System.out.println("✅ Found existing STORE address ID: " + addressToUpdate.getId());
+            }
+        }
+
+        // UPDATE existing address if found
+        if (addressToUpdate != null) {
+            addressToUpdate.setFullAddress(request.getFullAddress().trim());
+            addressToUpdate.setProvinceId(request.getProvinceId());
+            addressToUpdate.setDistrictId(request.getDistrictId());
+            addressToUpdate.setWardCode(request.getWardCode());
+            addressToUpdate.setProvinceName(request.getProvinceName());
+            addressToUpdate.setDistrictName(request.getDistrictName());
+            addressToUpdate.setWardName(request.getWardName());
+            addressToUpdate.setContactPhone(request.getContactPhone() != null ? request.getContactPhone() : request.getShopPhone());
+            addressToUpdate.setContactName(request.getContactName() != null ? request.getContactName() : user.getFullName());
+            addressToUpdate.setPrimaryAddress(Boolean.TRUE.equals(request.getPrimaryAddress()));
+            addressToUpdate.setTypeAddress(TypeAddress.STORE);
+            addressRepository.save(addressToUpdate);
+            System.out.println("✅ UPDATED address ID: " + addressToUpdate.getId() + " for shop: " + shop.getName());
+        } 
+        // ERROR: Should not create new address when updating rejected shop
+        else {
+            System.err.println("❌ ERROR: No existing address found for rejected shop update. User: " + user.getId() + ", Shop: " + shop.getId());
+            throw new RuntimeException("Không tìm thấy địa chỉ cũ để cập nhật. Vui lòng liên hệ admin.");
         }
     }
 
@@ -480,6 +535,95 @@ public class SellerRegistrationService {
                 return true;
             })
             .orElse(false);
+    }
+
+    /**
+     * Update rejected application with new information
+     * Allows BUYER to fix issues mentioned in rejection reason
+     * Changes status from REJECTED back to PENDING
+     *
+     * @param user - BUYER user wanting to resubmit
+     * @param request - Updated registration data
+     * @return SellerRegistrationResponseDTO
+     */
+    @Transactional
+    public SellerRegistrationResponseDTO updateRejectedApplication(User user, SellerRegistrationRequestDTO request) {
+        // Validate user is BUYER
+        if (user.getRole() != Role.BUYER) {
+            throw new RuntimeException("Chỉ tài khoản BUYER mới có thể cập nhật đơn đăng ký");
+        }
+
+        // Find rejected shop
+        Shop shop = shopRepository.findByOwnerAndStatus(user, ShopStatus.REJECTED)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn đăng ký bị từ chối"));
+
+        // Check shop name uniqueness (if changed)
+        if (!shop.getName().equals(request.getShopName().trim())) {
+            List<ShopStatus> activeOrPendingStatuses = Arrays.asList(ShopStatus.ACTIVE, ShopStatus.PENDING);
+            if (shopRepository.existsByNameAndStatusIn(request.getShopName().trim(), activeOrPendingStatuses)) {
+                throw new RuntimeException("Tên shop đã tồn tại, vui lòng chọn tên khác");
+            }
+        }
+
+        // Check ID card uniqueness (if changed) - exclude current shop
+        if (request.getIdCardNumber() != null && !request.getIdCardNumber().equals(shop.getIdCardNumber())) {
+            List<ShopStatus> activeOrPendingStatuses = Arrays.asList(ShopStatus.ACTIVE, ShopStatus.PENDING);
+            if (shopRepository.existsByIdCardNumberAndStatusIn(request.getIdCardNumber().trim(), activeOrPendingStatuses)) {
+                throw new RuntimeException("Số CMND/CCCD này đã được sử dụng để đăng ký shop khác");
+            }
+        }
+
+        // Update shop information
+        shop.setName(request.getShopName().trim());
+        shop.setDescription(request.getDescription());
+        shop.setShopPhone(request.getShopPhone());
+        shop.setShopEmail(request.getShopEmail());
+
+        // Update KYC info
+        shop.setIdCardNumber(request.getIdCardNumber());
+        shop.setIdCardFrontUrl(request.getIdCardFrontUrl());
+        shop.setIdCardFrontPublicId(request.getIdCardFrontPublicId());
+        shop.setIdCardBackUrl(request.getIdCardBackUrl());
+        shop.setIdCardBackPublicId(request.getIdCardBackPublicId());
+        shop.setSelfieWithIdUrl(request.getSelfieWithIdUrl());
+        shop.setSelfieWithIdPublicId(request.getSelfieWithIdPublicId());
+        shop.setIdCardName(request.getIdCardName());
+
+        // Update branding
+        shop.setLogoUrl(request.getLogoUrl());
+        shop.setLogoPublicId(request.getLogoPublicId());
+        shop.setBannerUrl(request.getBannerUrl());
+        shop.setBannerPublicId(request.getBannerPublicId());
+
+        // Reset status to PENDING
+        shop.setStatus(ShopStatus.PENDING);
+        shop.setSubmittedAt(LocalDateTime.now());
+        shop.setReviewedAt(null);
+        shop.setReviewedBy(null);
+        shop.setRejectionReason(null);
+
+        Shop updatedShop = shopRepository.save(shop);
+
+        // Update address (don't create new one)
+        updateShopAddress(user, request, updatedShop);
+
+        // Send notification to admin
+        try {
+            String userName = user.getUsername() != null ? user.getUsername() : "User #" + user.getId();
+            String adminMessage = String.format("Đơn đăng ký seller đã được cập nhật lại từ %s - Shop: %s", 
+                                               userName, updatedShop.getName());
+            notificationService.sendAdminNotification("SELLER_REGISTRATION_UPDATE", adminMessage, null);
+            System.out.println("✅ Sent seller registration update notification to admin");
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to send admin notification: " + e.getMessage());
+        }
+
+        return SellerRegistrationResponseDTO.success(
+                "Đã cập nhật đơn đăng ký thành công! Đơn của bạn đang chờ xét duyệt lại.",
+                updatedShop.getId(),
+                updatedShop.getName(),
+                "PENDING"
+        );
     }
 
     /**

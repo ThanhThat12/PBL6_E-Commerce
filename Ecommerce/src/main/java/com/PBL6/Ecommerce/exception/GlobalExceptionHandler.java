@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.exception.AddressNotFoundException;
@@ -634,6 +635,20 @@ public class GlobalExceptionHandler {
     }
 
     // ===== End Chat Module Exception Handlers =====
+
+    // Spring Boot 3 / Spring Framework 6 throws NoResourceFoundException
+    // when no handler/static resource is found. Return 404 instead of 500.
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ResponseDTO<Object>> handleNoResourceFound(NoResourceFoundException ex) {
+        log.warn("No resource found", ex);
+        ResponseDTO<Object> response = new ResponseDTO<>(
+            404,
+            "NOT_FOUND",
+            ex.getMessage(),
+            null
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Object> handleRuntimeException(RuntimeException ex) {

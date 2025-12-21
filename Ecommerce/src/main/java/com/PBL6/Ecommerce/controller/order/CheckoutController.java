@@ -7,7 +7,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import com.PBL6.Ecommerce.domain.dto.*;
 import com.PBL6.Ecommerce.domain.entity.user.Address;
 import com.PBL6.Ecommerce.domain.entity.shop.Shop;
-import com.PBL6.Ecommerce.domain.entity.order.Shipment;
 import com.PBL6.Ecommerce.domain.entity.order.Order;
 import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
 import com.PBL6.Ecommerce.constant.TypeAddress;
@@ -18,10 +17,7 @@ import java.util.*;
 import java.math.BigDecimal;
 import jakarta.validation.Valid;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.PBL6.Ecommerce.domain.entity.user.User;
@@ -77,6 +73,7 @@ public class CheckoutController {
      */
     @PostMapping("/available-services")
     // @PreAuthorize("isAuthenticated()") // TODO: Re-enable after testing
+    @Transactional(readOnly = true)
     public ResponseEntity<ResponseDTO<List<Map<String,Object>>>> getAvailableServices(
             @Valid @RequestBody CheckoutInitRequestDTO req) {
         System.out.println("========== CHECKOUT AVAILABLE SERVICES REQUEST ==========");
@@ -167,6 +164,7 @@ public class CheckoutController {
      */
     @PostMapping("/calculate-fee")
     // @PreAuthorize("isAuthenticated()") // TODO: Re-enable after testing
+    @Transactional(readOnly = true)
     public ResponseEntity<ResponseDTO<Map<String,Object>>> calculateShippingFee(
             @Valid @RequestBody CheckoutCalculateFeeRequestDTO req) {
         try {
@@ -298,10 +296,11 @@ public class CheckoutController {
     /**
      * Bước 11-13: User xác nhận thanh toán → CHỈ TẠO ORDER (chưa tạo GHN shipment)
      * POST /api/checkout/confirm
+     * 
+     * NOTE: @Transactional removed to avoid nested transaction conflict with OrderService.createOrder()
      */
     @PostMapping("/confirm")
     @PreAuthorize("isAuthenticated()")
-    @Transactional
     public ResponseEntity<ResponseDTO<Map<String,Object>>> confirmCheckout(
         @Valid @RequestBody CheckoutConfirmRequestDTO req,
         @AuthenticationPrincipal Jwt jwt) {
@@ -439,6 +438,9 @@ public class CheckoutController {
                 orderItems.add(item);
             }
             orderRequest.setItems(orderItems);
+            
+            // ✅ Set addressId để OrderService có thể snapshot address info
+            orderRequest.setAddressId(req.getAddressId());
             
             // Set địa chỉ giao hàng từ buyer address
             orderRequest.setReceiverName(buyerAddress.getContactName());

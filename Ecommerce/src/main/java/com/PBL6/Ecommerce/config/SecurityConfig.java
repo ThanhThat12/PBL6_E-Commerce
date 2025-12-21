@@ -2,39 +2,52 @@
 package com.PBL6.Ecommerce.config;
 
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Configuration;
-
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import javax.crypto.spec.SecretKeySpec;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
-import org.springframework.http.HttpMethod; // <-- added import
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-
+import org.springframework.web.filter.ForwardedHeaderFilter; // <-- added import
 
 
 @Configuration
 public class SecurityConfig {
     @Value("${jwt.secret}")
     private String jwtSecret;
+@Bean
+public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration config = new CorsConfiguration();
 
+    config.setAllowedOrigins(List.of("https://localhost:3000"));
+    config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+    config.setAllowedHeaders(List.of("*"));
+    config.setAllowCredentials(true);
 
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", config);
+    return source;
+}
+    @Bean
+    public ForwardedHeaderFilter forwardedHeaderFilter() {
+        return new ForwardedHeaderFilter();
+    }
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         // converter để lấy claim "roles" và thêm prefix "ROLE_"
@@ -46,8 +59,8 @@ public class SecurityConfig {
         jwtAuthConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
 
         http
-            // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .cors(cors -> cors.and())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
@@ -68,6 +81,8 @@ public class SecurityConfig {
                     "/api/ghn/master/**",
                     "/api/users/*/addresses",
                     "/api/users/*/addresses/**",
+                    // Public APIs - no authentication required
+                    "/api/public/**",
                     // MoMo Payment callbacks - must be public for MoMo to call
                     "/api/payment/momo/return",
                     "/api/payment/momo/callback",
@@ -87,6 +102,8 @@ public class SecurityConfig {
                     "/webjars/**",
                     "/api-docs/**"
                 ).permitAll()
+                // Chatbot public endpoint
+                .requestMatchers(HttpMethod.POST, "/api/chatbot/ask").permitAll()
                 
                 // Checkout endpoints - require authentication except for testing
                 .requestMatchers(HttpMethod.POST, "/api/checkout/available-services").permitAll() // For testing

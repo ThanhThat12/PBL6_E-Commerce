@@ -16,8 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Service for sending real-time notifications via WebSocket
- * Now also persists notifications to database for history
+ * Service for sending real-time notifications via WebSocket and FCM
+ * Persists notifications to database for history
  */
 @Service
 @RequiredArgsConstructor
@@ -26,9 +26,10 @@ public class NotificationService {
     private final SimpMessagingTemplate messagingTemplate;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
-    
+    private final FcmService fcmService;
+
     /**
-     * Gửi notification cho buyer (lưu DB + gửi WebSocket)
+     * Gửi notification cho buyer (lưu DB + gửi WebSocket + FCM)
      */
     @Transactional
     public void sendOrderNotification(Long userId, String type, String message) {
@@ -36,7 +37,7 @@ public class NotificationService {
     }
     
     /**
-     * Gửi notification cho buyer với orderId (lưu DB + gửi WebSocket)
+     * Gửi notification cho buyer với orderId (lưu DB + gửi WebSocket + FCM)
      */
     @Transactional
     public void sendOrderNotification(Long userId, String type, String message, Long orderId) {
@@ -89,10 +90,20 @@ public class NotificationService {
             messagingTemplate.convertAndSend(destination, notificationData);
         }
         System.out.println("📤 Message: " + message);
+
+        // 3. Gửi FCM push notification (mobile)
+        try {
+            String title = "Thông báo đơn hàng";
+            fcmService.sendOrderNotification(userId, title, message, orderId, type);
+            System.out.println("📱 Sent FCM push notification to user: " + userId);
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to send FCM: " + e.getMessage());
+            // Don't fail the whole notification if FCM fails
+        }
     }
     
     /**
-     * Gửi notification cho admin (lưu DB + gửi WebSocket)
+     * Gửi notification cho admin (lưu DB + gửi WebSocket + FCM)
      */
     @Transactional
     public void sendAdminNotification(String type, String message, Long orderId) {
@@ -134,6 +145,15 @@ public class NotificationService {
             messagingTemplate.convertAndSend(destination, notificationData);
             System.out.println("📤 Sent ADMIN notification to: " + destination);
             System.out.println("📤 Message: " + message);
+
+            // 3. Gửi FCM push notification (mobile)
+            try {
+                String title = "Thông báo quản trị";
+                fcmService.sendOrderNotification(admin.getId(), title, message, orderId, type);
+                System.out.println("📱 Sent FCM push notification to admin: " + admin.getId());
+            } catch (Exception e) {
+                System.err.println("⚠️ Failed to send FCM to admin: " + e.getMessage());
+            }
         } catch (Exception e) {
             System.err.println("❌ Failed to send admin notification: " + e.getMessage());
             e.printStackTrace();
@@ -141,7 +161,7 @@ public class NotificationService {
     }
     
     /**
-     * Gửi notification cho seller (lưu DB + gửi WebSocket)
+     * Gửi notification cho seller (lưu DB + gửi WebSocket + FCM)
      */
     @Transactional
     public void sendSellerNotification(Long sellerId, String type, String message, Long orderId) {
@@ -192,6 +212,15 @@ public class NotificationService {
             messagingTemplate.convertAndSend(destination, notificationData);
         }
         System.out.println("📤 Message: " + message);
+
+        // 3. Gửi FCM push notification (mobile)
+        try {
+            String title = "Thông báo người bán";
+            fcmService.sendOrderNotification(sellerId, title, message, orderId, type);
+            System.out.println("📱 Sent FCM push notification to seller: " + sellerId);
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to send FCM to seller: " + e.getMessage());
+        }
     }
     
     // ===== LEGACY METHODS FOR BACKWARD COMPATIBILITY =====

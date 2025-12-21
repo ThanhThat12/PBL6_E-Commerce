@@ -1,29 +1,28 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.entity.order.Order;
-import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
-import com.PBL6.Ecommerce.domain.entity.order.Refund;
-import com.PBL6.Ecommerce.domain.entity.order.RefundItem;
-import com.PBL6.Ecommerce.domain.entity.user.User;
-import com.PBL6.Ecommerce.domain.entity.payment.Wallet;
-import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
-import com.PBL6.Ecommerce.repository.RefundRepository;
-import com.PBL6.Ecommerce.repository.RefundItemRepository;
-import com.PBL6.Ecommerce.repository.AddressRepository;
-import com.PBL6.Ecommerce.domain.entity.user.Address;
-import com.PBL6.Ecommerce.constant.TypeAddress;
-import com.PBL6.Ecommerce.repository.OrderItemRepository;
-import com.PBL6.Ecommerce.repository.WalletRepository;
-import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.PBL6.Ecommerce.constant.TypeAddress;
 import com.PBL6.Ecommerce.domain.dto.order.RefundDTO;
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
+import com.PBL6.Ecommerce.domain.entity.order.Refund;
+import com.PBL6.Ecommerce.domain.entity.order.RefundItem;
+import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
+import com.PBL6.Ecommerce.repository.AddressRepository;
+import com.PBL6.Ecommerce.repository.OrderItemRepository;
+import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
+import com.PBL6.Ecommerce.repository.RefundItemRepository;
+import com.PBL6.Ecommerce.repository.RefundRepository;
+import com.PBL6.Ecommerce.repository.WalletRepository;
 
 @Service
 public class RefundService {
@@ -70,6 +69,36 @@ public class RefundService {
     public Refund createRefundRequest(Order order, BigDecimal amount, String reason, String imageUrl) {
         logger.info("Creating refund request for order: {}", order.getId());
         
+        // ✅ Validate: Order must be COMPLETED
+        if (order.getStatus() != Order.OrderStatus.COMPLETED) {
+            throw new IllegalStateException("Chỉ có thể yêu cầu hoàn tiền cho đơn hàng đã hoàn thành");
+        }
+        
+        // ✅ Validate: Must be within 15 days of completion
+        // Use completedAt, fallback to updatedAt, then createdAt
+        java.util.Date referenceDate = order.getUpdatedAt();
+        if (referenceDate == null) {
+            referenceDate = order.getUpdatedAt();
+        }
+        if (referenceDate == null) {
+            referenceDate = order.getCreatedAt();
+        }
+        
+        if (referenceDate == null) {
+            throw new IllegalStateException("Không thể xác định ngày hoàn thành đơn hàng");
+        }
+        
+        long daysSinceCompletion = java.time.Duration.between(
+            referenceDate.toInstant(),
+            new java.util.Date().toInstant()
+        ).toDays();
+        
+        if (daysSinceCompletion > 15) {
+            throw new IllegalStateException(
+                String.format("Đã quá thời hạn yêu cầu hoàn tiền (15 ngày). Đơn hàng đã hoàn thành %d ngày trước", daysSinceCompletion)
+            );
+        }
+        
         Refund refund = new Refund();
         refund.setOrder(order);
         refund.setAmount(amount);
@@ -94,6 +123,36 @@ public class RefundService {
     public Refund createRefundRequestWithItems(Order order, Map<Long, Integer> refundItemsData, 
                                                 String reason, String imageUrl) {
         logger.info("Creating refund request with specific items for order: {}", order.getId());
+        
+        // ✅ Validate: Order must be COMPLETED
+        if (order.getStatus() != Order.OrderStatus.COMPLETED) {
+            throw new IllegalStateException("Chỉ có thể yêu cầu hoàn tiền cho đơn hàng đã hoàn thành");
+        }
+        
+        // ✅ Validate: Must be within 15 days of completion
+        // Use completedAt, fallback to updatedAt, then createdAt
+        java.util.Date referenceDate = order.getUpdatedAt();
+        if (referenceDate == null) {
+            referenceDate = order.getUpdatedAt();
+        }
+        if (referenceDate == null) {
+            referenceDate = order.getCreatedAt();
+        }
+        
+        if (referenceDate == null) {
+            throw new IllegalStateException("Không thể xác định ngày hoàn thành đơn hàng");
+        }
+        
+        long daysSinceCompletion = java.time.Duration.between(
+            referenceDate.toInstant(),
+            new java.util.Date().toInstant()
+        ).toDays();
+        
+        if (daysSinceCompletion > 15) {
+            throw new IllegalStateException(
+                String.format("Đã quá thời hạn yêu cầu hoàn tiền (15 ngày). Đơn hàng đã hoàn thành %d ngày trước", daysSinceCompletion)
+            );
+        }
         
         // Tính tổng số tiền refund
         BigDecimal totalRefundAmount = BigDecimal.ZERO;

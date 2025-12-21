@@ -1,25 +1,26 @@
 package com.PBL6.Ecommerce.service;
 
-import com.PBL6.Ecommerce.domain.dto.payment.PaymentResponseDTO;
-import com.PBL6.Ecommerce.domain.entity.order.Order;
-import com.PBL6.Ecommerce.domain.entity.user.Role;
-import com.PBL6.Ecommerce.domain.entity.user.User;
-import com.PBL6.Ecommerce.domain.entity.payment.Wallet;
-import com.PBL6.Ecommerce.domain.entity.payment.WalletTransaction;
-import com.PBL6.Ecommerce.exception.UserNotFoundException;
-import com.PBL6.Ecommerce.repository.WalletRepository;
-import com.PBL6.Ecommerce.repository.WalletTransactionRepository;
-import com.PBL6.Ecommerce.repository.UserRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.PBL6.Ecommerce.domain.dto.payment.PaymentResponseDTO;
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.payment.Wallet;
+import com.PBL6.Ecommerce.domain.entity.payment.WalletTransaction;
+import com.PBL6.Ecommerce.domain.entity.user.Role;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.exception.UserNotFoundException;
+import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.repository.WalletRepository;
+import com.PBL6.Ecommerce.repository.WalletTransactionRepository;
 
 /**
  * Service for managing user wallets
@@ -219,7 +220,6 @@ public class WalletService {
      * 3. Update order status
      * 4. Create transaction records
      */
-    @Transactional
     public Map<String, Object> payOrderWithWallet(Long userId, Long orderId, BigDecimal amount) {
         try {
             logger.info("💰 [START] payOrderWithWallet - userId: {}, orderId: {}, amount: {}", 
@@ -332,7 +332,6 @@ public class WalletService {
     /**
      * Deposit to admin wallet from buyer payment (MoMo, SportyPay, COD)
      */
-    @Transactional
     public Wallet depositToAdminWallet(BigDecimal amount, Order order, String paymentMethod) {
         try {
             logger.info("🔵 [START] depositToAdminWallet - amount: {}, order: {}, method: {}", 
@@ -558,7 +557,6 @@ public class WalletService {
      * @param totalAmount Total order amount
      * @param order The completed order
      */
-    @Transactional
     public void transferFromAdminToSeller(Long sellerId, BigDecimal totalAmount, Order order) {
         try {
             logger.info("🔄 [WalletService] Starting transfer from admin to seller - " +

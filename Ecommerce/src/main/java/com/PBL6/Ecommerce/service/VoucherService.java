@@ -1,5 +1,18 @@
 package com.PBL6.Ecommerce.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.PBL6.Ecommerce.domain.dto.CreateVoucherRequestDTO;
 import com.PBL6.Ecommerce.domain.dto.TopBuyerDTO;
 import com.PBL6.Ecommerce.domain.dto.VoucherApplicationResultDTO;
@@ -14,18 +27,13 @@ import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers;
 import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.ApplicableType;
 import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.DiscountType;
 import com.PBL6.Ecommerce.domain.entity.voucher.Vouchers.Status;
-import com.PBL6.Ecommerce.repository.*;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.security.core.Authentication;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.PBL6.Ecommerce.repository.OrderRepository;
+import com.PBL6.Ecommerce.repository.ProductRepository;
+import com.PBL6.Ecommerce.repository.ShopRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
+import com.PBL6.Ecommerce.repository.VoucherProductRepository;
+import com.PBL6.Ecommerce.repository.VoucherUserRepository;
+import com.PBL6.Ecommerce.repository.VouchersRepository;
 
 @Service
 @Transactional
@@ -183,7 +191,6 @@ public class VoucherService {
     /**
      * Lấy danh sách voucher của shop
      */
-    @Transactional
     public List<VoucherDTO> getShopVouchers(Authentication authentication) {
         String username = authentication.getName();
         User seller = userRepository.findByUsername(username)
@@ -200,7 +207,6 @@ public class VoucherService {
     /**
      * Lấy voucher đang active của shop
      */
-    @Transactional
     public List<VoucherDTO> getActiveShopVouchers(Authentication authentication) {
         String username = authentication.getName();
         User seller = userRepository.findByUsername(username)
@@ -310,7 +316,6 @@ public class VoucherService {
     /**
      * Lấy danh sách voucher khả dụng cho user
      */
-    @Transactional
     public List<VoucherDTO> getAvailableVouchersForUser(Long shopId, String username, List<Long> productIds, BigDecimal cartTotal) {
         // Get user
         User user = userRepository.findByUsername(username)
@@ -425,7 +430,6 @@ public class VoucherService {
     /**
      * Áp dụng voucher cho đơn hàng
      */
-    @Transactional
     public VoucherApplicationResultDTO applyVoucher(String voucherCode, List<Long> productIds, 
                                                BigDecimal cartTotal, String username) {
         log.info("Applying voucher: code={}, username={}, cartTotal={}", voucherCode, username, cartTotal);

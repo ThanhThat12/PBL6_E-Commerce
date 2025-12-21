@@ -1,25 +1,36 @@
 package com.PBL6.Ecommerce.controller.order;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.PBL6.Ecommerce.domain.dto.ResponseDTO;
 import com.PBL6.Ecommerce.domain.entity.order.Order;
 import com.PBL6.Ecommerce.domain.entity.order.Shipment;
 import com.PBL6.Ecommerce.domain.entity.shop.Shop;
 import com.PBL6.Ecommerce.domain.entity.user.User;
-import com.PBL6.Ecommerce.constant.TypeAddress;
+import com.PBL6.Ecommerce.repository.AddressRepository;
+import com.PBL6.Ecommerce.repository.ShipmentRepository;
+import com.PBL6.Ecommerce.repository.ShopRepository;
+import com.PBL6.Ecommerce.repository.UserRepository;
 import com.PBL6.Ecommerce.service.GhnService;
-import com.PBL6.Ecommerce.repository.*;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-
-import java.util.*;
-import java.math.BigDecimal;
-
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = "Seller Orders", description = "Seller order operations - view, update status, shipping")
@@ -70,7 +81,7 @@ public class SellerOrderController {
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ResponseDTO<Map<String,Object>>> confirmAndShip(
             @PathVariable Long orderId,
-            @RequestBody com.PBL6.Ecommerce.domain.dto.ConfirmOrderRequestDTO request,
+            @RequestBody @jakarta.validation.Valid com.PBL6.Ecommerce.domain.dto.ConfirmOrderRequestDTO request,
             @AuthenticationPrincipal Jwt jwt) {
         
         try {
@@ -96,7 +107,7 @@ public class SellerOrderController {
             
             // Gửi WebSocket notification cho buyer
             sendOrderNotificationToBuyer(confirmedOrder, "ORDER_CONFIRMED", 
-                "✅ Đơn hàng #" + confirmedOrder.getId() + " đã được xác nhận và đang chuẩn bị giao");
+                "Đơn hàng #" + confirmedOrder.getId() + " đã được xác nhận và đang chuẩn bị giao");
             
             // Lấy shipment info
             Optional<Shipment> shipmentOpt = shipmentRepository.findByOrderId(confirmedOrder.getId());
@@ -116,7 +127,7 @@ public class SellerOrderController {
 
         } catch (Exception e) {
             System.err.println("========================================");
-            System.err.println("❌ ERROR in confirmAndShip");
+            System.err.println("ERROR in confirmAndShip");
             System.err.println("Error type: " + e.getClass().getName());
             System.err.println("Error message: " + e.getMessage());
             e.printStackTrace();
@@ -172,9 +183,9 @@ public class SellerOrderController {
                 shipmentRepository.save(shipment);
             }
 
-            // ✅ Gửi WebSocket notification cho buyer
+            // Gửi WebSocket notification cho buyer
             sendOrderNotificationToBuyer(order, "ORDER_SHIPPING", 
-                "🚚 Đơn hàng #" + order.getId() + " đang được giao đến bạn");
+                "Đơn hàng #" + order.getId() + " đang được giao đến bạn");
 
             Map<String, Object> response = new HashMap<>();
             response.put("orderId", order.getId());
@@ -271,9 +282,9 @@ public class SellerOrderController {
                 String destination = "/topic/orderws/" + buyerId;
                 messagingTemplate.convertAndSend(destination, notification);
                 
-                System.out.println("✅ Notification sent to buyer (userId=" + buyerId + "): " + notificationMessage);
+                System.out.println("Notification sent to buyer (userId=" + buyerId + "): " + notificationMessage);
             } catch (Exception e) {
-                System.err.println("❌ Error sending notification: " + e.getMessage());
+                System.err.println(" Error sending notification: " + e.getMessage());
                 // Don't throw exception, order cancellation is already successful
             }
 
@@ -395,9 +406,9 @@ public class SellerOrderController {
                 shipmentRepository.save(shipment);
             }
 
-            // ✅ Gửi WebSocket notification cho buyer
+            // Gửi WebSocket notification cho buyer
             sendOrderNotificationToBuyer(order, "ORDER_COMPLETED", 
-                "🎉 Đơn hàng #" + order.getId() + " đã được giao thành công!");
+                "Đơn hàng #" + order.getId() + " đã được giao thành công!");
 
             Map<String, Object> response = new HashMap<>();
             response.put("orderId", order.getId());
@@ -419,13 +430,6 @@ public class SellerOrderController {
     private void sendOrderNotificationToBuyer(Order order, String type, String message) {
         try {
             Long buyerId = order.getUser().getId();
-            
-            System.out.println("========== SENDING WEBSOCKET NOTIFICATION ==========");
-            System.out.println("Buyer ID: " + buyerId);
-            System.out.println("Order ID: " + order.getId());
-            System.out.println("Type: " + type);
-            System.out.println("Message: " + message);
-            
             Map<String, Object> notification = new HashMap<>();
             notification.put("type", type);
             notification.put("orderId", order.getId());
@@ -434,16 +438,10 @@ public class SellerOrderController {
             notification.put("timestamp", System.currentTimeMillis());
             
             String destination = "/topic/orderws/" + buyerId;
-            System.out.println("Destination: " + destination);
-            System.out.println("Notification payload: " + notification);
-            
             messagingTemplate.convertAndSend(destination, notification);
-            
-            System.out.println("✅ WebSocket notification sent successfully!");
-            System.out.println("===================================================");
-            
+
         } catch (Exception e) {
-            System.err.println("❌ Error sending WebSocket notification: " + e.getMessage());
+            System.err.println("Error sending WebSocket notification: " + e.getMessage());
             // Don't throw exception, operation already successful
         }
     }
