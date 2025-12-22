@@ -331,6 +331,7 @@ public class SellerOrderController {
                 orders = orderRepository.findByShopIdOrderByCreatedAtDesc(shop.getId());
             }
 
+
             // Convert to response
             List<Map<String,Object>> result = new ArrayList<>();
             for (Order order : orders) {
@@ -345,15 +346,36 @@ public class SellerOrderController {
                 map.put("receiverName", order.getReceiverName());
                 map.put("receiverPhone", order.getReceiverPhone());
                 map.put("receiverAddress", order.getReceiverAddress());
-                
+
                 // Buyer info
                 User buyer = order.getUser();
                 map.put("buyerName", buyer.getFullName());
                 map.put("buyerEmail", buyer.getEmail());
-                
+
                 // Items count
                 map.put("itemsCount", order.getOrderItems().size());
-                
+
+                // Thêm ảnh sản phẩm đầu tiên và danh sách sản phẩm rút gọn (fix: dùng getVariant().getProduct())
+                List<Map<String, Object>> items = new ArrayList<>();
+                String firstProductImage = null;
+                if (!order.getOrderItems().isEmpty()) {
+                    for (var orderItem : order.getOrderItems()) {
+                        Map<String, Object> itemMap = new HashMap<>();
+                        if (orderItem.getVariant() != null && orderItem.getVariant().getProduct() != null) {
+                            var product = orderItem.getVariant().getProduct();
+                            itemMap.put("productId", product.getId());
+                            itemMap.put("productName", product.getName());
+                            itemMap.put("mainImage", product.getMainImage());
+                            if (firstProductImage == null && product.getMainImage() != null) {
+                                firstProductImage = product.getMainImage();
+                            }
+                        }
+                        items.add(itemMap);
+                    }
+                }
+                map.put("firstProductImage", firstProductImage);
+                map.put("items", items);
+
                 result.add(map);
             }
 
