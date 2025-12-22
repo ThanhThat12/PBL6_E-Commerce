@@ -40,26 +40,26 @@ public class RefundController {
     @PostMapping("/request/{orderId}")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ResponseDTO<RefundDTO>> requestRefund(
-            @PathVariable Long orderId, 
-            @RequestBody RefundRequestDTO dto, 
+            @PathVariable Long orderId,
+            @RequestBody RefundRequestDTO dto,
             Authentication authentication) {
         Jwt jwt = (Jwt) authentication.getPrincipal();
         Long userId = userService.extractUserIdFromJwt(jwt);
         Order order = orderService.getOrderByIdAndUser(orderId, userId);
-        
+
         // Convert Long amount to BigDecimal
         BigDecimal amount = dto.getAmount() != null ? BigDecimal.valueOf(dto.getAmount()) : order.getTotalAmount();
-        
+
         Refund refund = refundService.createRefundRequest(
-            order, 
-            amount, 
-            dto.getDescription(),
-            dto.getImageUrl() // Ảnh bằng chứng từ khách
+                order,
+                amount,
+                dto.getDescription(),
+                dto.getImageUrl() // Ảnh bằng chứng từ khách
         );
-        
+
         // Convert to DTO to avoid circular reference
         RefundDTO refundDTO = refundService.convertToDTO(refund);
-        
+
         return ResponseDTO.success(refundDTO, "Yêu cầu hoàn tiền đã được gửi");
     }
 
@@ -76,7 +76,7 @@ public class RefundController {
         try {
             Jwt jwt = (Jwt) authentication.getPrincipal();
             Long userId = userService.extractUserIdFromJwt(jwt);
-            
+
             // Extract data from request
             Long orderItemId = Long.valueOf(request.get("orderItemId").toString());
             String reason = (String) request.get("reason");
@@ -86,27 +86,27 @@ public class RefundController {
             java.util.List<String> imageUrls = (java.util.List<String>) request.get("imageUrls");
             Double requestedAmountDouble = Double.valueOf(request.get("requestedAmount").toString());
             BigDecimal requestedAmount = BigDecimal.valueOf(requestedAmountDouble);
-            
+
             // Convert imageUrls list to JSON string
             String imageUrlsJson = new com.fasterxml.jackson.databind.ObjectMapper()
-                .writeValueAsString(imageUrls);
-            
+                    .writeValueAsString(imageUrls);
+
             // Create refund request via service
             Refund refund = refundService.createRefundRequestByItem(
-                orderItemId,
-                userId,
-                reason,
-                description,
-                quantity,
-                imageUrlsJson,
-                requestedAmount
+                    orderItemId,
+                    userId,
+                    reason,
+                    description,
+                    quantity,
+                    imageUrlsJson,
+                    requestedAmount
             );
-            
+
             return ResponseDTO.success(refund, "Yêu cầu hoàn tiền đã được gửi. Vui lòng chờ shop xét duyệt.");
-            
+
         } catch (Exception e) {
-            return ResponseDTO.error(400, "CREATE_REFUND_FAILED", 
-                "Không thể tạo yêu cầu hoàn tiền: " + e.getMessage());
+            return ResponseDTO.error(400, "CREATE_REFUND_FAILED",
+                    "Không thể tạo yêu cầu hoàn tiền: " + e.getMessage());
         }
     }
 
@@ -118,10 +118,10 @@ public class RefundController {
     @PostMapping("/review/{refundId}")
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ResponseDTO<RefundDTO>> reviewRefund(
-            @PathVariable Long refundId, 
+            @PathVariable Long refundId,
             @RequestParam boolean approve,
             @RequestParam(required = false) String rejectReason) {
-        
+
         if (approve) {
             // Luôn yêu cầu trả hàng
             Refund refund = refundService.approveRefund(refundId, true);
@@ -133,7 +133,7 @@ public class RefundController {
             return ResponseDTO.success(dto, "Đã từ chối hoàn tiền");
         }
     }
-    
+
     /**
      * Bước 3: Seller xác nhận đã nhận hàng trả về → Tự động hoàn tiền
      * Có thể gọi từ status APPROVED_WAITING_RETURN hoặc RETURNING
@@ -142,7 +142,7 @@ public class RefundController {
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ResponseDTO<RefundDTO>> confirmReceipt(
             @PathVariable Long refundId) {
-        
+
         Refund refund = refundService.confirmReceiptAndRefund(refundId);
         RefundDTO dto = refundService.convertToDTO(refund);
         return ResponseDTO.success(dto, "Đã xác nhận nhận hàng - Hoàn tiền thành công");
@@ -168,19 +168,19 @@ public class RefundController {
     public ResponseEntity<ResponseDTO<Refund>> confirmReturn(
             @PathVariable Long refundId,
             @RequestBody Map<String, Object> body) {
-        
+
         boolean isAccepted = (boolean) body.getOrDefault("isAccepted", false);
         String checkNote = (String) body.getOrDefault("checkNote", "");
-        
+
         Refund refund = refundService.confirmReturnReceived(refundId, isAccepted, checkNote);
-        
-        String message = isAccepted 
-            ? "Đã xác nhận hàng trả về - Hoàn tiền thành công" 
-            : "Hàng trả về không đạt - Từ chối hoàn tiền";
-        
+
+        String message = isAccepted
+                ? "Đã xác nhận hàng trả về - Hoàn tiền thành công"
+                : "Hàng trả về không đạt - Từ chối hoàn tiền";
+
         return ResponseDTO.success(refund, message);
     }
-    
+
     /**
      * Lấy danh sách refund requests (cho seller)
      */
@@ -190,19 +190,19 @@ public class RefundController {
         Jwt jwt = (Jwt) authentication.getPrincipal();
         Long userId = userService.extractUserIdFromJwt(jwt);
         User seller = userService.resolveCurrentUser(authentication);
-        
+
         if (seller.getShop() == null) {
             return ResponseDTO.error(400, "NO_SHOP", "Seller does not have a shop");
         }
-        
+
         java.util.List<Refund> refunds = refundService.getRefundsByShop(seller.getShop().getId());
         java.util.List<RefundDTO> refundDTOs = refunds.stream()
-            .map(refund -> refundService.convertToDTO(refund))
-            .collect(java.util.stream.Collectors.toList());
-        
+                .map(refund -> refundService.convertToDTO(refund))
+                .collect(java.util.stream.Collectors.toList());
+
         return ResponseDTO.success(refundDTOs, "Success");
     }
-    
+
     /**
      * Lấy danh sách refund requests của buyer (cho buyer xem trạng thái)
      */
@@ -211,15 +211,15 @@ public class RefundController {
     public ResponseEntity<ResponseDTO<java.util.List<RefundDTO>>> getMyRefundRequests(Authentication authentication) {
         Jwt jwt = (Jwt) authentication.getPrincipal();
         Long userId = userService.extractUserIdFromJwt(jwt);
-        
+
         java.util.List<Refund> refunds = refundService.getRefundsByUserId(userId);
         java.util.List<RefundDTO> refundDTOs = refunds.stream()
-            .map(refund -> refundService.convertToDTO(refund))
-            .collect(java.util.stream.Collectors.toList());
-        
+                .map(refund -> refundService.convertToDTO(refund))
+                .collect(java.util.stream.Collectors.toList());
+
         return ResponseDTO.success(refundDTOs, "Success");
     }
-    
+
     /**
      * Lấy chi tiết refund theo ID
      */
@@ -231,33 +231,33 @@ public class RefundController {
         try {
             Jwt jwt = (Jwt) authentication.getPrincipal();
             Long userId = userService.extractUserIdFromJwt(jwt);
-            
+
             Refund refund = refundService.getRefundById(refundId);
-            
+
             // Check authorization: buyer can see their own, seller can see their shop's
             User user = userService.resolveCurrentUser(authentication);
             boolean isAuthorized = false;
-            
+
             if (refund.getOrder() != null) {
                 // Check if buyer owns this refund
-                if (refund.getOrder().getUser() != null 
-                    && refund.getOrder().getUser().getId().equals(userId)) {
+                if (refund.getOrder().getUser() != null
+                        && refund.getOrder().getUser().getId().equals(userId)) {
                     isAuthorized = true;
                 }
                 // Check if seller owns the shop
-                if (user.getShop() != null && refund.getOrder().getShop() != null 
-                    && refund.getOrder().getShop().getId().equals(user.getShop().getId())) {
+                if (user.getShop() != null && refund.getOrder().getShop() != null
+                        && refund.getOrder().getShop().getId().equals(user.getShop().getId())) {
                     isAuthorized = true;
                 }
             }
-            
+
             if (!isAuthorized) {
                 return ResponseDTO.error(403, "FORBIDDEN", "Bạn không có quyền xem yêu cầu hoàn tiền này");
             }
-            
+
             RefundDTO dto = refundService.convertToDTO(refund);
             return ResponseDTO.success(dto, "Success");
-            
+
         } catch (Exception e) {
             return ResponseDTO.error(404, "NOT_FOUND", "Không tìm thấy yêu cầu hoàn tiền");
         }

@@ -43,4 +43,5 @@ public class ShopDTO {
     // ========== Contact (public for buyers to contact) ==========
     private String shopPhone;
     private String shopEmail;
+    private Long ownerId;
 }

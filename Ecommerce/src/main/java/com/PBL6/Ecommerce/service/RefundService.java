@@ -1,5 +1,17 @@
 package com.PBL6.Ecommerce.service;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.PBL6.Ecommerce.constant.TypeAddress;
+import com.PBL6.Ecommerce.domain.dto.order.RefundDTO;
 import com.PBL6.Ecommerce.domain.entity.order.Order;
 import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
 import com.PBL6.Ecommerce.domain.entity.order.Refund;
@@ -69,7 +81,7 @@ public class RefundService {
     @Transactional
     public Refund createRefundRequest(Order order, BigDecimal amount, String reason, String imageUrl) {
         logger.info("Creating refund request for order: {}", order.getId());
-        
+
         Refund refund = new Refund();
         refund.setOrder(order);
         refund.setAmount(amount);
@@ -94,7 +106,7 @@ public class RefundService {
     public Refund createRefundRequestWithItems(Order order, Map<Long, Integer> refundItemsData, 
                                                 String reason, String imageUrl) {
         logger.info("Creating refund request with specific items for order: {}", order.getId());
-        
+
         // Tính tổng số tiền refund
         BigDecimal totalRefundAmount = BigDecimal.ZERO;
         
@@ -420,7 +432,7 @@ public class RefundService {
         return refundRepository.findById(refundId)
             .orElseThrow(() -> new RuntimeException("Refund not found with id: " + refundId));
     }
-    
+
     /**
      * Convert Refund entity to DTO
      */
@@ -555,28 +567,28 @@ public class RefundService {
      * @return Refund object đã tạo
      */
     @Transactional
-    public Refund createRefundRequestByItem(Long orderItemId, Long userId, String reason, 
-                                           String description, Integer quantity, 
+    public Refund createRefundRequestByItem(Long orderItemId, Long userId, String reason,
+                                           String description, Integer quantity,
                                            String imageUrlsJson, BigDecimal requestedAmount) {
-        logger.info("Creating refund request for orderItemId: {}, quantity: {}, amount: {}", 
+        logger.info("Creating refund request for orderItemId: {}, quantity: {}, amount: {}",
             orderItemId, quantity, requestedAmount);
-        
+
         // Lấy OrderItem
         OrderItem orderItem = orderItemRepository.findById(orderItemId)
             .orElseThrow(() -> new RuntimeException("OrderItem not found: " + orderItemId));
-        
+
         // Validate user ownership
         Order order = orderItem.getOrder();
         if (!order.getUser().getId().equals(userId)) {
             throw new RuntimeException("Unauthorized: Order does not belong to user");
         }
-        
+
         // Validate quantity
         if (quantity > orderItem.getQuantity()) {
             throw new IllegalArgumentException(
                 "Refund quantity (" + quantity + ") cannot exceed ordered quantity (" + orderItem.getQuantity() + ")");
         }
-        
+
         // Tạo Refund
         Refund refund = new Refund();
         refund.setOrder(order);
@@ -585,23 +597,23 @@ public class RefundService {
         refund.setImageUrl(imageUrlsJson); // JSON array of image URLs
         refund.setStatus(Refund.RefundStatus.REQUESTED);
         refund.setRequiresReturn(false); // Seller sẽ quyết định sau
-        
+
         // Tạo RefundItem
         RefundItem refundItem = new RefundItem();
         refundItem.setRefund(refund);
         refundItem.setOrderItem(orderItem);
         refundItem.setQuantity(quantity);
         refundItem.setRefundAmount(requestedAmount);
-        
+
         refund.addRefundItem(refundItem);
-        
+
         // Lưu description vào reason field (kết hợp)
         String fullReason = reason + "\n" + description;
         refund.setReason(fullReason);
-        
-        logger.info("Refund request created for item #{}, quantity: {}, amount: {}", 
+
+        logger.info("Refund request created for item #{}, quantity: {}, amount: {}",
             orderItemId, quantity, requestedAmount);
-        
+
         return refundRepository.save(refund);
     }
 }

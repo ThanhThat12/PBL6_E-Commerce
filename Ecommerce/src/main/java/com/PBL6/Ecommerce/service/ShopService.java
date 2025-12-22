@@ -215,6 +215,7 @@ public class ShopService {
         return ShopDTO.builder()
             // Basic info
             .id(shop.getId())
+                .ownerId(shop.getOwner().getId())
             .name(shop.getName())
             .description(shop.getDescription())
             .status(shop.getStatus() != null ? shop.getStatus().name() : null)

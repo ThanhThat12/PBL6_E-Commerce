@@ -345,5 +345,18 @@ public class ProductController {
         }
     }
 
+    // 🔧 Recalculate and persist product rating (manual trigger)
+    @PostMapping("/{id}/rating/recalculate")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<ProductDTO>> recalculateRating(@PathVariable Long id) {
+        try {
+            productService.updateProductRating(id);
+            ProductDTO product = productService.getProductById(id);
+            return ResponseDTO.success(product, "Cập nhật lại rating thành công");
+        } catch (Exception e) {
+            return ResponseDTO.badRequest("Lỗi khi cập nhật rating: " + e.getMessage());
+        }
+    }
+
     
 }
