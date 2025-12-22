@@ -1030,6 +1030,8 @@ public class OrderService {
         dto.setStatus(order.getStatus() != null ? order.getStatus().name() : null);
         dto.setTotalAmount(order.getTotalAmount());
         dto.setUserId(order.getUser() != null ? order.getUser().getId() : null);
+        dto.setShopId(order.getShop() != null ? order.getShop().getId() : null);
+        dto.setShopName(order.getShop() != null ? order.getShop().getName() : null);
         
         // Thêm items để frontend có thể filter theo item status
         if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
