@@ -1,28 +1,29 @@
 package com.PBL6.Ecommerce.service;
 
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-
+import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
+import com.PBL6.Ecommerce.domain.entity.order.Refund;
+import com.PBL6.Ecommerce.domain.entity.order.RefundItem;
+import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.domain.entity.payment.Wallet;
+import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
+import com.PBL6.Ecommerce.repository.RefundRepository;
+import com.PBL6.Ecommerce.repository.RefundItemRepository;
+import com.PBL6.Ecommerce.repository.AddressRepository;
+import com.PBL6.Ecommerce.domain.entity.user.Address;
+import com.PBL6.Ecommerce.constant.TypeAddress;
+import com.PBL6.Ecommerce.repository.OrderItemRepository;
+import com.PBL6.Ecommerce.repository.WalletRepository;
+import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.PBL6.Ecommerce.constant.TypeAddress;
 import com.PBL6.Ecommerce.domain.dto.order.RefundDTO;
-import com.PBL6.Ecommerce.domain.entity.order.Order;
-import com.PBL6.Ecommerce.domain.entity.order.OrderItem;
-import com.PBL6.Ecommerce.domain.entity.order.Refund;
-import com.PBL6.Ecommerce.domain.entity.order.RefundItem;
-import com.PBL6.Ecommerce.domain.entity.payment.PaymentTransaction;
-import com.PBL6.Ecommerce.repository.AddressRepository;
-import com.PBL6.Ecommerce.repository.OrderItemRepository;
-import com.PBL6.Ecommerce.repository.PaymentTransactionRepository;
-import com.PBL6.Ecommerce.repository.RefundItemRepository;
-import com.PBL6.Ecommerce.repository.RefundRepository;
-import com.PBL6.Ecommerce.repository.WalletRepository;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class RefundService {
@@ -69,36 +70,6 @@ public class RefundService {
     public Refund createRefundRequest(Order order, BigDecimal amount, String reason, String imageUrl) {
         logger.info("Creating refund request for order: {}", order.getId());
         
-        // ✅ Validate: Order must be COMPLETED
-        if (order.getStatus() != Order.OrderStatus.COMPLETED) {
-            throw new IllegalStateException("Chỉ có thể yêu cầu hoàn tiền cho đơn hàng đã hoàn thành");
-        }
-        
-        // ✅ Validate: Must be within 15 days of completion
-        // Use completedAt, fallback to updatedAt, then createdAt
-        java.util.Date referenceDate = order.getUpdatedAt();
-        if (referenceDate == null) {
-            referenceDate = order.getUpdatedAt();
-        }
-        if (referenceDate == null) {
-            referenceDate = order.getCreatedAt();
-        }
-        
-        if (referenceDate == null) {
-            throw new IllegalStateException("Không thể xác định ngày hoàn thành đơn hàng");
-        }
-        
-        long daysSinceCompletion = java.time.Duration.between(
-            referenceDate.toInstant(),
-            new java.util.Date().toInstant()
-        ).toDays();
-        
-        if (daysSinceCompletion > 15) {
-            throw new IllegalStateException(
-                String.format("Đã quá thời hạn yêu cầu hoàn tiền (15 ngày). Đơn hàng đã hoàn thành %d ngày trước", daysSinceCompletion)
-            );
-        }
-        
         Refund refund = new Refund();
         refund.setOrder(order);
         refund.setAmount(amount);
@@ -123,36 +94,6 @@ public class RefundService {
     public Refund createRefundRequestWithItems(Order order, Map<Long, Integer> refundItemsData, 
                                                 String reason, String imageUrl) {
         logger.info("Creating refund request with specific items for order: {}", order.getId());
-        
-        // ✅ Validate: Order must be COMPLETED
-        if (order.getStatus() != Order.OrderStatus.COMPLETED) {
-            throw new IllegalStateException("Chỉ có thể yêu cầu hoàn tiền cho đơn hàng đã hoàn thành");
-        }
-        
-        // ✅ Validate: Must be within 15 days of completion
-        // Use completedAt, fallback to updatedAt, then createdAt
-        java.util.Date referenceDate = order.getUpdatedAt();
-        if (referenceDate == null) {
-            referenceDate = order.getUpdatedAt();
-        }
-        if (referenceDate == null) {
-            referenceDate = order.getCreatedAt();
-        }
-        
-        if (referenceDate == null) {
-            throw new IllegalStateException("Không thể xác định ngày hoàn thành đơn hàng");
-        }
-        
-        long daysSinceCompletion = java.time.Duration.between(
-            referenceDate.toInstant(),
-            new java.util.Date().toInstant()
-        ).toDays();
-        
-        if (daysSinceCompletion > 15) {
-            throw new IllegalStateException(
-                String.format("Đã quá thời hạn yêu cầu hoàn tiền (15 ngày). Đơn hàng đã hoàn thành %d ngày trước", daysSinceCompletion)
-            );
-        }
         
         // Tính tổng số tiền refund
         BigDecimal totalRefundAmount = BigDecimal.ZERO;
@@ -472,6 +413,15 @@ public class RefundService {
     }
     
     /**
+     * Get refund by ID
+     */
+    public Refund getRefundById(Long refundId) {
+        logger.info("Getting refund by id: {}", refundId);
+        return refundRepository.findById(refundId)
+            .orElseThrow(() -> new RuntimeException("Refund not found with id: " + refundId));
+    }
+    
+    /**
      * Convert Refund entity to DTO
      */
     public RefundDTO convertToDTO(Refund refund) {
@@ -591,5 +541,67 @@ public class RefundService {
         }
         
         logger.info("✅ [RESTORE_STOCK] Stock restored successfully for refund #{}", refund.getId());
+    }
+
+    /**
+     * Tạo refund request cho một sản phẩm cụ thể (từ frontend mới)
+     * @param orderItemId ID của order item
+     * @param userId ID của buyer
+     * @param reason Lý do refund
+     * @param description Mô tả chi tiết
+     * @param quantity Số lượng muốn refund
+     * @param imageUrlsJson JSON string chứa mảng URLs ảnh bằng chứng
+     * @param requestedAmount Số tiền yêu cầu hoàn
+     * @return Refund object đã tạo
+     */
+    @Transactional
+    public Refund createRefundRequestByItem(Long orderItemId, Long userId, String reason, 
+                                           String description, Integer quantity, 
+                                           String imageUrlsJson, BigDecimal requestedAmount) {
+        logger.info("Creating refund request for orderItemId: {}, quantity: {}, amount: {}", 
+            orderItemId, quantity, requestedAmount);
+        
+        // Lấy OrderItem
+        OrderItem orderItem = orderItemRepository.findById(orderItemId)
+            .orElseThrow(() -> new RuntimeException("OrderItem not found: " + orderItemId));
+        
+        // Validate user ownership
+        Order order = orderItem.getOrder();
+        if (!order.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Unauthorized: Order does not belong to user");
+        }
+        
+        // Validate quantity
+        if (quantity > orderItem.getQuantity()) {
+            throw new IllegalArgumentException(
+                "Refund quantity (" + quantity + ") cannot exceed ordered quantity (" + orderItem.getQuantity() + ")");
+        }
+        
+        // Tạo Refund
+        Refund refund = new Refund();
+        refund.setOrder(order);
+        refund.setAmount(requestedAmount);
+        refund.setReason(reason);
+        refund.setImageUrl(imageUrlsJson); // JSON array of image URLs
+        refund.setStatus(Refund.RefundStatus.REQUESTED);
+        refund.setRequiresReturn(false); // Seller sẽ quyết định sau
+        
+        // Tạo RefundItem
+        RefundItem refundItem = new RefundItem();
+        refundItem.setRefund(refund);
+        refundItem.setOrderItem(orderItem);
+        refundItem.setQuantity(quantity);
+        refundItem.setRefundAmount(requestedAmount);
+        
+        refund.addRefundItem(refundItem);
+        
+        // Lưu description vào reason field (kết hợp)
+        String fullReason = reason + "\n" + description;
+        refund.setReason(fullReason);
+        
+        logger.info("Refund request created for item #{}, quantity: {}, amount: {}", 
+            orderItemId, quantity, requestedAmount);
+        
+        return refundRepository.save(refund);
     }
 }
