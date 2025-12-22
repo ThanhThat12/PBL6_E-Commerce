@@ -500,23 +500,29 @@ public class UserController {
      * GET /api/seller/top-buyers/limit/{limit}
      * Seller chỉ lấy được top N buyers của shop mình
      */
-    // @GetMapping("/seller/all-buyers")
-    // @PreAuthorize("hasRole('SELLER')")
-    // public ResponseEntity<ResponseDTO<List<TopBuyerDTO>>> getSellerBuyers() {
-    //     try {
-    //         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    //         String username = authentication.getName();
 
-    //         // Lấy tất cả buyers đã mua sản phẩm của shop (không giới hạn)
-    //         List<TopBuyerDTO> buyers = userService.getBuyersByShop(username);
-    //         return ResponseEntity.ok(
-    //             new ResponseDTO<>(200, null, "Lấy danh sách tất cả buyers của shop thành công", buyers)
-    //         );
-    //     } catch (Exception e) {
-    //         return ResponseEntity.badRequest().body(
-    //             new ResponseDTO<>(400, e.getMessage(), "Lấy danh sách buyers thất bại", null)
-    //         );
-    //     }
-    // }
+    /**
+     * API lấy tất cả buyers đã mua sản phẩm của shop (cho SELLER)
+     * GET /api/seller/all-buyers
+     * Trả về danh sách tất cả buyers đã có đơn hàng thành công tại shop
+     */
+    @GetMapping("/seller/all-buyers")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ResponseDTO<List<TopBuyerDTO>>> getSellerAllBuyers() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
+
+            // Lấy tất cả buyers đã mua sản phẩm của shop (không giới hạn)
+            List<TopBuyerDTO> buyers = userService.getBuyersByShop(username);
+            return ResponseEntity.ok(
+                new ResponseDTO<>(200, null, "Lấy danh sách tất cả buyers của shop thành công", buyers)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(
+                new ResponseDTO<>(400, e.getMessage(), "Lấy danh sách buyers thất bại", null)
+            );
+        }
+    }
 }
 

@@ -655,6 +655,24 @@ public class UserService {
         return orderRepository.findTopBuyersByShopWithLimit(shop.getId(), pageable);
     }
 
+    /**
+     * Lấy tất cả buyers đã mua sản phẩm của shop (cho SELLER)
+     * Không giới hạn số lượng - lấy tất cả buyers có đơn hàng COMPLETED
+     */
+    @Transactional(readOnly = true)
+    public List<TopBuyerDTO> getBuyersByShop(String username) {
+        // Tìm user theo username
+        User seller = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy seller"));
+        
+        // Tìm shop của seller
+        Shop shop = shopRepository.findByOwnerId(seller.getId())
+                .orElseThrow(() -> new RuntimeException("Seller chưa có shop"));
+        
+        // Lấy tất cả buyers (không giới hạn) - sử dụng query đã có sẵn
+        return orderRepository.findTopBuyersByShop(shop.getId());
+    }
+
 
 
 
