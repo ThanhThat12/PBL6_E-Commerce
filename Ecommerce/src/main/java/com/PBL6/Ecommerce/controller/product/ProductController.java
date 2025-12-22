@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.PBL6.Ecommerce.domain.dto.ProductCardDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductUpdateDTO;
@@ -202,6 +203,35 @@ public class ProductController {
     public ResponseEntity<ResponseDTO<List<ProductDTO>>> getAllProductsByCategory(@PathVariable Long categoryId) {
         List<ProductDTO> products = productService.getProductsByCategory(categoryId);
         return ResponseDTO.success(products, "Lấy tất cả sản phẩm theo danh mục thành công");
+    }
+    
+    // Lấy sản phẩm theo shop - Công khai (cho khách hàng xem shop)
+    @Operation(
+        summary = "Lấy sản phẩm của shop",
+        description = "API công khai để khách hàng xem các sản phẩm đang hoạt động của một shop cụ thể (chỉ trả về thông tin cơ bản)"
+    )
+    @GetMapping("/shop/{shopId}")
+    public ResponseEntity<ResponseDTO<Page<ProductCardDTO>>> getProductsByShop(
+            @Parameter(description = "ID của shop") @PathVariable Long shopId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        
+        // Validation
+        if (page < 0) {
+            return ResponseDTO.badRequest("Page number không được nhỏ hơn 0");
+        }
+        if (size < 1 || size > 100) {
+            return ResponseDTO.badRequest("Page size phải từ 1 đến 100");
+        }
+        
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+            Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        Page<ProductCardDTO> products = productService.getActiveProductsByShop(shopId, pageable);
+        return ResponseDTO.success(products, "Lấy sản phẩm của shop thành công");
     }
     
 

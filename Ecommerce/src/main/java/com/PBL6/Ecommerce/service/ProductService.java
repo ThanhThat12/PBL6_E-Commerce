@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.PBL6.Ecommerce.domain.dto.AttributeDTO;
 import com.PBL6.Ecommerce.domain.dto.CategoryDTO;
+import com.PBL6.Ecommerce.domain.dto.ProductCardDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductCreateDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductDTO;
 import com.PBL6.Ecommerce.domain.dto.ProductImageDTO;
@@ -388,6 +389,38 @@ private void validateProductOwnership(Product product, Authentication authentica
                 .collect(Collectors.toList());
     }
     
+    // Lấy sản phẩm đang hoạt động theo shop ID (public - cho khách hàng xem)
+    // Chỉ trả về thông tin cơ bản: tên, giá, hình ảnh, rating
+    @Transactional(readOnly = true)
+    public Page<ProductCardDTO> getActiveProductsByShop(Long shopId, Pageable pageable) {
+        // Kiểm tra shop có tồn tại không
+        Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new ShopNotFoundException("Không tìm thấy shop với ID: " + shopId));
+        
+        // Chỉ lấy sản phẩm đang hoạt động (isActive = true)
+        Page<Product> products = productRepository.findByShopIdAndIsActive(shopId, true, pageable);
+        return products.map(this::convertToProductCardDTO);
+    }
+    
+    /**
+     * Convert Product entity sang ProductCardDTO (chỉ thông tin cơ bản)
+     */
+    private ProductCardDTO convertToProductCardDTO(Product product) {
+        ProductCardDTO dto = new ProductCardDTO();
+        dto.setId(product.getId());
+        dto.setName(product.getName());
+        dto.setMainImage(product.getMainImage());
+        dto.setBasePrice(product.getBasePrice());
+        dto.setRating(product.getRating() != null ? product.getRating() : BigDecimal.ZERO);
+        dto.setSoldCount(product.getSoldCount() != null ? product.getSoldCount() : 0);
+        
+        if (product.getShop() != null) {
+            dto.setShopId(product.getShop().getId());
+            dto.setShopName(product.getShop().getName());
+        }
+        
+        return dto;
+    }
 
    
     // Xóa sản phẩm với kiểm tra quyền
