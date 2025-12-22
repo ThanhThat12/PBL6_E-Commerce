@@ -36,7 +36,23 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
     
     /** ADMIN
      * Lấy danh sách vouchers với thông tin cơ bản 
-     * Sắp xếp theo ID tăng dần
+     * Sorting được điều khiển bởi Pageable từ Controller
+     */
+    @Query("SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO(" +
+           "v.id, " +
+           "v.code, " +
+           "CAST(v.discountType AS string), " +
+           "v.discountValue, " +
+           "v.minOrderValue, " +
+           "v.usageLimit, " +
+           "v.usedCount, " +
+           "CAST(v.status AS string)) " +
+           "FROM Vouchers v")
+    Page<com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO> findAllVouchersForAdmin(Pageable pageable);
+    
+    /**
+     * ADMIN - Lấy danh sách vouchers theo status với phân trang
+     * Sorting được điều khiển bởi Pageable từ Controller
      */
     @Query("SELECT new com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO(" +
            "v.id, " +
@@ -48,11 +64,8 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
            "v.usedCount, " +
            "CAST(v.status AS string)) " +
            "FROM Vouchers v " +
-           "ORDER BY v.id ASC")
-    Page<com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO> findAllVouchersForAdmin(Pageable pageable);
-    
-    
-    
+           "WHERE v.status = :status")
+    Page<com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO> findVouchersByStatus(@Param("status") Vouchers.Status status, Pageable pageable);
 
 
     // Tìm voucher theo code
@@ -90,8 +103,22 @@ public interface VouchersRepository extends JpaRepository<Vouchers, Long> {
     Long sumUsedVouchers();
 
     /**
-     * PUBLIC Lấy platform vouchers (shop IS NULL) đang active và trong thời gian hiệu lực
+     * ADMIN - Search vouchers by multiple criteria
+     * Search by: code, discount type, discount value, date (DD/MM/YYYY)
      */
+    @Query(value = "SELECT * FROM vouchers v " +
+           "WHERE (" +
+           "  CAST(v.id AS CHAR) LIKE CONCAT('%', :keyword, '%') " +
+           "  OR v.code LIKE CONCAT('%', :keyword, '%') " +
+           "  OR CAST(v.discount_type AS CHAR) LIKE CONCAT('%', :keyword, '%') " +
+           "  OR CAST(v.discount_value AS CHAR) LIKE CONCAT('%', :keyword, '%') " +
+           "  OR DATE_FORMAT(v.start_date, '%d/%m/%Y') LIKE CONCAT('%', :keyword, '%') " +
+           "  OR DATE_FORMAT(v.end_date, '%d/%m/%Y') LIKE CONCAT('%', :keyword, '%') " +
+           ")",
+           nativeQuery = true)
+    Page<Vouchers> searchVouchers(@Param("keyword") String keyword, Pageable pageable);
+//      * PUBLIC Lấy platform vouchers (shop IS NULL) đang active và trong thời gian hiệu lực
+//      */
     @Query("SELECT v FROM Vouchers v WHERE v.shop IS NULL " +
            "AND v.status = 'ACTIVE' " +
            "AND v.startDate <= :now " +

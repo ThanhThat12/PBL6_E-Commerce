@@ -91,12 +91,10 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     
     // ===== ADMIN WALLET TRANSACTION APIs =====
     
-    // Get all transactions by wallet ID with pagination (no date filter)
+    // Get all transactions with pagination (no wallet filter)
     @Query("SELECT wt FROM WalletTransaction wt " +
-           "WHERE wt.wallet.id = :walletId " +
            "ORDER BY wt.id DESC")
-    org.springframework.data.domain.Page<WalletTransaction> findByWalletId(
-        @Param("walletId") Long walletId,
+    org.springframework.data.domain.Page<WalletTransaction> findAllTransactions(
         org.springframework.data.domain.Pageable pageable
     );
     
@@ -137,19 +135,17 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
         org.springframework.data.domain.Pageable pageable
     );
     
-    // Search transactions by multiple criteria (using native query for better string matching)
+    // Search all transactions by multiple criteria (using native query for better string matching)
     @Query(value = "SELECT * FROM wallet_transactions wt " +
-           "WHERE wt.wallet_id = :walletId " +
-           "AND (" +
+           "WHERE (" +
            "  CAST(wt.id AS CHAR) LIKE CONCAT('%', :keyword, '%') " +
            "  OR LOWER(wt.description) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "  OR CAST(wt.related_order_id AS CHAR) LIKE CONCAT('%', :keyword, '%') " +
-           "  OR DATE_FORMAT(wt.created_at, '%Y-%m-%d') LIKE CONCAT('%', :keyword, '%') " +
+           "  OR DATE_FORMAT(wt.created_at, '%d/%m/%Y') LIKE CONCAT('%', :keyword, '%') " +
            ") " +
            "ORDER BY wt.id DESC",
            nativeQuery = true)
-    org.springframework.data.domain.Page<WalletTransaction> searchTransactions(
-        @Param("walletId") Long walletId,
+    org.springframework.data.domain.Page<WalletTransaction> searchAllTransactions(
         @Param("keyword") String keyword,
         org.springframework.data.domain.Pageable pageable
     );

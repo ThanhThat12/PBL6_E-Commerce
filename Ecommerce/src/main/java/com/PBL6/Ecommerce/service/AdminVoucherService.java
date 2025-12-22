@@ -8,6 +8,8 @@ import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherListDTO;
 import com.PBL6.Ecommerce.domain.dto.admin.AdminVoucherStatsDTO;
 import com.PBL6.Ecommerce.exception.NotFoundException;
 import com.PBL6.Ecommerce.repository.VouchersRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,7 @@ import java.time.LocalDateTime;
 @Service
 public class AdminVoucherService {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminVoucherService.class);
     private final VouchersRepository vouchersRepository;
 
     public AdminVoucherService(VouchersRepository vouchersRepository) {
@@ -37,6 +40,16 @@ public class AdminVoucherService {
     }
 
     /**
+     * Lấy danh sách vouchers theo status với phân trang
+     * @param status - Trạng thái voucher (ACTIVE, UPCOMING, EXPIRED)
+     * @param pageable - Thông tin phân trang
+     * @return Page<AdminVoucherListDTO> - Danh sách vouchers theo status
+     */
+    public Page<AdminVoucherListDTO> getVouchersByStatus(Vouchers.Status status, Pageable pageable) {
+        return vouchersRepository.findVouchersByStatus(status, pageable);
+    }
+
+    /**
      * Lấy thống kê vouchers
      * @return AdminVoucherStatsDTO - Thống kê về vouchers
      */
@@ -47,6 +60,35 @@ public class AdminVoucherService {
         Long usedVouchers = vouchersRepository.sumUsedVouchers();
 
         return new AdminVoucherStatsDTO(totalVouchers, activeVouchers, usedVouchers);
+    }
+
+    /**
+     * Search vouchers by keyword
+     * @param keyword - Search keyword (code, discount type, discount value, date DD/MM/YYYY)
+     * @param pageable - Pagination info
+     * @return Page<AdminVoucherListDTO> - Search results
+     */
+    @Transactional(readOnly = true)
+    public Page<AdminVoucherListDTO> searchVouchers(String keyword, Pageable pageable) {
+        log.info("Searching vouchers with keyword: {}", keyword);
+        Page<Vouchers> vouchers = vouchersRepository.searchVouchers(keyword, pageable);
+        return vouchers.map(this::convertToListDTO);
+    }
+
+    /**
+     * Convert Vouchers entity to AdminVoucherListDTO
+     */
+    private AdminVoucherListDTO convertToListDTO(Vouchers voucher) {
+        return new AdminVoucherListDTO(
+            voucher.getId(),
+            voucher.getCode(),
+            voucher.getDiscountType().name(),
+            voucher.getDiscountValue(),
+            voucher.getMinOrderValue(),
+            voucher.getUsageLimit(),
+            voucher.getUsedCount(),
+            voucher.getStatus().name()
+        );
     }
 
 
@@ -127,8 +169,38 @@ public class AdminVoucherService {
     }
 
     /**
+     * Cập nhật status voucher dựa trên thời gian hiện tại
+     */
+    private void updateVoucherStatus(Vouchers voucher) {
+        LocalDateTime now = LocalDateTime.now();
+        Vouchers.Status currentStatus = voucher.getStatus();
+        Vouchers.Status newStatus = currentStatus;
+       
+        // Chỉ cập nhật nếu status hiện tại không phải EXPIRED (do deactivate)
+        // hoặc cần tự động chuyển sang EXPIRED/ACTIVE theo thời gian
+        if (now.isBefore(voucher.getStartDate())) {
+            newStatus = Vouchers.Status.UPCOMING;
+        } else if (now.isAfter(voucher.getEndDate())) {
+            newStatus = Vouchers.Status.EXPIRED;
+        } else {
+            // Trong khoảng thời gian hiệu lực
+            if (!Vouchers.Status.EXPIRED.equals(currentStatus)) {
+                newStatus = Vouchers.Status.ACTIVE;
+            }
+        }
+       
+        // Chỉ lưu nếu status thay đổi
+        if (!newStatus.equals(currentStatus)) {
+            voucher.setStatus(newStatus);
+            vouchersRepository.save(voucher);
+            log.info("Updated voucher {} status from {} to {}", voucher.getCode(), currentStatus, newStatus);
+        }
+    }
+
+    /**
      * Tạo voucher mới (Admin only)
      * Voucher được tạo bởi admin sẽ là platform voucher (shop_id = null)
+     * Status sẽ được tự động tính toán dựa trên startDate và endDate
      * @param createDTO - DTO chứa thông tin voucher cần tạo
      * @return AdminVoucherDetailDTO - Thông tin voucher vừa tạo
      * @throws IllegalArgumentException - Nếu dữ liệu không hợp lệ
@@ -157,11 +229,6 @@ public class AdminVoucherService {
             }
         }
 
-        // Validate: Status can only be ACTIVE or UPCOMING (not EXPIRED)
-        if (createDTO.getStatus() == Vouchers.Status.EXPIRED) {
-            throw new IllegalArgumentException("Cannot create voucher with EXPIRED status");
-        }
-
         // Create new voucher entity
         Vouchers voucher = new Vouchers();
         voucher.setCode(createDTO.getCode().toUpperCase());
@@ -177,8 +244,10 @@ public class AdminVoucherService {
         voucher.setUsedCount(0);
         voucher.setApplicableType(createDTO.getApplicableType());
         voucher.setTopBuyersCount(null); // Not used for admin-created vouchers
-        voucher.setStatus(createDTO.getStatus());
         voucher.setCreatedAt(LocalDateTime.now());
+        
+        // Auto-calculate and set status based on dates
+        updateVoucherStatus(voucher);
 
         // Save voucher
         Vouchers savedVoucher = vouchersRepository.save(voucher);
@@ -241,8 +310,10 @@ public class AdminVoucherService {
         voucher.setStartDate(updateDTO.getStartDate());
         voucher.setEndDate(updateDTO.getEndDate());
         voucher.setUsageLimit(updateDTO.getUsageLimit());
-        voucher.setStatus(updateDTO.getStatus());
         // Note: applicableType, shop, usedCount, topBuyersCount are NOT updated
+        
+        // Auto-recalculate status based on updated dates
+        updateVoucherStatus(voucher);
 
         // Save voucher
         Vouchers updatedVoucher = vouchersRepository.save(voucher);
