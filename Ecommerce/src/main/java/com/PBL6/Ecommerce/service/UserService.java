@@ -856,8 +856,15 @@ public class UserService {
     public Page<ListCustomerUserDTO> getCustomerUsers(Pageable pageable) {
         log.debug("Getting customer users with pagination - page: {}, size: {}", 
             pageable.getPageNumber(), pageable.getPageSize());
+        
+        // Sort by ID descending (newest first)
+        Pageable sortedPageable = PageRequest.of(
+            pageable.getPageNumber(),
+            pageable.getPageSize(),
+            org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")
+        );
             
-        Page<User> userPage = userRepository.findByRole(Role.BUYER, pageable);
+        Page<User> userPage = userRepository.findByRole(Role.BUYER, sortedPageable);
         
         return userPage.map(user -> {
             // ✅ Lấy thông tin đơn hàng thực tế
