@@ -1,0 +1,186 @@
+@startuml
+!theme plain
+skinparam actorStyle awesome
+skinparam backgroundColor #FFFFFF
+
+title Sơ Đồ Use Case Tổng Quan\nHệ Thống E-Commerce PBL6
+
+' Actors
+actor "Guest\n(Khách vãng lai)" as guest #AED6F1
+actor "Customer\n(Khách hàng)" as customer #A9DFBF
+actor "Seller\n(Người bán)" as seller #F8C471
+actor "Admin\n(Quản trị viên)" as admin #F1948A
+
+' External Systems
+actor "GHN API\n(Vận chuyển)" as ghn #BDC3C7
+actor "MoMo/SportyPay\n(Thanh toán)" as payment #BDC3C7
+actor "Cohere AI\n(Chatbot)" as cohere #BDC3C7
+
+' System Boundary
+rectangle "E-Commerce Platform PBL6" {
+    
+    package "Authentication & User Management" #FFFACD {
+        usecase "Đăng ký tài khoản" as UC_A1
+        usecase "Đăng nhập" as UC_A2
+        usecase "Đăng nhập Social\n(Google/Facebook)" as UC_A3
+        usecase "Quản lý Profile" as UC_A6
+    }
+    
+    package "Product Management" #E6F3FF {
+        usecase "Xem & Tìm kiếm\nsản phẩm" as UC_B1
+        usecase "Xem chi tiết\nsản phẩm" as UC_B3
+        usecase "Tạo sản phẩm" as UC_B8
+        usecase "Quản lý variants\n& tồn kho" as UC_B11
+        usecase "Duyệt sản phẩm" as UC_B14
+    }
+    
+    package "Shopping & Order" #E8F8F5 {
+        usecase "Quản lý giỏ hàng" as UC_C1
+        usecase "Checkout" as UC_D1
+        usecase "Chọn địa chỉ\ngiao hàng" as UC_D2
+        usecase "Chọn phương thức\nthanh toán" as UC_D5
+        usecase "Thanh toán\nđơn hàng" as UC_D6
+        usecase "Áp dụng voucher" as UC_D4
+        usecase "Xem & Quản lý\nđơn hàng" as UC_D7
+    }
+    
+    package "Seller Management" #FFF5E6 {
+        usecase "Đăng ký làm Seller" as UC_J5
+        usecase "Quản lý Shop" as UC_J6
+        usecase "Xử lý đơn hàng\nSeller" as UC_E2
+        usecase "Tạo vận đơn GHN" as UC_E4
+        usecase "Tạo & Quản lý\nvoucher" as UC_G4
+        usecase "Xem thống kê\nShop" as UC_J8
+    }
+    
+    package "Payment & Wallet" #FFE6E6 {
+        usecase "Nạp tiền vào ví" as UC_F2
+        usecase "Rút tiền về\nngân hàng" as UC_F6
+        usecase "Chạy quyết toán" as UC_F9
+        usecase "Quản lý tranh chấp" as UC_F11
+    }
+    
+    package "Review & Communication" #F0E6FF {
+        usecase "Viết đánh giá\nsản phẩm" as UC_H1
+        usecase "Phản hồi đánh giá" as UC_H7
+        usecase "Chat với Seller/\nSupport" as UC_I1
+        usecase "Chatbot AI\nHỗ trợ" as UC_M1
+    }
+    
+    package "Admin Dashboard" #FFE6F0 {
+        usecase "Xem Dashboard\ntổng quan" as UC_L1
+        usecase "Quản lý Users\n& Sellers" as UC_L5
+        usecase "Quản lý Categories" as UC_L7
+        usecase "Xử lý tranh chấp\n& Vi phạm" as UC_L8
+    }
+}
+
+' Guest relationships
+guest --> UC_B1
+guest --> UC_B3
+guest --> UC_A1
+guest --> UC_A2
+
+' Customer relationships (inherits from Guest)
+customer --> UC_C1
+customer --> UC_D1
+customer --> UC_D7
+customer --> UC_H1
+customer --> UC_I1
+customer --> UC_M1
+customer --> UC_F2
+customer --> UC_A6
+customer --> UC_J5
+
+' Seller relationships (inherits from Customer)
+seller --> UC_B8
+seller --> UC_J6
+seller --> UC_E2
+seller --> UC_G4
+seller --> UC_J8
+seller --> UC_H7
+seller --> UC_F6
+
+' Admin relationships
+admin --> UC_L1
+admin --> UC_L5
+admin --> UC_L7
+admin --> UC_L8
+admin --> UC_B14
+admin --> UC_F9
+admin --> UC_F11
+
+' External Systems relationships
+UC_D6 ..> payment : <<uses>>
+UC_F2 ..> payment : <<uses>>
+UC_E4 ..> ghn : <<uses>>
+UC_M1 ..> cohere : <<uses>>
+
+' Include relationships (bắt buộc)
+UC_A2 .> UC_A3 : <<include>>
+UC_D1 .> UC_D2 : <<include>>
+UC_D1 .> UC_D5 : <<include>>
+UC_D6 .> UC_D1 : <<include>>
+UC_B8 .> UC_B11 : <<include>>
+
+' Extend relationships (tùy chọn)
+UC_D4 ..> UC_D1 : <<extend>>
+
+' Generalization (kế thừa)
+customer -up-|> guest
+seller -up-|> customer
+
+' Notes
+note right of UC_D6
+  Payment Methods:
+  • MoMo
+  • SportyPay Wallet
+  • COD (Cash on Delivery)
+end note
+
+note left of UC_I1
+  Real-time Chat:
+  • WebSocket (STOMP)
+  • Text, Image, Emoji
+  • ORDER, SHOP, SUPPORT
+end note
+
+note bottom of UC_M1
+  AI Features:
+  • Intent Classification
+  • Product Search
+  • Order Tracking
+  • Policy Q&A
+end note
+
+note right of UC_F9
+  Settlement Flow:
+  Customer → Admin Wallet
+  → Seller Wallet
+  (Platform fee deducted)
+end note
+
+legend bottom right
+  |= Màu sắc |= Actor |
+  | <#AED6F1> | Guest (Khách vãng lai) |
+  | <#A9DFBF> | Customer (Khách hàng) |
+  | <#F8C471> | Seller (Người bán) |
+  | <#F1948A> | Admin (Quản trị viên) |
+  | <#BDC3C7> | External Systems |
+  
+  |= Relationship |= Ý nghĩa |
+  | → | Association (Sử dụng) |
+  | ..> <<include>> | Bao gồm (bắt buộc) |
+  | ..> <<extend>> | Mở rộng (tùy chọn) |
+  | -\|> | Generalization (Kế thừa) |
+  
+  **Technology Stack:**
+  Backend: Spring Boot + MySQL
+  Frontend: React + React Native
+  Real-time: WebSocket (SockJS + STOMP)
+  AI: Cohere API
+  Payment: MoMo + SportyPay
+  Shipping: GHN API
+endlegend
+
+@enduml
