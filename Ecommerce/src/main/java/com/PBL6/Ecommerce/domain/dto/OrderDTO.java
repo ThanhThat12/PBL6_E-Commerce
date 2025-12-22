@@ -11,6 +11,8 @@ public class OrderDTO {
     private String status;
     private BigDecimal totalAmount;
     private Long userId;
+    private Long shopId;
+    private String shopName;
     private List<OrderItemDTO> items;
 
     // Constructors
@@ -72,6 +74,22 @@ public class OrderDTO {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public Long getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(Long shopId) {
+        this.shopId = shopId;
+    }
+
+    public String getShopName() {
+        return shopName;
+    }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName;
     }
 
     public List<OrderItemDTO> getItems() {
