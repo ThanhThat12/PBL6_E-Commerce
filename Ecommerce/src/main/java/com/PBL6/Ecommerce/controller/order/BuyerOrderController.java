@@ -1,9 +1,13 @@
 package com.PBL6.Ecommerce.controller.order;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.PBL6.Ecommerce.service.NotificationService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -39,10 +43,14 @@ public class BuyerOrderController {
     
     private final OrderService orderService;
     private final UserService userService;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationService notificationService;
 
-    public BuyerOrderController(OrderService orderService, UserService userService) {
+    public BuyerOrderController(OrderService orderService, UserService userService, SimpMessagingTemplate messagingTemplate, NotificationService notificationService) {
         this.orderService = orderService;
         this.userService = userService;
+        this.messagingTemplate = messagingTemplate;
+        this.notificationService = notificationService;
     }
 
     @PostMapping
@@ -149,6 +157,38 @@ public class BuyerOrderController {
         Jwt jwt = (Jwt) authentication.getPrincipal();
         Long userId = userService.extractUserIdFromJwt(jwt);
         orderService.cancelOrderAndRefund(id, userId, reason);
+
+        // Gửi thông báo WebSocket cho seller khi buyer hủy đơn
+        try {
+            com.PBL6.Ecommerce.domain.entity.order.Order order = orderService.getOrderById(id);
+            if (order != null && order.getShop() != null && order.getShop().getOwner() != null) {
+                Long sellerId = order.getShop().getOwner().getId();
+
+                String message = "Đơn hàng #" + order.getId() + " đã bị hủy bởi người mua.";
+                if (reason != null && !reason.trim().isEmpty()) {
+                    message += " Lý do: " + reason;
+                }
+
+                // Persist notification and send via WebSocket + FCM using NotificationService
+                try {
+                    notificationService.sendSellerNotification(sellerId, "ORDER_CANCELLED", message, order.getId());
+                    System.out.println("NotificationService sent seller notification for order " + order.getId() + " to seller " + sellerId);
+                } catch (Exception e) {
+                    // fallback to direct websocket if NotificationService fails
+                    Map<String, Object> notification = new HashMap<>();
+                    notification.put("type", "ORDER_CANCELLED");
+                    notification.put("orderId", order.getId());
+                    notification.put("message", message);
+                    notification.put("shopId", order.getShop().getId());
+                    notification.put("timestamp", System.currentTimeMillis());
+                    String destination = "/topic/sellerws/" + sellerId;
+                    messagingTemplate.convertAndSend(destination, notification);
+                    System.err.println("NotificationService failed, sent raw WS notification to seller=" + sellerId + ": " + e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error sending seller notification after buyer cancel: " + e.getMessage());
+        }
         return ResponseDTO.success(null, "Đã hủy đơn hàng thành công");
     }
 
