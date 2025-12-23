@@ -106,4 +106,24 @@ public class AdminDashboardController {
     ) {
         return ResponseEntity.ok(dashboardService.getRevenueChart(months));
     }
+
+    /**
+     * 6. Recent Activities - Get recent activities in the system
+     * GET /api/admin/dashboard/recent-activities?limit=10
+     * 
+     * Returns list of recent activities with:
+     * - Activity Type (NEW_ORDER, PRODUCT_UPDATED, NEW_CUSTOMER, ORDER_COMPLETED)
+     * - Message
+     * - Timestamp
+     * - Time Ago text
+     * - Icon name
+     * - Related entity ID
+     */
+    @GetMapping("/recent-activities")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<RecentActivityDTO>> getRecentActivities(
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return ResponseEntity.ok(dashboardService.getRecentActivities(limit));
+    }
 }

@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -138,5 +139,22 @@ public class AdminProductController {
     public ResponseEntity<ResponseDTO<AdminProductDetailDTO>> getProductDetail(@PathVariable Long productId) {
         AdminProductDetailDTO productDetail = adminProductService.getProductDetail(productId);
         return ResponseEntity.ok(new ResponseDTO<>(200, null, "Product detail retrieved successfully", productDetail));
+    }
+
+    /**
+     * API cập nhật trạng thái sản phẩm (Admin only)
+     * PUT /api/admin/products/{productId}/status?isActive=true
+     * @param productId - ID sản phẩm cần cập nhật
+     * @param isActive - Trạng thái mới (true = Active, false = Inactive)
+     * @return ResponseDTO<Void> - Thông báo cập nhật thành công
+     * @throws ProductNotFoundException - Nếu sản phẩm không tồn tại
+     */
+    @PutMapping("/{productId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseDTO<Void>> updateProductStatus(
+            @PathVariable Long productId,
+            @RequestParam(value = "isActive") Boolean isActive) {
+        adminProductService.updateProductStatus(productId, isActive);
+        return ResponseEntity.ok(new ResponseDTO<>(200, null, "Product status updated successfully", null));
     }
 }

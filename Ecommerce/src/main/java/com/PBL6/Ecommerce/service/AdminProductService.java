@@ -329,4 +329,35 @@ public class AdminProductService {
 
         return dto;
     }
+
+    /**
+     * Cập nhật trạng thái sản phẩm (Active/Inactive)
+     * Nếu chuyển từ Active → Inactive: kiểm tra xem sản phẩm có trong giỏ hàng không
+     *   - Nếu có: throw BadRequestException
+     *   - Nếu không: cho phép thay đổi
+     * Nếu chuyển từ Inactive → Active: luôn cho phép
+     * @param productId - ID sản phẩm cần cập nhật
+     * @param isActive - Trạng thái mới (true = Active, false = Inactive)
+     * @throws ProductNotFoundException - Nếu sản phẩm không tồn tại
+     * @throws BadRequestException - Nếu sản phẩm đang có trong giỏ hàng
+     */
+    @Transactional
+    public void updateProductStatus(Long productId, Boolean isActive) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException("Product not found with id: " + productId));
+        
+        // Nếu chuyển từ Active sang Inactive, kiểm tra xem có trong giỏ hàng không
+        if (product.getIsActive() && !isActive) {
+            long cartItemCount = cartItemRepository.countByProductVariant_ProductId(productId);
+            if (cartItemCount > 0) {
+                throw new BadRequestException(
+                    "Cannot deactivate this product because it is currently in " + cartItemCount + 
+                    " customer cart(s). Please wait until customers remove it from their carts."
+                );
+            }
+        }
+        
+        product.setIsActive(isActive);
+        productRepository.save(product);
+    }
 }
