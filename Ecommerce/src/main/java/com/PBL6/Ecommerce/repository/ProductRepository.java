@@ -220,5 +220,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            "JOIN oi.order o " +
            "WHERE oi.variant.product.id = p.id AND o.status = 'COMPLETED')")
     void updateAllSoldCounts();
+
+       /**
+        * Narrow update for rating, reviewCount and updatedAt only.
+        * Reduces lock contention compared to full-entity save.
+        */
+       @Modifying
+       @Transactional
+       @Query("UPDATE Product p SET p.rating = :rating, p.reviewCount = :reviewCount, p.updatedAt = :updatedAt WHERE p.id = :productId")
+       int updateRatingAndReviewCount(@Param("productId") Long productId,
+                                                           @Param("rating") BigDecimal rating,
+                                                           @Param("reviewCount") Integer reviewCount,
+                                                           @Param("updatedAt") java.time.LocalDateTime updatedAt);
     
 }
