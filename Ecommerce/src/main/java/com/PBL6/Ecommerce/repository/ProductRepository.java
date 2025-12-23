@@ -137,6 +137,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // Đếm số sản phẩm theo shop
     long countByShopId(Long shopId);
     
+    // Seller Dashboard - Đếm số sản phẩm được tạo trong khoảng thời gian
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.shop.id = :shopId AND p.createdAt BETWEEN :startDate AND :endDate")
+    Long countByShopIdAndCreatedAtBetween(@Param("shopId") Long shopId, 
+                                          @Param("startDate") java.time.LocalDateTime startDate, 
+                                          @Param("endDate") java.time.LocalDateTime endDate);
+    
     // Tìm theo category và trạng thái active
     Page<Product> findByCategoryIdAndIsActiveTrue(Long categoryId, Pageable pageable);
 

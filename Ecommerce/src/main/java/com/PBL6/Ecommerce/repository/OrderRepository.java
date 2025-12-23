@@ -383,4 +383,30 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      */
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.shop = :shop AND o.user = :user AND o.status = 'COMPLETED'")
     BigDecimal sumTotalByShopAndUser(@Param("shop") Shop shop, @Param("user") User user);
+    
+    /**
+     * Seller Dashboard - Tính doanh thu theo shop và khoảng thời gian (chỉ đơn COMPLETED)
+     */
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +
+           "WHERE o.shop.id = :shopId AND o.status = 'COMPLETED' " +
+           "AND o.createdAt BETWEEN :startDate AND :endDate")
+    BigDecimal calculateRevenueByShopAndDateRange(@Param("shopId") Long shopId, 
+                                                   @Param("startDate") LocalDateTime startDate, 
+                                                   @Param("endDate") LocalDateTime endDate);
+    
+    /**
+     * Seller Dashboard - Đếm số đơn hàng theo shop, status và khoảng thời gian
+     */
+    Long countByShopIdAndStatusAndCreatedAtBetween(Long shopId, Order.OrderStatus status, 
+                                                     LocalDateTime startDate, LocalDateTime endDate);
+    
+    /**
+     * Seller Dashboard - Đếm số khách hàng unique theo shop và khoảng thời gian
+     */
+    @Query("SELECT COUNT(DISTINCT o.user) FROM Order o " +
+           "WHERE o.shop = :shop AND o.status = 'COMPLETED' " +
+           "AND o.createdAt BETWEEN :startDate AND :endDate")
+    Long countDistinctCustomersByShopAndDateRange(@Param("shop") Shop shop, 
+                                                   @Param("startDate") LocalDateTime startDate, 
+                                                   @Param("endDate") LocalDateTime endDate);
 }
