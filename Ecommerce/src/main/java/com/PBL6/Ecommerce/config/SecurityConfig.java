@@ -77,7 +77,8 @@ public CorsConfigurationSource corsConfigurationSource() {
         "https://172.29.*.*:*",
         "https://172.30.*.*:*",
         "https://172.31.*.*:*",
-        "https://sporty-zone.vercel.app"
+        "https://sporty-zone.vercel.app",
+        "https://*.vercel.app"
     ));
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("*"));

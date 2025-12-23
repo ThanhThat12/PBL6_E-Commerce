@@ -47,7 +47,12 @@ public class ForgotPasswordService {
         String otp = String.valueOf(new Random().nextInt(900000) + 100000);
         otpStorage.put(dto.getContact(), otp);
 
-        emailService.sendOtp(dto.getContact(), otp);
+        try {
+            emailService.sendOtp(dto.getContact(), otp);
+        } catch (Exception e) {
+            log.error("Failed to send OTP email to: {}. Error: {}", dto.getContact(), e.getMessage(), e);
+            throw new RuntimeException("Không thể gửi email OTP. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.", e);
+        }
     }
 
     // Xác minh OTP

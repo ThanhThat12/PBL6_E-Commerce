@@ -253,12 +253,19 @@ public class UserService {
         verificationRepository.save(verification);
 
         // 3. Gửi OTP
-        if (contact.contains("@")) {
-            emailService.sendOtp(contact, otp);
-            log.info("OTP sent to email: {}", contact);
-        } else {
-            smsService.sendOtp(contact, otp);
-            log.info("OTP sent to phone: {}", contact);
+        try {
+            if (contact.contains("@")) {
+                emailService.sendOtp(contact, otp);
+                log.info("OTP sent to email: {}", contact);
+            } else {
+                smsService.sendOtp(contact, otp);
+                log.info("OTP sent to phone: {}", contact);
+            }
+        } catch (Exception e) {
+            log.error("Failed to send OTP to: {}. Error: {}", contact, e.getMessage(), e);
+            // OTP đã được lưu vào database, nhưng gửi email thất bại
+            // Vẫn trả về success message nhưng log error để admin biết
+            throw new RuntimeException("OTP đã được tạo nhưng không thể gửi. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.", e);
         }
 
         return "OTP đã được gửi tới " + contact;

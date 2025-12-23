@@ -55,7 +55,8 @@ public class WebConfig {
                             "https://172.29.*.*:*",
                             "https://172.30.*.*:*",
                             "https://172.31.*.*:*",
-                            "https://sporty-zone.vercel.app"
+                            "https://sporty-zone.vercel.app",
+                            "https://*.vercel.app"
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                         .allowedHeaders("*")
