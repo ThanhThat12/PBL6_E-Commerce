@@ -334,9 +334,20 @@ public class OrderService {
         // Set shipping fee
         order.setShippingFee(shippingFee);
 
-        Order saved = orderRepository.save(order);
-        for (OrderItem oi : items) oi.setOrder(saved);
-        orderItemRepository.saveAll(items);
+            Order saved = orderRepository.save(order);
+            for (OrderItem oi : items) oi.setOrder(saved);
+            orderItemRepository.saveAll(items);
+
+            // ❌ REMOVED: Duplicate notification - CheckoutController already sends notification
+            // Gửi thông báo cho seller khi có đơn hàng mới
+            // try {
+            //     Long sellerId = shop.getOwner().getId();
+            //     String sellerMessage = "Bạn có đơn hàng mới: #" + saved.getId();
+            //     notificationService.sendSellerNotification(sellerId, "NEW_ORDER", sellerMessage, saved.getId());
+            //     logger.info("✅ Sent NEW_ORDER notification to seller #{} for order #{}", sellerId, saved.getId());
+            // } catch (Exception e) {
+            //     logger.error("❌ Failed to send NEW_ORDER notification to seller: {}", e.getMessage(), e);
+            // }
 
         // prepare GHN payload for creating shipment (async best-effort)
         Map<String, Object> ghnPayload = new HashMap<>();
