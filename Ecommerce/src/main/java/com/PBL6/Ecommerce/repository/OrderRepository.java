@@ -365,4 +365,22 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
            ")",
            nativeQuery = true)
     Page<Order> searchOrders(@Param("keyword") String keyword, Pageable pageable);
+    
+    /**
+     * Lấy danh sách khách hàng duy nhất (distinct) đã từng mua hàng của shop
+     */
+    @Query("SELECT DISTINCT o.user FROM Order o WHERE o.shop = :shop AND o.status = 'COMPLETED'")
+    List<User> findDistinctCustomersByShop(@Param("shop") Shop shop);
+    
+    /**
+     * Đếm số đơn hàng COMPLETED của một khách hàng cụ thể tại shop
+     */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.shop = :shop AND o.user = :user AND o.status = 'COMPLETED'")
+    Long countByShopAndUser(@Param("shop") Shop shop, @Param("user") User user);
+    
+    /**
+     * Tính tổng số tiền đã chi của một khách hàng tại shop (chỉ đơn COMPLETED)
+     */
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.shop = :shop AND o.user = :user AND o.status = 'COMPLETED'")
+    BigDecimal sumTotalByShopAndUser(@Param("shop") Shop shop, @Param("user") User user);
 }

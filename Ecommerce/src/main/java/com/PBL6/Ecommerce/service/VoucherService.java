@@ -3,7 +3,9 @@ package com.PBL6.Ecommerce.service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -508,5 +510,42 @@ public class VoucherService {
         }
         
         return discountAmount;
+    }
+
+    /**
+     * Lấy danh sách khách hàng đã từng mua hàng của shop (để chọn khi tạo voucher SPECIFIC_USERS)
+     */
+    public List<Map<String, Object>> getShopCustomers(Authentication authentication) {
+        String username = authentication.getName();
+        User seller = userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy người bán"));
+
+        Shop shop = shopRepository.findByOwner(seller)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy shop của người bán"));
+
+        // Lấy tất cả khách hàng đã từng order từ shop này
+        List<User> customers = orderRepository.findDistinctCustomersByShop(shop);
+
+        // Chuyển đổi sang Map để trả về
+        return customers.stream()
+            .map(customer -> {
+                Map<String, Object> customerInfo = new HashMap<>();
+                customerInfo.put("id", customer.getId());
+                customerInfo.put("username", customer.getUsername());
+                customerInfo.put("email", customer.getEmail());
+                customerInfo.put("fullName", customer.getFullName());
+                customerInfo.put("phone", customer.getPhoneNumber());
+                
+                // Đếm số đơn hàng đã mua
+                Long orderCount = orderRepository.countByShopAndUser(shop, customer);
+                customerInfo.put("orderCount", orderCount);
+                
+                // Tính tổng số tiền đã mua
+                BigDecimal totalSpent = orderRepository.sumTotalByShopAndUser(shop, customer);
+                customerInfo.put("totalSpent", totalSpent != null ? totalSpent : BigDecimal.ZERO);
+                
+                return customerInfo;
+            })
+            .collect(Collectors.toList());
     }
 }
