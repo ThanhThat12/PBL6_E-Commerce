@@ -28,6 +28,7 @@ import com.PBL6.Ecommerce.domain.entity.product.ReviewLike;
 import com.PBL6.Ecommerce.domain.entity.product.ReviewReport;
 import com.PBL6.Ecommerce.domain.entity.shop.Shop;
 import com.PBL6.Ecommerce.domain.entity.user.User;
+import com.PBL6.Ecommerce.event.ReviewChangedEvent;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,6 +37,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 
 @Service
 @Transactional
@@ -69,6 +71,9 @@ public class ProductReviewService {
 
     @Autowired
     private ProductService productService;
+    
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     /**
      * 1. Tạo đánh giá sản phẩm (POST /api/reviews)
@@ -160,12 +165,9 @@ public class ProductReviewService {
             
             review = productReviewRepository.save(review);
             
-            // Update product rating after editing review (non-fatal)
-            try {
-                productService.updateProductRating(review.getProduct().getId());
-            } catch (Exception ex) {
-                log.warn("Non-fatal: failed to update product rating after review edit. productId={}, err={}", review.getProduct().getId(), ex.getMessage());
-            }
+            // Publish event for async rating update (happens after commit)
+            eventPublisher.publishEvent(new ReviewChangedEvent(this, review.getProduct().getId(), "UPDATE"));
+            log.info("Published async rating update event for product {} after review update", review.getProduct().getId());
             
             log.info("Updated review {} by user {} (edit count: {})", reviewId, user.getUsername(), review.getEditCount());
             
@@ -240,12 +242,9 @@ public class ProductReviewService {
             // 3. Delete review (Admin only)
             productReviewRepository.delete(review);
             
-            // Update product rating after deleting review (non-fatal)
-            try {
-                productService.updateProductRating(productId);
-            } catch (Exception ex) {
-                log.warn("Non-fatal: failed to update product rating after review delete. productId={}, err={}", productId, ex.getMessage());
-            }
+            // Publish event for async rating update (happens after commit)
+            eventPublisher.publishEvent(new ReviewChangedEvent(this, productId, "DELETE"));
+            log.info("Published async rating update event for product {} after review delete", productId);
             
             log.info("Admin {} deleted review {}", user.getUsername(), reviewId);
             
@@ -624,12 +623,9 @@ public class ProductReviewService {
 
                 review = productReviewRepository.save(review);
 
-                // Update product rating after creating review (non-fatal)
-                try {
-                    productService.updateProductRating(productId);
-                } catch (Exception ex) {
-                    log.warn("Non-fatal: failed to update product rating after review create. productId={}, err={}", productId, ex.getMessage());
-                }
+                // Publish event for async rating update (happens after commit)
+                eventPublisher.publishEvent(new ReviewChangedEvent(this, productId, "CREATE"));
+                log.info("Published async rating update event for product {} after review create", productId);
 
                 log.info("Created review {} for product {} by user {}", review.getId(), productId, user.getUsername());
 
