@@ -17,6 +17,7 @@ import com.PBL6.Ecommerce.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,6 +45,9 @@ public class MoMoPaymentController {
     private final PaymentTransactionService paymentTransactionService;
     private final OrderRepository orderRepository;
     private final UserService userService;
+
+    @Value("${frontend.base-url}")
+    private String frontendBaseUrl;
 
     public MoMoPaymentController(MoMoService moMoService,
                             PaymentTransactionService paymentTransactionService,
@@ -278,15 +282,14 @@ public class MoMoPaymentController {
             
             // Determine redirect URL based on result
             String redirectUrl;
-            
             if (resultCode != null && resultCode == 0) {
                 // Payment successful - redirect to success page
-                redirectUrl = "https://localhost:3000/payment/success?orderId=" + orderId + 
+                redirectUrl = frontendBaseUrl + "/payment/success?orderId=" + orderId + 
                              "&transId=" + transId + "&message=Payment successful";
                 logger.info("Payment successful, redirecting to success page");
             } else {
                 // Payment failed - redirect to failure page
-                redirectUrl = "https://localhost:3000/payment/failed?orderId=" + orderId + 
+                redirectUrl = frontendBaseUrl + "/payment/failed?orderId=" + orderId + 
                              "&resultCode=" + resultCode +
                              "&message=" + (message != null ? message : "Payment failed");
                 logger.warn("Payment failed with result code: {}, redirecting to failure page", resultCode);
