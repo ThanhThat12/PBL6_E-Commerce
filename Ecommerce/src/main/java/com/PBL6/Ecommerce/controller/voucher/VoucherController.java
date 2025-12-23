@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -165,6 +166,21 @@ public ResponseEntity<ResponseDTO<VoucherApplicationResultDTO>> applyVoucher(
         return ResponseDTO.success(result, "Áp dụng voucher thành công");
     } catch (Exception e) {
         return ResponseDTO.error(400, "APPLY_VOUCHER_ERROR", e.getMessage());
+    }
+}
+
+/**
+ * Lấy danh sách khách hàng đã từng mua hàng của shop (để chọn khi tạo voucher SPECIFIC_USERS)
+ * GET /api/seller/vouchers/customers
+ */
+@GetMapping("/customers")
+@PreAuthorize("hasRole('SELLER')")
+public ResponseEntity<ResponseDTO<List<Map<String, Object>>>> getShopCustomers(Authentication authentication) {
+    try {
+        List<Map<String, Object>> customers = voucherService.getShopCustomers(authentication);
+        return ResponseDTO.success(customers, "Lấy danh sách khách hàng thành công");
+    } catch (Exception e) {
+        return ResponseDTO.error(400, "GET_CUSTOMERS_ERROR", e.getMessage());
     }
 }
 }

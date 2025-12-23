@@ -118,6 +118,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findProductsByNameOrShopName(@Param("query") String query, Pageable pageable);
     
     /**
+     * Search products by name or description (for grouped search)
+     * Returns all matching products without pagination
+     */
+    @Query("SELECT p FROM Product p WHERE " +
+           "p.isActive = true AND (" +
+           "LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%'))" +
+           ") ORDER BY p.soldCount DESC, p.rating DESC")
+    List<Product> searchByNameOrDescription(@Param("query") String query);
+    
+    /**
      * Count products by shop name matching query
      */
     @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.shop.id = :shopId")
