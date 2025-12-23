@@ -160,8 +160,12 @@ public class ProductReviewService {
             
             review = productReviewRepository.save(review);
             
-            // Update product rating after editing review
-            productService.updateProductRating(review.getProduct().getId());
+            // Update product rating after editing review (non-fatal)
+            try {
+                productService.updateProductRating(review.getProduct().getId());
+            } catch (Exception ex) {
+                log.warn("Non-fatal: failed to update product rating after review edit. productId={}, err={}", review.getProduct().getId(), ex.getMessage());
+            }
             
             log.info("Updated review {} by user {} (edit count: {})", reviewId, user.getUsername(), review.getEditCount());
             
@@ -236,8 +240,12 @@ public class ProductReviewService {
             // 3. Delete review (Admin only)
             productReviewRepository.delete(review);
             
-            // Update product rating after deleting review
-            productService.updateProductRating(productId);
+            // Update product rating after deleting review (non-fatal)
+            try {
+                productService.updateProductRating(productId);
+            } catch (Exception ex) {
+                log.warn("Non-fatal: failed to update product rating after review delete. productId={}, err={}", productId, ex.getMessage());
+            }
             
             log.info("Admin {} deleted review {}", user.getUsername(), reviewId);
             
@@ -616,8 +624,12 @@ public class ProductReviewService {
 
                 review = productReviewRepository.save(review);
 
-                // Update product rating after creating review
-                productService.updateProductRating(productId);
+                // Update product rating after creating review (non-fatal)
+                try {
+                    productService.updateProductRating(productId);
+                } catch (Exception ex) {
+                    log.warn("Non-fatal: failed to update product rating after review create. productId={}, err={}", productId, ex.getMessage());
+                }
 
                 log.info("Created review {} for product {} by user {}", review.getId(), productId, user.getUsername());
 

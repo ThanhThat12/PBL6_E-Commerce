@@ -1081,33 +1081,54 @@ private void handleVariantValues(ProductVariant variant, List<ProductVariantValu
      */
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void updateProductRating(Long productId) {
-        try {
-            Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ProductNotFoundException("Product not found: " + productId));
-            
-            // Get actual average rating from reviews
-            Double averageRating = productReviewRepository.getAverageRatingByProductId(productId);
-            long reviewCount = productReviewRepository.countByProductId(productId);
-            
-            // Update product with real data
-            if (averageRating != null && averageRating > 0) {
-                product.setRating(BigDecimal.valueOf(averageRating).setScale(2, java.math.RoundingMode.HALF_UP));
-            } else {
-                product.setRating(BigDecimal.ZERO);
+        // Retry on transient lock issues to avoid failing the caller
+        int maxAttempts = 4;
+        long backoffMs = 150;
+        int attempt = 0;
+        while (true) {
+            attempt++;
+            try {
+                // Ensure product exists (fast path, avoids loading full entity later)
+                Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new ProductNotFoundException("Product not found: " + productId));
+
+                Double averageRating = productReviewRepository.getAverageRatingByProductId(productId);
+                long reviewCount = productReviewRepository.countByProductId(productId);
+
+                BigDecimal rating = (averageRating != null && averageRating > 0)
+                        ? BigDecimal.valueOf(averageRating).setScale(2, java.math.RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+
+                java.time.LocalDateTime now = java.time.LocalDateTime.now();
+
+                // Narrow update to minimize row locks
+                int updated = productRepository.updateRatingAndReviewCount(productId, rating, (int) reviewCount, now);
+                if (updated == 1) {
+                    log.info("Updated product #{} rating to {} ({} reviews)", productId, rating, reviewCount);
+                } else {
+                    log.warn("No rows updated for product #{} when setting rating.", productId);
+                }
+                return;
+            } catch (org.springframework.dao.CannotAcquireLockException |
+                     org.springframework.dao.DeadlockLoserDataAccessException |
+                     jakarta.persistence.LockTimeoutException |
+                     org.hibernate.exception.LockAcquisitionException e) {
+                if (attempt >= maxAttempts) {
+                    log.warn("Giving up rating update for product {} after {} attempts due to locking: {}", productId, attempt, e.getMessage());
+                    // Swallow to avoid breaking the caller path; scheduler can reconcile later
+                    return;
+                }
+                try {
+                    Thread.sleep(backoffMs * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            } catch (Exception e) {
+                // Non-transient error; log and do not propagate to keep review flow resilient
+                log.error("Failed to update product rating for product {}: {}", productId, e.getMessage());
+                return;
             }
-            
-            product.setReviewCount((int) reviewCount);
-            product.setUpdatedAt(java.time.LocalDateTime.now());
-            
-            productRepository.save(product);
-            productRepository.flush();
-            
-            log.info("Updated product #{} rating to {} (from {} reviews)", 
-                productId, product.getRating(), reviewCount);
-            
-        } catch (Exception e) {
-            log.error("Failed to update product rating for product {}", productId, e);
-            throw new RuntimeException("Failed to update product rating: " + e.getMessage(), e);
         }
     }
 
