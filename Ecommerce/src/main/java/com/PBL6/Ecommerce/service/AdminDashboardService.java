@@ -1,11 +1,13 @@
 package com.PBL6.Ecommerce.service;
 
 import com.PBL6.Ecommerce.domain.entity.order.Order;
+import com.PBL6.Ecommerce.domain.entity.product.Product;
 import com.PBL6.Ecommerce.domain.entity.user.Role;
 import com.PBL6.Ecommerce.domain.entity.user.User;
 import com.PBL6.Ecommerce.domain.dto.admin.*;
 import com.PBL6.Ecommerce.repository.CategoryRepository;
 import com.PBL6.Ecommerce.repository.OrderRepository;
+import com.PBL6.Ecommerce.repository.ProductRepository;
 import com.PBL6.Ecommerce.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -15,12 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,7 @@ public class AdminDashboardService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
 
     /**
      * 1. Sales Overview - Get overall dashboard statistics
@@ -220,5 +226,118 @@ public class AdminDashboardService {
             current = 0L;
         }
         return ((current - previous) / (double) previous) * 100;
+    }
+
+    /**
+     * 6. Recent Activities - Get recent activities in the system
+     * Shows latest: new orders, product updates, new customers, completed orders
+     * Returns exactly 4 activities - one of each type (latest for each type)
+     */
+    @Transactional(readOnly = true)
+    public List<RecentActivityDTO> getRecentActivities(int limit) {
+        List<RecentActivityDTO> activities = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        
+        // 1. Get the most recent new order (PENDING status)
+        List<Order> allOrders = orderRepository.findAll(PageRequest.of(0, 50)).getContent();
+        
+        allOrders.stream()
+            .filter(o -> o.getStatus() == Order.OrderStatus.PENDING)
+            .max(Comparator.comparing(order -> 
+                order.getCreatedAt() != null ? order.getCreatedAt() : new java.util.Date(0)))
+            .ifPresent(order -> {
+                LocalDateTime orderTime = order.getCreatedAt() != null 
+                    ? order.getCreatedAt().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime() 
+                    : null;
+                activities.add(RecentActivityDTO.builder()
+                    .type(RecentActivityDTO.ActivityType.NEW_ORDER)
+                    .message("Đơn hàng mới từ khách hàng")
+                    .timestamp(orderTime)
+                    .timeAgo(getTimeAgo(orderTime, now))
+                    .icon("shopping-bag")
+                    .relatedId(order.getId())
+                    .build());
+            });
+        
+        // 2. Get the most recent updated product
+        productRepository.findAll(PageRequest.of(0, 1)).getContent().stream()
+            .findFirst()
+            .ifPresent(product -> {
+                LocalDateTime productTime = product.getUpdatedAt() != null 
+                    ? product.getUpdatedAt() 
+                    : product.getCreatedAt();
+                activities.add(RecentActivityDTO.builder()
+                    .type(RecentActivityDTO.ActivityType.PRODUCT_UPDATED)
+                    .message("Sản phẩm được cập nhật kho")
+                    .timestamp(productTime)
+                    .timeAgo(getTimeAgo(productTime, now))
+                    .icon("package")
+                    .relatedId(product.getId())
+                    .build());
+            });
+        
+        // 3. Get the most recent new customer
+        userRepository.findAll(PageRequest.of(0, 100)).getContent().stream()
+            .filter(u -> u.getRole() == Role.BUYER && u.getCreatedAt() != null)
+            .max(Comparator.comparing(User::getCreatedAt))
+            .ifPresent(customer -> {
+                activities.add(RecentActivityDTO.builder()
+                    .type(RecentActivityDTO.ActivityType.NEW_CUSTOMER)
+                    .message("Khách hàng mới đăng ký")
+                    .timestamp(customer.getCreatedAt())
+                    .timeAgo(getTimeAgo(customer.getCreatedAt(), now))
+                    .icon("user-plus")
+                    .relatedId(customer.getId())
+                    .build());
+            });
+        
+        // 4. Get the most recent completed order
+        allOrders.stream()
+            .filter(o -> o.getStatus() == Order.OrderStatus.COMPLETED && o.getUpdatedAt() != null)
+            .max(Comparator.comparing(order -> order.getUpdatedAt()))
+            .ifPresent(order -> {
+                LocalDateTime orderTime = order.getUpdatedAt().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+                activities.add(RecentActivityDTO.builder()
+                    .type(RecentActivityDTO.ActivityType.ORDER_COMPLETED)
+                    .message("Thanh toán được xử lý thành công")
+                    .timestamp(orderTime)
+                    .timeAgo(getTimeAgo(orderTime, now))
+                    .icon("credit-card")
+                    .relatedId(order.getId())
+                    .build());
+            });
+        
+        // Sort by timestamp descending to show most recent first
+        return activities.stream()
+            .sorted(Comparator.comparing(RecentActivityDTO::getTimestamp).reversed())
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * Helper method to calculate time ago text
+     */
+    private String getTimeAgo(LocalDateTime timestamp, LocalDateTime now) {
+        if (timestamp == null) {
+            return "không rõ";
+        }
+        
+        Duration duration = Duration.between(timestamp, now);
+        long seconds = duration.getSeconds();
+        
+        if (seconds < 60) {
+            return "vừa xong";
+        } else if (seconds < 3600) {
+            long minutes = seconds / 60;
+            return minutes + " phút trước";
+        } else if (seconds < 86400) {
+            long hours = seconds / 3600;
+            return hours + " giờ trước";
+        } else if (seconds < 2592000) {
+            long days = seconds / 86400;
+            return days + " ngày trước";
+        } else {
+            long months = seconds / 2592000;
+            return months + " tháng trước";
+        }
     }
 }

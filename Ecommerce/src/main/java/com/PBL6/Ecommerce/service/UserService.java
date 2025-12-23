@@ -834,6 +834,7 @@ public class UserService {
                     
                     return new ListCustomerUserDTO(
                         user.getId(),
+                        user.getFullName(),          // ✅ Thêm fullName
                         user.getUsername(),          // ✅ Đã có username
                         user.getEmail(),
                         user.getPhoneNumber(),       // ✅ Đã có phoneNumber
@@ -874,6 +875,7 @@ public class UserService {
             
             return new ListCustomerUserDTO(
                 user.getId(),
+                user.getFullName(),          // ✅ Thêm fullName
                 user.getUsername(),          // ✅ Đã có username
                 user.getEmail(),
                 user.getPhoneNumber(),       // ✅ Đã có phoneNumber

@@ -78,6 +78,7 @@ public class AdminUserService {
                 user.getUsername(),
                 user.getEmail(),
                 user.getPhoneNumber(),
+                user.getFullName(),
                 user.isActivated(),
                 user.getCreatedAt(),
                 orderRepository.getLastOrderDateByBuyerId(userId),

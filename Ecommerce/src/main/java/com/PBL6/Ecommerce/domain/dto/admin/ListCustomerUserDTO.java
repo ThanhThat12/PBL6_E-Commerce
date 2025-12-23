@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 public class ListCustomerUserDTO {
     private Long id;
+    private String fullName;
     private String username;
     private String email;
     private String phoneNumber;
@@ -13,10 +14,11 @@ public class ListCustomerUserDTO {
     private Integer totalOrders;
     private Double totalSpent;
 
-    public ListCustomerUserDTO(Long id, String username, String email, String phoneNumber,
+    public ListCustomerUserDTO(Long id, String fullName, String username, String email, String phoneNumber,
                           boolean activated, LocalDateTime registeredAt, LocalDateTime lastOrderDate,
                           Integer totalOrders, Double totalSpent) {
         this.id = id;
+        this.fullName = fullName;
         this.username = username;
         this.email = email;
         this.phoneNumber = phoneNumber;
@@ -30,6 +32,9 @@ public class ListCustomerUserDTO {
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
     
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }

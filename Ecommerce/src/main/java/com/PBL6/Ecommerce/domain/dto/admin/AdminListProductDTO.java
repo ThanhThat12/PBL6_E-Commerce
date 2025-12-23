@@ -22,7 +22,7 @@ public class AdminListProductDTO {
         this.categoryName = categoryName;
         this.basePrice = basePrice;
         this.totalStock = totalStock != null ? totalStock : 0L;
-        this.status = (isActive != null && isActive) ? "Active" : "Pending";
+        this.status = (isActive != null && isActive) ? "Active" : "Inactive";
         this.sales = sales != null ? sales : 0L;
         this.rating = rating != null ? rating : 0.0;
     }
